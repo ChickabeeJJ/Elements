@@ -8,22 +8,23 @@ class Island {
   constructor(x, y, w, opts = {}) {
     this.x = x; this.y = y; this.w = w;
     this.baseX = x; this.baseY = y;
-    this.depth = opts.depth || w * 0.75;
+    this.depth = opts.depth || Math.min(320, w * 0.6 + 60);
     this.seed = opts.seed || Math.floor(Math.random() * 1e6);
     this.motion = opts.motion || null;    // {ax, ay, speed, phase}
-    this.enter = opts.enter || 0;         // 0..1 progress of rising in
-    this.leave = 0;
     this.t = 0;
-    this.vx = 0; this.vy = 0;
-    this.big = !!opts.big;
+    this.dx = 0; this.dy = 0;
+    this.prevTop = y;
     this.shape = this.buildShape();
   }
+
+  get top() { return this.y; }
+  get left() { return this.x - this.w / 2; }
+  get right() { return this.x + this.w / 2; }
 
   buildShape() {
     const rng = mulberry32(this.seed);
     const hw = this.w / 2, pts = [];
-    const n = 9;
-    // underside: jagged, tapering to a point
+    const n = Math.max(7, Math.floor(this.w / 50));
     for (let i = 0; i <= n; i++) {
       const u = i / n;
       const x = lerp(hw, -hw, u);
@@ -35,8 +36,9 @@ class Island {
     for (let i = 0; i < Math.floor(this.w / 16); i++) tufts.push([(rng() - 0.5) * this.w * 0.95, 4 + rng() * 7, rng()]);
     const drips = [];
     for (let i = 0; i < Math.floor(this.w / 40); i++) drips.push([(rng() - 0.5) * this.w * 0.85, 10 + rng() * 22]);
+    drips.sort((a, b) => b[0] - a[0]);
     const cracks = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < Math.max(2, Math.floor(this.w / 120)); i++) {
       const sx = (rng() - 0.5) * this.w * 0.6;
       const c = [[sx, 16]];
       for (let k = 1; k < 4; k++) c.push([sx + (rng() - 0.5) * 30, 16 + k * this.depth * 0.14]);
@@ -45,10 +47,9 @@ class Island {
     return { pts, tufts, drips, cracks };
   }
 
-  get top() { return this.y; }
-
   update(dt) {
     this.t += dt;
+    this.prevTop = this.y;
     const px = this.x, py = this.y;
     let x = this.baseX, y = this.baseY;
     if (this.motion) {
@@ -56,63 +57,15 @@ class Island {
       x += Math.sin(this.t * m.speed + m.phase) * m.ax;
       y += Math.sin(this.t * m.speed * 0.8 + m.phase) * m.ay;
     }
-    if (this.enter < 1) { this.enter = Math.min(1, this.enter + dt / 1.1); y += (1 - easeOut(this.enter)) * 760; }
-    if (this.leave > 0) { this.leave += dt; y += this.leave * this.leave * 900; }
-    // idle bob for life
-    y += Math.sin(this.t * 1.3 + this.seed) * 3;
     this.x = x; this.y = y;
-    this.vx = dt > 0 ? (x - px) / dt : 0;
-    this.vy = dt > 0 ? (y - py) / dt : 0;
-  }
-
-  collidePoint(p) {
-    // top slab spans the full width; the core below is narrower
-    const hw = this.w / 2;
-    const slabs = [[this.x - hw, this.y, this.x + hw, this.y + 22], [this.x - hw * 0.7, this.y + 22, this.x + hw * 0.7, this.y + this.depth * 0.55]];
-    for (const [x0, y0, x1, y1] of slabs) {
-      if (p.x <= x0 || p.x >= x1 || p.y <= y0 || p.y >= y1) continue;
-      const dl = p.x - x0, dr = x1 - p.x, dt = p.y - y0, db = y1 - p.y;
-      const m = Math.min(dl, dr, dt, db);
-      if (m === dt) {
-        p.y = y0;
-        // friction on the walkable top
-        p.px = lerp(p.px, p.x, 0.35);
-        if (p.py > p.y) p.py = p.y + (p.py - p.y) * 0.2;
-      } else if (m === dl) p.x = x0;
-      else if (m === dr) p.x = x1;
-      else p.y = y1;
-    }
-  }
-
-  // arrow segment vs island (top slab + core); returns hit param or null
-  hitSegment(ax, ay, bx, by) {
-    const hw = this.w / 2;
-    const boxes = [[this.x - hw, this.y + 2, this.x + hw, this.y + 22], [this.x - hw * 0.72, this.y + 20, this.x + hw * 0.72, this.y + this.depth * 0.6]];
-    let best = null;
-    for (const [x0, y0, x1, y1] of boxes) {
-      // slab test
-      let t0 = 0, t1 = 1;
-      const dx = bx - ax, dy = by - ay;
-      const clip = (p, q) => {
-        if (p === 0) return q >= 0;
-        const r = q / p;
-        if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
-        else { if (r < t0) return false; if (r < t1) t1 = r; }
-        return true;
-      };
-      if (clip(-dx, ax - x0) && clip(dx, x1 - ax) && clip(-dy, ay - y0) && clip(dy, y1 - ay)) {
-        if (best == null || t0 < best) best = t0;
-      }
-    }
-    return best;
+    this.dx = x - px; this.dy = y - py;
   }
 
   draw(ctx, realm, time) {
     const { pts, tufts, drips, cracks } = this.shape;
-    const x = this.x, y = this.y, hw = this.w / 2;
+    const hw = this.w / 2;
     ctx.save();
-    ctx.translate(x, y);
-    // rock body
+    ctx.translate(this.x, this.y);
     const grd = ctx.createLinearGradient(0, 0, 0, this.depth);
     grd.addColorStop(0, realm.rock);
     grd.addColorStop(1, realm.rockDark);
@@ -122,39 +75,27 @@ class Island {
     ctx.lineTo(hw, 6);
     for (const [px, py] of pts) ctx.lineTo(px, py);
     ctx.closePath(); ctx.fill();
-    // facet shading
     ctx.fillStyle = 'rgba(0,0,0,0.16)';
     ctx.beginPath();
     ctx.moveTo(hw * 0.15, 14);
     ctx.lineTo(hw, 8);
     for (let i = 0; i < pts.length / 2; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.closePath(); ctx.fill();
-    // glowing fissures (ember / void)
     if (realm.glowTop) {
       ctx.strokeStyle = realm.topDark; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.6 + Math.sin(time * 2 + this.seed) * 0.25;
-      for (const c of cracks) {
-        ctx.beginPath(); c.forEach(([cx, cy], i) => (i ? ctx.lineTo(cx, cy) : ctx.moveTo(cx, cy))); ctx.stroke();
-      }
+      for (const c of cracks) { ctx.beginPath(); c.forEach(([cx, cy], i) => (i ? ctx.lineTo(cx, cy) : ctx.moveTo(cx, cy))); ctx.stroke(); }
       ctx.globalAlpha = 1;
     }
-    // top layer
     ctx.fillStyle = realm.topDark;
     ctx.beginPath();
     ctx.moveTo(-hw - 4, 0);
     ctx.lineTo(hw + 4, 0);
     ctx.lineTo(hw + 1, 14);
-    for (const [dx, dl] of drips.slice().sort((a, b) => b[0] - a[0])) {
-      ctx.lineTo(dx + 7, 13);
-      ctx.quadraticCurveTo(dx, 13 + dl, dx - 7, 13);
-    }
+    for (const [dx, dl] of drips) { ctx.lineTo(dx + 7, 13); ctx.quadraticCurveTo(dx, 13 + dl, dx - 7, 13); }
     ctx.lineTo(-hw - 1, 14);
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = realm.top;
-    ctx.beginPath();
-    ctx.roundRect(-hw - 5, -3, this.w + 10, 10, 5);
-    ctx.fill();
-    // tufts / crystals
-    ctx.fillStyle = realm.top;
+    ctx.beginPath(); ctx.roundRect(-hw - 5, -3, this.w + 10, 10, 5); ctx.fill();
     for (const [tx, th, r] of tufts) {
       ctx.beginPath();
       ctx.moveTo(tx - 4, -1);
@@ -164,7 +105,7 @@ class Island {
     }
     if (realm.glowTop) {
       ctx.globalCompositeOperation = 'lighter';
-      Glow.draw(ctx, realm.topDark, 0, 4, hw * 1.1, 0.18);
+      Glow.draw(ctx, realm.topDark, 0, 4, hw * 1.1, 0.16);
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();

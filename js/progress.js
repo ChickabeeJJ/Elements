@@ -4,25 +4,25 @@
    ========================================================================= */
 
 const UPGRADES = [
-  { id: 'vitality', name: 'Vitality', desc: '+20 max health', max: 8, base: 40, color: '#ff6b7a', icon: 'heart' },
-  { id: 'stamina', name: 'Endurance', desc: '+15 max stamina', max: 8, base: 35, color: '#62b6ff', icon: 'bolt' },
-  { id: 'regen', name: 'Focus', desc: '+15% stamina regen', max: 8, base: 45, color: '#7de0ff', icon: 'swirl' },
-  { id: 'might', name: 'Might', desc: '+10% arrow damage', max: 8, base: 60, color: '#ffb347', icon: 'sword' },
-  { id: 'ward', name: 'Ward', desc: '-6% damage taken', max: 6, base: 55, color: '#b6a6ff', icon: 'shield' },
-  { id: 'insight', name: 'Insight', desc: 'Longer aim guide', max: 5, base: 30, color: '#9ae66e', icon: 'eye' },
+  { id: 'vitality', name: 'Vitality', desc: '+20 max health', max: 8, base: 40, color: '#ff5d73', icon: 'heart' },
+  { id: 'might', name: 'Might', desc: '+10% damage', max: 8, base: 55, color: '#ffb347', icon: 'sword' },
+  { id: 'ward', name: 'Ward', desc: '-6% damage taken', max: 6, base: 50, color: '#a993ff', icon: 'shield' },
+  { id: 'focus', name: 'Focus', desc: '-6% power cooldowns', max: 6, base: 60, color: '#59d0ff', icon: 'swirl' },
+  { id: 'swift', name: 'Swiftness', desc: '+6% move speed and jump', max: 5, base: 35, color: '#7ee081', icon: 'wing' },
+  { id: 'anchor', name: 'Anchor', desc: '-8% knockback taken', max: 5, base: 45, color: '#e0b98f', icon: 'anchor' },
 ];
 
 const Save = (() => {
-  const KEY = 'save_v1';
+  const KEY = 'save_v2';
   const fresh = () => ({
     essence: 0,
     stars: {},            // "r-s" -> 1..3
     upgrades: Object.fromEntries(UPGRADES.map(u => [u.id, 0])),
     endlessBest: 0,
-    settings: { sfx: true, music: true, shake: true, guide: true },
-    selected: 'wind',
+    settings: { sfx: true, music: true, shake: true, numbers: true },
+    loadout: ['wind'],
     seenHelp: false,
-    stats: { kills: 0, headshots: 0, shots: 0 },
+    stats: { kills: 0, ringouts: 0, bosses: 0 },
   });
   let data = fresh();
 
@@ -53,6 +53,11 @@ const Save = (() => {
     return !e.unlock || cleared(e.unlock[0], e.unlock[1]);
   }
   function unlockedElements() { return ELEMENTS.filter(e => elementOpen(e.id)); }
+  function loadout() {
+    const l = (data.loadout || []).filter(id => ELEMENT_BY_ID[id] && elementOpen(id)).slice(0, 3);
+    return l.length ? l : ['wind'];
+  }
+  function setLoadout(ids) { data.loadout = ids.slice(0, 3); save(); }
   function totalStars() { return Object.values(data.stars).reduce((a, b) => a + b, 0); }
   function nextStage() {
     for (let r = 0; r < REALMS.length; r++) for (let s = 0; s < STAGES_PER_REALM; s++) if (!cleared(r, s)) return [r, s];
@@ -77,12 +82,13 @@ const Save = (() => {
   function playerStats() {
     const u = data.upgrades;
     return {
-      hp: 100 + u.vitality * 20,
-      stamina: 100 + u.stamina * 15,
-      regen: 16 * (1 + u.regen * 0.15),
+      hp: 120 + u.vitality * 20,
       dmgMul: 1 + u.might * 0.1,
       armor: 1 - u.ward * 0.06,
-      guide: 0.32 + u.insight * 0.1,
+      cdMul: 1 - u.focus * 0.06,
+      speedMul: 1 + u.swift * 0.06,
+      jumpMul: 1 + u.swift * 0.03,
+      knockMul: 1 - u.anchor * 0.08,
     };
   }
 
@@ -96,7 +102,7 @@ const Save = (() => {
   }
 
   return {
-    load, save, reset, stageOpen, realmOpen, elementOpen, unlockedElements, totalStars, nextStage,
+    load, save, reset, stageOpen, realmOpen, elementOpen, unlockedElements, loadout, setLoadout, totalStars, nextStage,
     upgradeCost, buy, playerStats, recordClear, cleared,
     get data() { return data; },
   };

@@ -1,6 +1,6 @@
 'use strict';
 /* =========================================================================
-   Boot, main loop and input routing.
+   Boot, main loop and keyboard/mouse input. Touch controls live in ui.js.
    ========================================================================= */
 
 (async function boot() {
@@ -8,64 +8,57 @@
   Platform.loadingStart();
   await Platform.init();
   Save.load();
-  try { await document.fonts.load('900 20px Nunito'); await document.fonts.load('700 20px Cinzel'); } catch (e) { /* fonts are optional */ }
+  try { await Promise.all([document.fonts.load('20px "Lilita One"'), document.fonts.load('900 20px Nunito')]); } catch (e) { /* fonts are optional */ }
   Game.init(canvas);
   UI.init();
   Platform.loadingStop();
 
-  /* ------------------------------------------------------------ input */
-  let activePointer = null;
+  const inFight = () => UI.screen === null && !UI.modalOpen() && Game.state === 'play';
+
+  /* ------------------------------------------------------------ mouse */
+  canvas.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') Game.setMouse(e.clientX, e.clientY); });
   canvas.addEventListener('pointerdown', e => {
     Sfx.ensure();
-    if (e.button === 2) { Game.cancelAim(); return; }
-    if (activePointer != null || UI.screen !== null || UI.modalOpen()) return;
-    if (Game.pointerDown(e.clientX, e.clientY)) {
-      activePointer = e.pointerId;
-      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    }
+    if (e.pointerType !== 'mouse') { document.body.classList.add('touch'); return; }
+    document.body.classList.remove('touch');
+    Game.setMouse(e.clientX, e.clientY);
+    if (!inFight()) return;
+    if (e.button === 0) Game.press('attack');
+    else if (e.button === 2) Game.press('p1');
+    else if (e.button === 1) { e.preventDefault(); Game.press('p2'); }
   });
-  canvas.addEventListener('pointermove', e => { if (e.pointerId === activePointer) Game.pointerMove(e.clientX, e.clientY); });
-  const release = e => {
-    if (e.pointerId !== activePointer) return;
-    activePointer = null;
-    Game.pointerUp();
-  };
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', e => { if (e.pointerId === activePointer) { activePointer = null; Game.cancelAim(); } });
+  window.addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) Game.release('attack'); });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('wheel', e => { if (inFight()) Game.cycleSlot(e.deltaY > 0 ? 1 : -1); }, { passive: true });
 
-  canvas.addEventListener('wheel', e => {
-    if (UI.screen !== null) return;
-    cycleElement(e.deltaY > 0 ? 1 : -1);
-  }, { passive: true });
-
-  function cycleElement(dir) {
-    const open = Save.unlockedElements();
-    const h = Game.hud();
-    if (!h || open.length < 2) return;
-    const i = open.findIndex(e => e.id === h.el);
-    Game.selectElement(open[(i + dir + open.length) % open.length].id);
-    Sfx.click();
-  }
-
+  /* --------------------------------------------------------- keyboard */
+  const MOVE = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right' };
   window.addEventListener('keydown', e => {
-    if (e.repeat && e.code !== 'Space') return;
-    const inGame = UI.screen === null;
     if (e.code === 'Escape' || e.code === 'KeyP') {
-      if (!inGame) return;
-      UI.modalOpen() ? (Game.paused && Game.state === 'play' ? UI.resume() : null) : UI.openPause();
+      if (UI.screen !== null) return;
+      if (UI.modalOpen()) { if (Game.paused && Game.state === 'play') UI.resume(); }
+      else UI.openPause();
       return;
     }
-    if (!inGame || UI.modalOpen()) return;
-    if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') { e.preventDefault(); if (!e.repeat) Game.jump(); return; }
-    if (e.code === 'KeyQ') { cycleElement(-1); return; }
-    if (e.code === 'KeyE') { cycleElement(1); return; }
-    const m = /^(Digit|Numpad)([1-9])$/.exec(e.code);
-    if (m) {
-      const el = ELEMENTS[+m[2] - 1];
-      if (el) { Game.selectElement(el.id) ? Sfx.click() : UI.toast(`${el.name} unlocks at stage ${stageLabel(el.unlock[0], el.unlock[1])}`); }
+    if (!inFight()) return;
+    if (MOVE[e.code]) { Game.setKey(MOVE[e.code], true); e.preventDefault(); return; }
+    if (e.repeat) return;
+    switch (e.code) {
+      case 'KeyW': case 'ArrowUp': case 'Space': e.preventDefault(); Game.press('jump'); break;
+      case 'KeyS': case 'ArrowDown': e.preventDefault(); Game.press('drop'); break;
+      case 'KeyJ': Game.press('attack'); break;
+      case 'KeyQ': case 'KeyK': Game.press('p1'); break;
+      case 'KeyE': case 'KeyL': Game.press('p2'); break;
+      case 'Tab': e.preventDefault(); Game.cycleSlot(1); break;
+      case 'Digit1': case 'Digit2': case 'Digit3': Game.selectSlot(+e.code.slice(5) - 1); break;
+      default: break;
     }
   });
+  window.addEventListener('keyup', e => {
+    if (MOVE[e.code]) Game.setKey(MOVE[e.code], false);
+    if (e.code === 'KeyJ') Game.release('attack');
+  });
+  window.addEventListener('blur', () => { Game.setKey('left', false); Game.setKey('right', false); Game.release('attack'); });
 
   window.addEventListener('resize', () => { Game.resize(); UI.checkRotate(); });
   document.addEventListener('visibilitychange', () => {
