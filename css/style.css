@@ -493,3 +493,12 @@ body.touch .skillbar { display: none; }
   .sk-icon, .sk-cd { width: 34px; height: 34px; }
   .sk-name { font-size: 11px; }
 }
+
+/* ------------------------------------------------ large-screen UI scale */
+:root { --ui: 1; }
+.screen > *, .modal .sheet, #toasts, #hud > :not(.joy) { zoom: var(--ui); }
+.modal .sheet { max-height: calc((100dvh - 20px - var(--safe-t) - var(--safe-b)) / var(--ui)); }
+
+/* touch dock: the active element is highlighted in place instead of lifting out of the bar */
+body.touch .dock-slot.on { transform: none; }
+body.touch .dock-slot.on { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 7px rgba(255, 255, 255, 0.45)); }

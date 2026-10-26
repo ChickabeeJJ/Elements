@@ -60,7 +60,7 @@
   });
   window.addEventListener('blur', () => { Game.setKey('left', false); Game.setKey('right', false); Game.release('attack'); });
 
-  window.addEventListener('resize', () => { Game.resize(); UI.checkRotate(); });
+  window.addEventListener('resize', () => { Game.resize(); UI.checkRotate(); UI.applyUiScale(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (UI.screen === null && Game.state === 'play' && !Game.paused) UI.openPause();

@@ -540,7 +540,6 @@ const UI = (() => {
     else if (!$('tut').classList.contains('hidden')) $('tut').classList.add('hidden');
     const set = (k, v, fn) => { if (hudCache[k] !== v) { hudCache[k] = v; fn(v); } };
     set('el', h.el + h.elIdx, () => refreshAbilities(h));
-    set('ess', h.essence, v => { $('hudEssence').textContent = fmt(v); });
     const orbs = [document.querySelector('.orb-main'), document.querySelector('.orb-p1'), document.querySelector('.orb-p2')];
     h.moves.forEach((m, i) => {
       const p = m.left > 0 ? Math.round(m.left / m.full * 50) / 50 : 0;
@@ -688,6 +687,7 @@ const UI = (() => {
   /* -------------------------------------------------------------- init */
   function init() {
     Icons.hydrate();
+    applyUiScale();
     loadKeyLayout();
     if (matchMedia('(pointer: coarse)').matches || /mobile|tablet/.test(Platform.device())) document.body.classList.add('touch');
     $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); startStage(r, s); };
@@ -728,13 +728,19 @@ const UI = (() => {
     checkRotate();
   }
 
+  // menus and HUD scale up on large screens (1280x760 is the design size)
+  function applyUiScale() {
+    const k = clamp(Math.min(innerWidth / 1280, innerHeight / 760), 1, 1.75);
+    document.documentElement.style.setProperty('--ui', k.toFixed(3));
+  }
+
   function checkRotate() {
     const portrait = window.innerHeight > window.innerWidth * 1.1 && document.body.classList.contains('touch');
     $('rotate').classList.toggle('hidden', !portrait || rotateDismissed);
   }
 
   return {
-    init, tick, show, openPause, resume, toast, checkRotate, modalOpen, closeModal, startStage,
+    init, tick, show, openPause, resume, toast, checkRotate, applyUiScale, modalOpen, closeModal, startStage,
     get screen() { return current; },
   };
 })();

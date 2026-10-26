@@ -1326,7 +1326,7 @@ const Game = (() => {
       const p = e.chest();
       const sx = p.x * cam.k + cam.ox, sy = p.y * cam.k + cam.oy;
       if (sx > 0 && sx < cw && sy > 0 && sy < ch) continue;
-      const x = clamp(sx, m, cw - m), y = clamp(sy, m + 50, ch - m);
+      const x = clamp(sx, m, cw - m), y = clamp(sy, m + 110, ch - m);
       const a = Math.atan2(sy - y, sx - x);
       c.save(); c.translate(x, y); c.rotate(a);
       c.fillStyle = 'rgba(16, 19, 31, 0.75)';
