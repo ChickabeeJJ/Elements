@@ -1225,7 +1225,7 @@ const Game = (() => {
     const alpha = Math.min(1, d.t * 4) * clamp((d.mv.dur + 0.6 - d.t) / 0.6, 0, 1);
     const width = i => {
       const u = i / (n - 1);
-      return 34 * (i === 0 ? 0.8 : u < 0.12 ? 0.82 + u * 1.5 : 1 - Math.pow((u - 0.12) / 0.88, 1.15) * 0.9);
+      return 34 * (i === 0 ? 0.5 : i === 1 ? 0.62 : u < 0.14 ? 0.7 + u * 2.1 : 1 - Math.pow((u - 0.14) / 0.86, 1.15) * 0.9);
     };
     // which side of the spine faces up (spines go on top, belly underneath)
     const up = sg => (Math.cos(sg.a) >= 0 ? 1 : -1);
@@ -1234,7 +1234,7 @@ const Game = (() => {
       const top = [], bot = [];
       for (let i = 0; i < n; i++) {
         const sg = segs[i], o = offs * width(i) * up(sg);
-        const nx = -Math.sin(sg.a), ny = Math.cos(sg.a), w = width(i) * k;
+        const nx = -Math.sin(sg.a), ny = Math.cos(sg.a), w = width(i) * k * (k < 1 ? Math.min(1, i / 3) : 1);   // belly stripes taper into the neck
         top.push({ x: sg.x + nx * (o - w * up(sg)), y: sg.y + ny * (o - w * up(sg)) });
         bot.push({ x: sg.x + nx * (o + w * up(sg)), y: sg.y + ny * (o + w * up(sg)) });
       }
@@ -1319,7 +1319,7 @@ const Game = (() => {
     const h = segs[0];
     c.translate(h.x, h.y); c.rotate(h.a);
     if (Math.cos(h.a) < 0) c.scale(1, -1);
-    c.scale(1.25, 1.25);
+    c.scale(1.7, 1.7);
     const jaw = 0.28 + Math.abs(Math.sin(time * 7)) * 0.18;
     // horns
     c.fillStyle = '#140505';
@@ -1336,6 +1336,9 @@ const Game = (() => {
     c.globalCompositeOperation = 'lighter';
     Glow.draw(c, '#ff6a1f', 30, 8, 30, 0.9);
     c.globalCompositeOperation = 'source-over';
+    // frill: swept plates behind the skull that hide where the neck joins
+    c.fillStyle = '#1a0606';
+    c.beginPath(); c.moveTo(-14, -16); c.lineTo(-52, -24); c.lineTo(-34, -8); c.lineTo(-58, 0); c.lineTo(-34, 6); c.lineTo(-50, 18); c.lineTo(-12, 14); c.closePath(); c.fill();
     // skull + snout
     c.fillStyle = '#2a0a09';
     c.beginPath(); c.moveTo(-26, -10); c.lineTo(-6, -22); c.lineTo(26, -16); c.lineTo(62, -4); c.lineTo(58, 4); c.lineTo(20, 6); c.lineTo(-20, 14); c.closePath(); c.fill();
