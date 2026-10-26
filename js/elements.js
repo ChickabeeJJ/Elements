@@ -234,6 +234,21 @@ const ELEMENTS = [
         back: 1.5, heal: 0.08 },
     ],
   },
+  {
+    id: 'dragon', name: 'Dragon', color: '#ffcf5a', deep: '#e0532d', price: 1500,
+    blurb: 'Breathe fire, dive from the sky and summon a great dragon that sweeps the whole arena.',
+    moves: [
+      { slot: 'main', id: 'dragonfire', name: 'Dragonfire', type: 'ranged', icon: 'breath', kind: 'projectile', pose: 'cast',
+        desc: 'A short roaring burst of dragon flame that burns everything in front of you.', cd: 0.42, windup: 0.06, active: 0.05, recover: 0.12,
+        count: 3, spread: 0.16, speed: 980, grav: 0, radius: 15, dmg: 6, knock: 260, lift: 0.2, pierce: true, life: 0.36, ghost: true, burn: { dps: 5, dur: 2.5 }, style: 'dragonfire' },
+      { slot: 'p1', id: 'dragon_dive', name: 'Dragon Dive', type: 'power', icon: 'dive', kind: 'dive', pose: 'heavy',
+        desc: 'Leap into the sky and crash down at your aim, erupting in flame.', cd: 7, windup: 0.08, active: 0.1, recover: 0.25,
+        dmg: 24, radius: 175, knock: 820, lift: 1.1, burn: { dps: 6, dur: 3 } },
+      { slot: 'p2', id: 'summon_dragon', name: 'Summon Dragon', type: 'power', icon: 'dragon', kind: 'dragon', pose: 'raise',
+        desc: 'A great golden dragon sweeps across the whole arena, scorching and launching every foe it touches.', cd: 16, windup: 0.3, active: 0.1, recover: 0.3,
+        dur: 2.6, dmg: 22, knock: 700, lift: 1.3, burn: { dps: 7, dur: 3 } },
+    ],
+  },
 ];
 const ELEMENT_BY_ID = Object.fromEntries(ELEMENTS.map(e => [e.id, e]));
 
@@ -273,11 +288,25 @@ const COMBOS = [
     desc: 'Foes tangled in Thorn roots go up in flames: Ember deals +50%.', when: (st, el) => el === 'fire' && st.root > 0 },
   { id: 'ignite', name: 'Ignite', a: ['venom'], b: 'fire', mul: 1.5,
     desc: 'Poisoned foes catch fire easily: Ember deals +50%.', when: (st, el) => el === 'fire' && st.poison > 0 },
-  { id: 'firestorm', name: 'Firestorm', a: ['fire'], b: 'wind', mul: 1.4, knock: 1.3,
+  { id: 'firestorm', name: 'Firestorm', a: ['fire', 'dragon'], b: 'wind', mul: 1.4, knock: 1.3,
     desc: 'Gale fans the flames: burning foes take +40% and fly further.', when: (st, el) => el === 'wind' && st.burn > 0 },
   { id: 'resonate', name: 'Resonate', a: ['lightning', 'echo'], b: 'steel', mul: 1.5,
     desc: 'Foes stunned by Storm or Echo ring like a bell: Steel deals +50%.', when: (st, el) => el === 'steel' && st.shock > 0 },
+  { id: 'starfall', name: 'Starfall', a: ['gravity'], b: 'arcane', mul: 1.5,
+    desc: 'Foes floating or flung by Gravity are easy targets: Arcane deals +50%.', when: (st, el, t) => el === 'arcane' && t && (!t.root.grounded || t.mode !== 'active') },
+  { id: 'prismatic', name: 'Prismatic', a: ['crystal'], b: 'light', mul: 1.6,
+    desc: 'Crystal leaves foes glinting: Radiance refracts through them for +60%.', when: (st, el) => el === 'light' && st.glint > 0 },
+  { id: 'eclipse', name: 'Eclipse', a: ['light'], b: 'void', mul: 1.6,
+    desc: 'Foes dazzled by Radiance are swallowed by Void: +60%.', when: (st, el) => el === 'void' && st.dazzle > 0 },
+  { id: 'singularity', name: 'Singularity', a: ['void'], b: 'gravity', mul: 1.6,
+    desc: 'Foes drained by Void collapse under Gravity: +60%.', when: (st, el) => el === 'gravity' && st.drain > 0 },
+  { id: 'inferno', name: 'Inferno', a: ['fire'], b: 'dragon', mul: 1.5,
+    desc: 'Burning foes feed the Dragon: every Dragon hit deals +50%.', when: (st, el) => el === 'dragon' && st.burn > 0 },
+  { id: 'thunderwing', name: 'Thunderwing', a: ['lightning', 'echo'], b: 'dragon', mul: 1.5,
+    desc: 'Stunned foes cannot dodge the Dragon: +50%.', when: (st, el) => el === 'dragon' && st.shock > 0 },
 ];
+// hitting with these elements leaves a short mark that their combo partner cashes in
+const COMBO_MARKS = { crystal: 'glint', light: 'dazzle', void: 'drain' };
 
 const WEAK_MUL = 1.6;
 const RESIST_MUL = 0.55;
@@ -290,7 +319,7 @@ function affinityMul(enemyEl, atkEl) {
 }
 
 const AURA = {
-  none: '#e6e1d6', crystal: '#9ff0e8', gravity: '#b9a6ff', echo: '#ffc6a8', steel: '#cfd6e0', venom: '#a6e35b', arcane: '#ff8ad8', wind: '#bdf3e4', fire: '#ff8a3d', water: '#7cc8ff', earth: '#e0b98f',
+  none: '#e6e1d6', dragon: '#ffcf5a', crystal: '#9ff0e8', gravity: '#b9a6ff', echo: '#ffc6a8', steel: '#cfd6e0', venom: '#a6e35b', arcane: '#ff8ad8', wind: '#bdf3e4', fire: '#ff8a3d', water: '#7cc8ff', earth: '#e0b98f',
   frost: '#9fe6ff', lightning: '#fff27a', nature: '#9ae66e', void: '#c08bff', light: '#fff3b0',
 };
 
@@ -313,6 +342,7 @@ const ICON_PATHS = {
   crystal: '<path d="M12 2 18.5 8 12 22 5.5 8z" fill="currentColor"/><path d="M5.5 8h13M12 2 9.5 8 12 22l2.5-14L12 2" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.3"/>',
   gravity: '<circle cx="12" cy="12" r="4.2" fill="currentColor"/><ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-25 12 12)"/>',
   echo: '<path d="M4 9.5v5M8 7v10M12 4.5v15M16 7v10M20 9.5v5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  dragon: '<path d="M3 13c2.5-1 4-3.5 4.5-6.5 1.5 1.8 2.6 2.4 4.5 2.3 2.4 0 4.5-1.5 6-3.8.4 2.6 0 5-1.3 7l3.3 1.5-3.8 1.4c-1.4 3.6-4.7 6.1-8.7 6.1-2.3 0-3.9-.6-5.5-1.8l2.7-.9z" fill="currentColor"/><circle cx="15.2" cy="11.2" r="1.2" fill="rgba(0,0,0,.4)"/>',
   none: '<path d="M7 10.5V7a1.5 1.5 0 0 1 3 0v3M10 10V5.5a1.5 1.5 0 0 1 3 0V10M13 10V6.5a1.5 1.5 0 0 1 3 0v5M7 10.5a1.5 1.5 0 0 0-3 0V13a7 7 0 0 0 7 7h1a6 6 0 0 0 6-6v-2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 };
 

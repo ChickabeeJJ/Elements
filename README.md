@@ -2,7 +2,7 @@
 
 A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**, but careful: if you fall into the void yourself, the run is over.
 
-You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **15 elements**, and you unlock them with **gems** earned in battle. The campaign has **56 stages** across seven realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, plus a short, skippable tutorial on first launch.
+You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **16 elements**, and you unlock them with **gems** earned in battle. The campaign has **56 stages** across seven realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, plus a short, skippable tutorial on first launch.
 
 It's pure HTML5 and vanilla JS, with no build step and no dependencies. All art is drawn procedurally and every sound is synthesized.
 
@@ -27,8 +27,9 @@ To play, serve the folder (for example `python3 -m http.server`) and open `index
 | Crystal | Crystal Shot (ricochets off islands) | Prism Wall: reflects enemy shots | Geode Mines: proximity mines | 680 |
 | Gravity | Gravity Hook (reels a foe in) | Anti-Grav Field: foes float helplessly | Collapse: slams airborne foes down, stuns the rest | 760 |
 | Echo | Sonic Clap (widening wave through everything) | Resonance: tag foes, then stun them | Rewind: snap back 1.5s, even out of a fall | 840 |
+| Dragon | Dragonfire (roaring flame burst) | Dragon Dive: leap and crash down in flame | Summon Dragon: a great golden dragon sweeps the arena | 1500 |
 
-Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements also combo (shown in the Elements menu): **Shatter** (Rime freeze, then Stone for double damage), **Overload** (Tide soak, then Storm +60%), **Wildfire** (Thorn roots, then Ember +50%), **Ignite** (Venom poison, then Ember +50%), **Firestorm** (Ember burn, then Gale +40% and extra knockback) and **Resonate** (Storm or Echo stun, then Steel +50%). Ice Lance also shatters frozen foes.
+Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements combo (each element's combos are shown in the Elements menu): **Shatter** (Rime → Stone), **Overload** (Tide → Storm), **Wildfire** (Thorn → Ember), **Ignite** (Venom → Ember), **Firestorm** (Ember/Dragon → Gale), **Resonate** (Storm/Echo → Steel), **Starfall** (Gravity → Arcane), **Prismatic** (Crystal → Radiance), **Eclipse** (Radiance → Void), **Singularity** (Void → Gravity), **Inferno** (Ember → Dragon) and **Thunderwing** (Storm/Echo → Dragon). Crystal, Radiance and Void hits leave a short mark (glint, dazzle, drain) that their partner cashes in.
 
 ## Campaign and progression
 

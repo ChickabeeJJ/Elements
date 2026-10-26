@@ -4,18 +4,18 @@
 Elementfall
 
 ## Short description (one line)
-A ragdoll brawler on floating islands. Wield 15 elements and knock every foe into the void.
+A ragdoll brawler on floating islands. Wield 16 elements and knock every foe into the void.
 
 ## Description
 Elementfall is a physics ragdoll brawler set across seven elemental realms of floating islands. Every fighter is an active ragdoll, so bodies wobble and flinch, and big hits send them tumbling. Knock enemies off the edge for an instant ring-out. Watch your own footing, though, because falling into the void ends your run.
 
-Each element gives you a main attack plus two element powers. Gale's Updraft launches foes skyward, Ember's Flame Dash burns through crowds, Tide's Tidal Wave sweeps fighters off the edge, and Rime's Frost Nova freezes everything nearby. Earn gems in battle to unlock new elements, from Stone and Storm to Void, Radiance, Crystal, Gravity and Echo: ricochet shards, prism walls that reflect shots, anti-gravity fields and a rewind that pulls you back from a fall. Equip up to three at once and swap between them mid-combo.
+Each element gives you a main attack plus two element powers. Gale's Updraft launches foes skyward, Ember's Flame Dash burns through crowds, Tide's Tidal Wave sweeps fighters off the edge, and Rime's Frost Nova freezes everything nearby. Earn gems in battle to unlock new elements, from Stone and Storm to Void, Radiance, Crystal, Gravity, Echo and the legendary Dragon: ricochet shards, prism walls that reflect shots, anti-gravity fields and a rewind that pulls you back from a fall. Equip up to three at once and swap between them mid-combo.
 
 Fight through 56 stages in 7 realms, each ending in an elemental boss. Upgrade your fighter in the forge, chase three stars on every stage, then test yourself in Endless mode.
 
 **Features**
 - Active ragdoll physics with knockback, tumbles and ring-outs
-- 15 elements, each with its own main attack and two unique powers (45 moves)
+- 16 elements, each with its own main attack and two unique powers, plus 12 element combos
 - 56 campaign stages across 7 realms, with 7 bosses
 - Elemental weaknesses and combos (shatter frozen foes, shock soaked ones)
 - Endless mode with rotating realms and champion waves

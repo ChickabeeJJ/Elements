@@ -22,7 +22,7 @@ const Game = (() => {
   let mode = null, stageDef = null, waveIdx = -1, waveTimer = 0, endlessWaveNo = 0;
   let islands = [], player = null, enemies = [];
   let projectiles = [], zones = [], waves = [], strikes = [], spawns = [], pickups = [];
-  let eruptions = [], walls = [], mines = [], resonances = [];
+  let eruptions = [], walls = [], mines = [], resonances = [], dragons = [];
   let dummyTimer = 0;
   let time = 0, timeScale = 1, slowmo = 0, hitstop = 0, shake = 0, hurtFlash = 0, healFlash = 0, acc = 0, endTimer = 0, realmFlash = 0;
   let run = null, pStats = Save.playerStats(), pickupTimer = 8;
@@ -125,7 +125,7 @@ const Game = (() => {
   function clearField() {
     fx.clear();
     enemies = []; projectiles = []; zones = []; waves = []; strikes = []; spawns = []; pickups = [];
-    eruptions = []; walls = []; mines = []; resonances = [];
+    eruptions = []; walls = []; mines = []; resonances = []; dragons = [];
     timeScale = 1; slowmo = 0; hitstop = 0; shake = 0; hurtFlash = 0; healFlash = 0; acc = 0;
     combo.n = 0; combo.t = 0; combo.best = 0;
     input.attack = false; input.queued = {};
@@ -264,7 +264,7 @@ const Game = (() => {
     f.aim = ang;
     f.facing = Math.cos(ang) >= 0 ? 1 : -1;
     const m = enemy ? Object.assign({}, mv, { windup: mv.windup * f.ai.stats.windupMul + 0.08 }) : mv;
-    const lockKinds = { nova: 1, beam: 1, strike: 1, zone: 1, heal: 1, shield: 1, slam: 1, pillars: 1, pull: 1, crush: 1, resonance: 1, wall: 1 };
+    const lockKinds = { dive: 1, dragon: 1, nova: 1, beam: 1, strike: 1, zone: 1, heal: 1, shield: 1, slam: 1, pillars: 1, pull: 1, crush: 1, resonance: 1, wall: 1 };
     let comboStep = 0;
     if (mv.combo) {
       f.comboIdx = f.comboT > 0 ? (f.comboIdx + 1) % mv.combo.n : 0;
@@ -297,6 +297,13 @@ const Game = (() => {
       if (mv.kind === 'beam') beamTick(f, act, dt);
     }
     if (f.dash && mv.kind === 'dash') dashTick(f, act);
+    if (mv.kind === 'dive' && f.dive) {
+      f.dive.t -= dt;
+      if (f.dive.t <= 0 && !f.slam) { f.slam = true; f.root.vy = 1900; f.root.vx = clamp((f.dive.tx - f.root.x) * 2.6, -1000, 1000); }
+      act.t = Math.min(act.t, mv.windup + 0.01);
+      if (f.slam && f.root.grounded) { f.slam = false; f.dive = null; diveImpact(f, act); act.t = mv.windup + mv.active; }
+      return;
+    }
     if (mv.kind === 'slam' && f.slam) {
       act.t = Math.min(act.t, mv.windup + 0.01);
       if (f.root.grounded) { f.slam = false; quake(f, act); act.t = mv.windup + mv.active; }
@@ -403,6 +410,23 @@ const Game = (() => {
           if (isl) eruptions.push({ owner: f, mv, el, isl, ox: x - isl.x, x, y: isl.top, t: 0.05 + i * mv.delay, warn: 0.05 + i * mv.delay });
         }
         Sfx.rumble();
+        break;
+      }
+      case 'dive': {
+        // leap high, then dive at the aim point on the nearest island under it
+        const isl = platformBelow(act.tx, Math.min(act.ty, f.root.y) - 400, 1400) || f.root.plat || nearestIsland(f.root.x);
+        f.dive = { t: 0.3, tx: clamp(act.tx, isl.left + 40, isl.right - 40) };
+        f.root.vy = -1250; f.root.grounded = false; f.root.plat = null;
+        for (let i = 0; i < 16; i++) fx.add({ kind: 'ember', x: f.root.x + rand(-20, 20), y: f.root.y - rand(0, 20), vx: rand(-80, 80), vy: rand(80, 260), color: pick(['#ffcf5a', '#ff8a3d']), size: rand(6, 10), life: rand(0.3, 0.5), drag: 2 });
+        Sfx.dash('fire');
+        break;
+      }
+      case 'dragon': {
+        // a great serpent dragon sweeps across the arena from behind the caster
+        const dir = f.facing;
+        const y0 = clamp(f.root.y - 150, 180, 640);
+        dragons.push({ owner: f, mv, el, dir, t: 0, x0: dir > 0 ? view.x0 - 260 : view.x0 + view.w + 260, span: view.w + 520, y0, path: [], hit: new Map() });
+        shake = Math.max(shake, 10); Sfx.boom(1.2); Sfx.rumble();
         break;
       }
       case 'orbit':
@@ -604,13 +628,25 @@ const Game = (() => {
     for (let i = 0; i < n; i++) {
       const a = i / n * TAU + rand(-0.12, 0.12), v = sp * rand(0.75, 1.1);
       const base = { x: x + Math.cos(a) * 14, y: y + Math.sin(a) * 14, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: 4.5, life: rand(0.35, 0.5) };
-      if (el === 'fire') fx.add(Object.assign(base, { kind: 'flame', color: pick(['#ff6a2a', '#ff8a3d', '#ffb347']), size: rand(8, 12), add: true }));
+      if (el === 'fire' || el === 'dragon') fx.add(Object.assign(base, { kind: 'flame', color: el === 'dragon' ? pick(['#ffcf5a', '#ff8a3d', '#fff0b0']) : pick(['#ff6a2a', '#ff8a3d', '#ffb347']), size: rand(8, 12), add: true }));
       else if (el === 'frost') fx.add(Object.assign(base, { kind: 'shard', color: pick(['#bfeaff', '#9fe6ff', '#e6f8ff']), size: rand(7, 10), add: true }));
       else if (el === 'arcane' || el === 'light') fx.add(Object.assign(base, { kind: 'star', color: el === 'light' ? '#fff3b0' : pick(['#ff8ad8', '#ffd6f2']), size: rand(7, 11), vr: rand(-8, 8), add: true }));
       else if (el === 'wind') fx.add(Object.assign(base, { kind: 'spark', color: '#e6fff7', size: rand(5, 8), add: true }));
       else if (el === 'crystal') fx.add(Object.assign(base, { kind: 'shard', color: pick(['#9ff0e8', '#e6fffb']), size: rand(7, 10), add: true }));
       else fx.add(Object.assign(base, { kind: 'spark', color: col, size: rand(5, 8), add: true }));
     }
+  }
+
+  function diveImpact(f, act) {
+    const mv = act.move, x = f.root.x, y = f.root.y;
+    nova(f, x, y - 30, { radius: mv.radius, dmg: mv.dmg, knock: mv.knock, lift: mv.lift, burn: mv.burn }, 'dragon');
+    const isl = f.root.plat;
+    if (isl) for (const k of [-1, 1]) for (let i = 1; i <= 2; i++) {
+      const ex = x + k * i * 105;
+      if (ex > isl.left + 10 && ex < isl.right - 10) eruptions.push({ owner: f, mv: { radius: 50, dmg: mv.dmg * 0.4, knock: 380, lift: 1.3, burn: mv.burn }, el: 'dragon', isl, ox: ex - isl.x, x: ex, y: isl.top, t: 0.06 * i, warn: 0.06 * i });
+    }
+    fx.chunks(x, y, '#5c3b37', 14, 520, 9);
+    shake = Math.max(shake, 18); Sfx.boom(1.4);
   }
 
   function quake(f, act) {
@@ -680,7 +716,7 @@ const Game = (() => {
     const mv = o.mv || {};
     if (mv.shatter && t.status.freeze > 0) { dmg *= mv.shatter; t.status.freeze = 0; tag = 'SHATTER'; fx.chunks(o.px, o.py, '#d8f6ff', 18, 460, 9); Sfx.freeze(); }
     for (const cb of COMBOS) {
-      if (!cb.when(t.status, o.el)) continue;
+      if (!cb.when(t.status, o.el, t)) continue;
       dmg *= cb.mul; tag = tag || cb.name.toUpperCase();
       if (cb.knock) o = Object.assign({}, o, { knock: o.knock * cb.knock });
       if (cb.clear) { t.status[cb.clear] = 0; fx.chunks(o.px, o.py, '#d8f6ff', 18, 460, 9); Sfx.freeze(); }
@@ -699,6 +735,7 @@ const Game = (() => {
     const st = t.status;
     const bossy = t.kind === 'boss' ? 0.4 : t.kind === 'brute' ? 0.7 : 1;
     if (mv.burn) { st.burn = Math.max(st.burn, mv.burn.dur); st.burnDps = mv.burn.dps * (att && att.isPlayer ? pStats.dmgMul : 0.62); }
+    if (COMBO_MARKS[o.el] && t.alive) st[COMBO_MARKS[o.el]] = 2.5;
     if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.62); }
     if (mv.chill) st.chill = Math.max(st.chill, mv.chill);
     if (mv.soak) st.soak = Math.max(st.soak, mv.soak);
@@ -962,6 +999,7 @@ const Game = (() => {
   function emitTrail(p) {
     const r = Math.random();
     switch (p.mv.style) {
+      case 'dragonfire': for (let i = 0; i < 2; i++) fx.add({ kind: 'ember', x: p.x + rand(-8, 8), y: p.y + rand(-8, 8), vx: p.vx * 0.15 + rand(-40, 40), vy: rand(-90, -20), color: pick(['#ffcf5a', '#ff8a3d', '#ff5a1f']), size: rand(7, 12), life: rand(0.25, 0.4), drag: 2 }); break;
       case 'fireball': if (r < 0.8) fx.add({ x: p.x, y: p.y, vx: rand(-30, 30), vy: rand(-60, 0), color: pick(['#ffb347', '#ff6a2a', '#ffd76a']), size: rand(6, 11), life: rand(0.25, 0.45) }); break;
       case 'shard': case 'lance': if (r < 0.4) fx.add({ x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-20, 20), color: '#c9f2ff', size: rand(3, 5), life: 0.4 }); break;
       case 'voidorb': if (r < 0.7) fx.add({ x: p.x, y: p.y, vx: rand(-40, 40), vy: rand(-40, 40), color: pick(['#c08bff', '#6a35d0']), size: rand(5, 10), life: 0.45 }); break;
@@ -1102,6 +1140,30 @@ const Game = (() => {
     }
     resonances = resonances.filter(r => !r.done);
 
+    for (const d of dragons) {
+      d.t += dt;
+      const u = d.t / d.mv.dur;
+      const hx = d.x0 + d.dir * d.span * u;
+      const hy = d.y0 + Math.sin(d.t * 4.2) * 85 + Math.sin(d.t * 1.7 + 1) * 35;
+      d.path.unshift({ x: hx, y: hy });
+      if (d.path.length > 260) d.path.pop();
+      d.segs = dragonSegments(d.path, 26, 30);
+      for (let i = 0; i < d.segs.length; i += 2) {
+        const sg = d.segs[i];
+        if (Math.random() < 0.06) fx.add({ kind: 'ember', x: sg.x + rand(-10, 10), y: sg.y + rand(-10, 10), vx: rand(-30, 30), vy: -rand(40, 120), color: pick(['#ffcf5a', '#ff8a3d']), size: rand(5, 9), life: rand(0.3, 0.5), drag: 1.5 });
+      }
+      for (const t of opponents(d.owner)) {
+        if (!t.alive || blocked(t)) continue;
+        const tc = t.center();
+        if (time - (d.hit.get(t) || -9) < 0.6) continue;
+        if (!d.segs.some((sg, i) => i % 2 === 0 && dist(sg.x, sg.y, tc.x, tc.y) < 46 * t.s + sg.r)) continue;
+        d.hit.set(t, time);
+        applyHit(d.owner, t, { mv: d.mv, el: d.el, dmg: d.mv.dmg, knock: d.mv.knock, lift: d.mv.lift, dirX: d.dir, dirY: -1, idx: P.PELVIS, px: tc.x, py: tc.y });
+        fx.burst(tc.x, tc.y, '#ffcf5a', 14, 320, { kind: 'flame', size: 9 });
+      }
+    }
+    dragons = dragons.filter(d => d.t < d.mv.dur + 0.6);
+
     const fighters = player ? enemies.concat([player]) : enemies;
     for (const f of fighters) {
       if (f.orbit) {
@@ -1131,7 +1193,88 @@ const Game = (() => {
     }
   }
 
+  // body segments placed at fixed spacing along the head's recent path
+  function dragonSegments(path, n, gap) {
+    const out = [];
+    if (!path.length) return out;
+    let acc = 0, idx = 0, prev = path[0];
+    out.push({ x: prev.x, y: prev.y, a: 0, r: 40 });
+    for (let i = 1; i < path.length && out.length < n; i++) {
+      const q = path[i], l = dist(prev.x, prev.y, q.x, q.y);
+      acc += l;
+      while (acc >= gap && out.length < n) {
+        acc -= gap; idx = out.length;
+        const k = 1 - acc / Math.max(l, 1e-3);
+        const x = lerp(prev.x, q.x, k), y = lerp(prev.y, q.y, k);
+        const back = out[out.length - 1];
+        out.push({ x, y, a: Math.atan2(back.y - y, back.x - x), r: 40 * (1 - idx / n * 0.72) });
+      }
+      prev = q;
+    }
+    out[0].a = out.length > 1 ? Math.atan2(out[0].y - out[1].y, out[0].x - out[1].x) : 0;
+    return out;
+  }
+
+  function drawDragon(c, d) {
+    const segs = d.segs || [];
+    if (segs.length < 2) return;
+    const fadeIn = Math.min(1, d.t * 4), fadeOut = clamp((d.mv.dur + 0.6 - d.t) / 0.6, 0, 1);
+    c.globalAlpha = Math.min(fadeIn, fadeOut);
+    // warm glow under the whole body
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < segs.length; i += 3) Glow.draw(c, '#ff8a3d', segs[i].x, segs[i].y, segs[i].r * 2.2, 0.18);
+    c.globalCompositeOperation = 'source-over';
+    // tail tuft of flame
+    const tl = segs[segs.length - 1];
+    for (let k = 0; k < 3; k++) { c.fillStyle = ['#ff5a1f', '#ff8a3d', '#ffe08a'][k]; c.beginPath(); c.arc(tl.x - Math.cos(tl.a) * (10 + k * 6), tl.y - Math.sin(tl.a) * (10 + k * 6) + Math.sin(time * 14 + k) * 4, 9 - k * 2.5, 0, TAU); c.fill(); }
+    // body: back to front, dorsal fins, gold scales with a lighter belly
+    for (let i = segs.length - 1; i >= 1; i--) {
+      const sg = segs[i], nx = -Math.sin(sg.a), ny = Math.cos(sg.a);
+      c.fillStyle = '#e0532d';
+      c.beginPath(); c.moveTo(sg.x - nx * sg.r * 0.7 - Math.cos(sg.a) * 8, sg.y - ny * sg.r * 0.7 - Math.sin(sg.a) * 8);
+      c.lineTo(sg.x - nx * sg.r * 1.55, sg.y - ny * sg.r * 1.55); c.lineTo(sg.x - nx * sg.r * 0.7 + Math.cos(sg.a) * 8, sg.y - ny * sg.r * 0.7 + Math.sin(sg.a) * 8); c.closePath(); c.fill();
+      c.fillStyle = i % 2 ? '#ffb43c' : '#ffcf5a';
+      c.beginPath(); c.arc(sg.x, sg.y, sg.r, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(168, 54, 28, 0.55)'; c.lineWidth = 2.5; c.stroke();
+      c.fillStyle = 'rgba(255, 244, 205, 0.85)';
+      c.beginPath(); c.ellipse(sg.x + nx * sg.r * 0.45, sg.y + ny * sg.r * 0.45, sg.r * 0.55, sg.r * 0.32, sg.a, 0, TAU); c.fill();
+      if (i % 4 === 2) {   // little legs
+        c.strokeStyle = '#e0532d'; c.lineWidth = 5; c.lineCap = 'round';
+        const sw = Math.sin(time * 12 + i) * 0.5;
+        c.beginPath(); c.moveTo(sg.x + nx * sg.r * 0.6, sg.y + ny * sg.r * 0.6); c.lineTo(sg.x + nx * sg.r * 1.4 - Math.cos(sg.a + sw) * 10, sg.y + ny * sg.r * 1.4 - Math.sin(sg.a + sw) * 10); c.stroke();
+      }
+    }
+    // head
+    const h = segs[0], fx_ = Math.cos(h.a), fy_ = Math.sin(h.a), nx = -fy_, ny = fx_;
+    c.save(); c.translate(h.x, h.y); c.rotate(h.a);
+    c.scale(1.35, Math.cos(h.a) < 0 ? -1.35 : 1.35);
+    // whiskers
+    c.strokeStyle = '#fff0b0'; c.lineWidth = 2.5; c.lineCap = 'round';
+    for (const sgn of [-1, 1]) { c.beginPath(); c.moveTo(30, sgn * 8); for (let k = 1; k <= 6; k++) c.lineTo(30 - k * 12, sgn * (8 + k * 5) + Math.sin(time * 9 + k + sgn) * 4); c.stroke(); }
+    // horns
+    c.strokeStyle = '#fff3d0'; c.lineWidth = 6;
+    c.beginPath(); c.moveTo(-6, -18); c.quadraticCurveTo(-26, -40, -48, -36); c.stroke();
+    c.beginPath(); c.moveTo(4, -20); c.quadraticCurveTo(-10, -46, -30, -50); c.stroke();
+    // skull + snout + jaw
+    c.fillStyle = '#ffcf5a';
+    c.beginPath(); c.ellipse(0, -2, 34, 24, 0, 0, TAU); c.fill();
+    c.beginPath(); c.moveTo(18, -16); c.quadraticCurveTo(58, -14, 62, -2); c.lineTo(22, 6); c.closePath(); c.fill();
+    const jaw = 0.25 + Math.abs(Math.sin(time * 6)) * 0.2;
+    c.fillStyle = '#ffb43c';
+    c.save(); c.translate(14, 8); c.rotate(jaw); c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(30, 4, 44, 2); c.lineTo(0, 12); c.closePath(); c.fill(); c.restore();
+    c.fillStyle = '#e0532d';
+    c.beginPath(); c.moveTo(-14, -22); c.lineTo(-2, -34); c.lineTo(8, -22); c.closePath(); c.fill();
+    c.fillStyle = '#7a1f0e'; c.beginPath(); c.ellipse(16, -9, 4.5, 3, -0.2, 0, TAU); c.fill();
+    c.fillStyle = '#fff6d0'; c.beginPath(); c.arc(17, -10, 1.6, 0, TAU); c.fill();
+    c.strokeStyle = 'rgba(168, 54, 28, 0.6)'; c.lineWidth = 2; c.beginPath(); c.ellipse(0, -2, 34, 24, 0, 0, TAU); c.stroke();
+    c.restore();
+    // breath out of the mouth
+    if (Math.random() < 0.45) fx.add({ kind: 'flame', x: h.x + fx_ * 86, y: h.y + fy_ * 86, vx: fx_ * 600 + rand(-60, 60), vy: fy_ * 600 + rand(-60, 60), color: pick(['#ff8a3d', '#ffcf5a', '#ff5a1f']), size: rand(8, 12), life: 0.3, drag: 3 });
+    c.globalAlpha = 1;
+  }
+
   function drawSpecials(c) {
+    for (const d of dragons) drawDragon(c, d);
     for (const e of eruptions) {
       if (e.done) continue;
       // ground crack glows brighter just before the pillar bursts
@@ -1794,7 +1937,7 @@ const Game = (() => {
       c.strokeStyle = rgba('#b9a6ff', 0.85); c.lineWidth = 3; c.setLineDash([8, 6]);
       c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(p.x, p.y); c.stroke(); c.setLineDash([]);
     }
-    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly'].includes(st)) {
+    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire'].includes(st)) {
       c.globalCompositeOperation = 'lighter';
       c.strokeStyle = rgba(el.deep, st === 'bolt' ? 0.9 : 0.4); c.lineWidth = st === 'bolt' ? 5 : p.r * 0.9; c.lineCap = 'round';
       c.beginPath(); c.moveTo(tr[0], tr[1]);
@@ -1804,6 +1947,13 @@ const Game = (() => {
     }
     c.save(); c.translate(p.x, p.y);
     switch (st) {
+      case 'dragonfire': {
+        const a = clamp(p.life / (p.mv.life || 1), 0, 1);
+        c.globalCompositeOperation = 'lighter';
+        Glow.draw(c, '#ff5a1f', 0, 0, p.r * (3.4 - a * 1.4), 0.75); Glow.draw(c, '#ffcf5a', 0, 0, p.r * 1.6, 0.9);
+        c.globalCompositeOperation = 'source-over';
+        break;
+      }
       case 'crystal':
         c.rotate(ang);
         c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#2fb0a8', 0, 0, 22, 0.7); c.globalCompositeOperation = 'source-over';

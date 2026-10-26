@@ -56,7 +56,7 @@ class Fighter {
     this.input = { x: 0 };
     this.action = null;
     this.cds = {};
-    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0 };
+    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0, glint: 0, dazzle: 0, drain: 0 };
     this.shield = 0; this.shieldT = 0;
     this.regen = 0; this.regenT = 0;
     this.invuln = 0;
@@ -159,7 +159,7 @@ class Fighter {
   /* ------------------------------------------------------------ update */
   update(dt, plats, forces) {
     const st = this.status;
-    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock']) st[k] = Math.max(0, st[k] - dt);
+    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock', 'glint', 'dazzle', 'drain']) st[k] = Math.max(0, st[k] - dt);
     if (st.freeze > 0) st.freeze = Math.max(0, st.freeze - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.flash = Math.max(0, this.flash - dt * 4);
@@ -593,6 +593,25 @@ class Fighter {
       ctx.globalCompositeOperation = 'lighter';
       Glow.draw(ctx, '#ff7a2a', c.x, c.y, 44 * s, 0.3 * Math.min(1, st.burn * 2) * fade);
       ctx.globalCompositeOperation = 'source-over';
+    }
+    // combo marks: crystal glint, radiant dazzle, void drain
+    if (st.glint > 0) {
+      ctx.globalAlpha = fade * Math.min(1, st.glint * 2); ctx.fillStyle = '#e6fffb';
+      for (let i = 0; i < 3; i++) {
+        const q = pts[[P.HEAD, P.FELB, P.BKNEE][i]], tw = Math.abs(Math.sin(time * 5 + i * 2.1)), r = (2 + tw * 4) * s;
+        ctx.beginPath(); ctx.moveTo(q.x, q.y - r * 1.6); ctx.lineTo(q.x + r * 0.45, q.y); ctx.lineTo(q.x, q.y + r * 1.6); ctx.lineTo(q.x - r * 0.45, q.y); ctx.closePath(); ctx.fill();
+      }
+      ctx.globalAlpha = fade;
+    }
+    if (st.dazzle > 0) {
+      ctx.globalAlpha = fade * Math.min(1, st.dazzle * 2) * 0.9; ctx.strokeStyle = '#ffe28a'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(hd.x, hd.y - hr * 1.6, hr * 1.1, hr * 0.35, 0, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = fade;
+    }
+    if (st.drain > 0) {
+      ctx.globalAlpha = fade * Math.min(1, st.drain * 2) * 0.55; ctx.strokeStyle = '#c08bff'; ctx.lineWidth = 2;
+      for (let i = 0; i < 2; i++) { const a = time * 3 + i * Math.PI; ctx.beginPath(); ctx.arc(c.x, c.y, (30 + i * 8) * s, a, a + 1.6); ctx.stroke(); }
+      ctx.globalAlpha = fade;
     }
     // shock: crackling arcs between joints
     if (st.shock > 0) {
