@@ -31,6 +31,7 @@ const UI = (() => {
       KEYS[1] = key('KeyQ'); KEYS[2] = key('KeyE');
       document.querySelector('.orb-p1 kbd').textContent = KEYS[1];
       document.querySelector('.orb-p2 kbd').textContent = KEYS[2];
+      document.querySelectorAll('.sk-key').forEach((k, i) => { k.textContent = KEYS[i + 1]; });
     } catch (e) { /* layout API not available: keep QWERTY labels */ }
   }
   const TIPS = [
@@ -522,6 +523,13 @@ const UI = (() => {
       b.querySelector('.orb-icon').innerHTML = Icons.svg(h.moves[i].mv.icon);
       b.title = h.moves[i].mv.name;
     });
+    // desktop skill bar: the two element powers with name and hotkey
+    document.querySelectorAll('.skill').forEach(sk => {
+      const mv = h.moves[+sk.dataset.i].mv;
+      sk.style.setProperty('--c', el.color);
+      sk.querySelector('.sk-icon').innerHTML = Icons.svg(mv.icon);
+      sk.querySelector('.sk-name').textContent = mv.name.toUpperCase();
+    });
   }
 
   function tick() {
@@ -542,8 +550,18 @@ const UI = (() => {
         orbs[i].classList.toggle('cooling', p > 0);
         orbs[i].querySelector('.cd-num').textContent = num;
         if (p === 0 && i > 0 && hudCache['was' + i]) { orbs[i].classList.remove('ready-flash'); void orbs[i].offsetWidth; orbs[i].classList.add('ready-flash'); }
+        const sk = i > 0 && document.querySelector(`.skill[data-i="${i}"]`);
+        if (sk) {
+          sk.classList.toggle('cooling', p > 0);
+          if (p === 0 && hudCache['was' + i]) { sk.classList.remove('ready-flash'); void sk.offsetWidth; sk.classList.add('ready-flash'); }
+        }
         hudCache['was' + i] = p > 0;
       });
+    });
+    h.moves.forEach((m, i) => {
+      if (!i) return;
+      const t = m.left > 0.05 ? (m.left >= 1 ? Math.ceil(m.left) : m.left.toFixed(1)) : '';
+      set('skt' + i, t, v => { document.querySelector(`.skill[data-i="${i}"] .sk-cd`).textContent = v; });
     });
     if (Game.mode === 'stage') {
       set('wave', h.wave + ':' + h.waves + ':' + h.left, () => {

@@ -474,3 +474,22 @@ body.touch .joy-knob { width: calc(var(--joy) * 0.45); height: calc(var(--joy) *
   .tut-vis .goal { width: 96px; height: 44px; }
   .tut-btn { width: 42px; height: 42px; }
 }
+
+/* ------------------------------------------- desktop skill bar (no touch) */
+.skillbar { position: absolute; left: 50%; bottom: calc(18px + var(--safe-b)); transform: translateX(-50%); display: flex; gap: 10px; }
+.skill { --c: #fff; position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border-radius: 999px; background: var(--glass); border: 2px solid rgba(255, 255, 255, 0.08); min-width: 168px; overflow: hidden; }
+.sk-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: 2px solid var(--c); color: var(--c); flex: none; transition: opacity 0.15s; }
+.sk-icon svg { width: 22px; height: 22px; }
+.sk-name { flex: 1; font-family: var(--display); font-size: 13px; color: #fff; white-space: nowrap; }
+.skill kbd { font-size: 12px; padding: 5px 8px; color: #fff; background: rgba(255, 255, 255, 0.1); }
+.sk-cd { position: absolute; left: 6px; top: 6px; width: 40px; height: 40px; display: grid; place-items: center; font-family: var(--display); font-size: 16px; color: #fff; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); pointer-events: none; }
+.skill.cooling .sk-icon { opacity: 0.25; border-color: rgba(255, 255, 255, 0.25); }
+.skill.cooling .sk-name, .skill.cooling kbd { opacity: 0.5; }
+.skill.ready-flash { animation: readyFlash 0.4s ease; }
+body:not(.touch) .abilities { display: none; }
+body.touch .skillbar { display: none; }
+@media (max-height: 560px) {
+  .skill { min-width: 140px; gap: 8px; }
+  .sk-icon, .sk-cd { width: 34px; height: 34px; }
+  .sk-name { font-size: 11px; }
+}

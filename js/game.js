@@ -88,6 +88,7 @@ const Game = (() => {
     islands = a.isl.map(([x, y, w, motion], i) => new Island(x, y, w, { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion }));
   }
 
+  const arenaNamed = n => ARENAS.find(a => a.name === n) || ARENAS[0];
   function spawnPoint() { const m = islands[0]; return { x: m.x, y: m.top }; }
 
   function makePlayer() {
@@ -130,7 +131,7 @@ const Game = (() => {
     state = 'idle'; mode = null; paused = false; run = null;
     setRealm(r);
     pStats = Save.playerStats();
-    buildArena(ARENAS[0]);
+    buildArena(arenaNamed('Crossing'));
     clearField();
     player = makePlayer();
     const sp = islands[0];
@@ -157,7 +158,7 @@ const Game = (() => {
     } else {
       stageDef = null;
       setRealm(0);
-      buildArena(ARENAS[0]);
+      buildArena(arenaNamed('Crossing'));
       endlessWaveNo = 0;
     }
     clearField();
@@ -220,7 +221,10 @@ const Game = (() => {
     const away = islands.filter(i => !(player && player.root.plat === i));
     const isl = spec.type === 'boss' ? islands[0] : pick(away.length ? away : islands);
     const margin = Math.min(60, isl.w * 0.3);
-    const x = spec.type === 'boss' ? (player.root.x < isl.x ? isl.right - 120 : isl.left + 120) : rand(isl.left + margin, isl.right - margin);
+    // portals open as far from the hero as the island allows (single-island arenas included)
+    let x = rand(isl.left + margin, isl.right - margin);
+    if (player) for (let k = 0; k < 6; k++) { const c = rand(isl.left + margin, isl.right - margin); if (Math.abs(c - player.root.x) > Math.abs(x - player.root.x)) x = c; }
+    if (spec.type === 'boss') x = player.root.x < isl.x ? isl.right - 120 : isl.left + 120;
     spawns.push({ spec, isl, ox: x - isl.x, t: 1.0, el: spec.element });
     Sfx.portal();
   }

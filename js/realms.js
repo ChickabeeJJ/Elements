@@ -25,7 +25,7 @@ const REALMS = [
     id: 'reef', name: 'Tidal Reef', element: 'water',
     sky: ['#0f4c6e', '#3f95b8', '#a8e2ea'], sun: '#e8fbff', sunPos: [0.72, 0.18],
     hills: ['#5fb3c4', '#2f8399', '#1d5a70'], fog: '#c9f1f5',
-    top: '#f2d9a6', topDark: '#d4b47c', rock: '#2f7d8c', rockDark: '#1f5a67',
+    top: '#bcecff', topDark: '#86cde8', rock: '#2f7d8c', rockDark: '#1f5a67',
     ambient: 'bubble', tint: '#7cc8ff',
     boss: { name: 'Tidecaller', title: 'Voice of the Deep' },
   },
@@ -65,15 +65,19 @@ const REALMS = [
 const STAGES_PER_REALM = 8;
 const TOTAL_STAGES = REALMS.length * STAGES_PER_REALM;
 
-/* arena layouts: [x, top y, width, motion?]. The first island is where the hero spawns. */
+/* arena layouts: [x, top y, width, motion?]. Widths are multiples of the 40-unit tile.
+   The first island is where the hero spawns. Floating islands keep at least ~120 units
+   of headroom above anything below them. */
 const ARENAS = [
-  { name: 'Crossing', isl: [[800, 700, 760], [270, 560, 270], [1330, 560, 270], [800, 445, 280]] },
-  { name: 'Twin Peaks', isl: [[470, 690, 520], [1130, 690, 520], [800, 520, 230], [270, 440, 200], [1330, 440, 200]] },
-  { name: 'Stairway', isl: [[700, 715, 620], [1200, 600, 260], [1430, 470, 210], [250, 590, 260], [880, 470, 230]] },
-  { name: 'Islets', isl: [[800, 700, 440], [320, 640, 320], [1280, 640, 320], [560, 490, 190], [1040, 490, 190], [800, 335, 180]] },
-  { name: 'Drift', isl: [[800, 705, 600], [290, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 0 }], [1310, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 3 }], [800, 460, 220, { ax: 120, ay: 0, speed: 0.6, phase: 1 }]] },
+  { name: 'Mainland', isl: [[800, 680, 1040]] },
+  { name: 'Summit', isl: [[800, 690, 880], [800, 450, 280]] },
+  { name: 'Crossing', isl: [[800, 700, 760], [240, 560, 240], [1360, 560, 240], [800, 430, 280]] },
+  { name: 'Twin Peaks', isl: [[460, 690, 520], [1140, 690, 520], [800, 470, 240]] },
+  { name: 'Stairway', isl: [[640, 710, 680], [1220, 590, 280], [1460, 440, 240], [210, 580, 240], [860, 450, 240]] },
+  { name: 'Islets', isl: [[800, 700, 480], [300, 640, 320], [1300, 640, 320], [540, 470, 200], [1060, 470, 200]] },
+  { name: 'Drift', isl: [[800, 705, 640], [270, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 0 }], [1330, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 3 }], [800, 440, 240, { ax: 120, ay: 0, speed: 0.6, phase: 1 }]] },
 ];
-const BOSS_ARENA = { name: 'Throne', isl: [[800, 705, 940], [300, 520, 230], [1300, 520, 230], [800, 400, 200]] };
+const BOSS_ARENA = { name: 'Throne', isl: [[800, 705, 960], [270, 520, 240], [1330, 520, 240]] };
 
 const ENEMY_TYPES = {
   grunt:  { hp: 1, dmg: 1, cd: 1, scale: 1, weight: 1, speed: 250, label: 'Warrior' },
