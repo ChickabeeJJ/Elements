@@ -25,6 +25,9 @@ const Platform = (() => {
   const MIDGAME_GAP = 3 * 60 * 1000;
   const BANNER_GAP = 61 * 1000;
   const PREFIX = 'elementfall_';
+  // Basic Launch builds must not show ads: no midgame, rewarded, banner or ad-block calls.
+  // Flip to true for a Full Launch.
+  const ADS_ENABLED = false;
 
   const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
 
@@ -50,7 +53,7 @@ const Platform = (() => {
     if (safe(() => sdk.user.isUserAccountAvailable, false)) {
       try { user = await sdk.user.getUser(); } catch (e) { user = null; }
     }
-    try { adBlock = !!(await sdk.ad.hasAdblock()); } catch (e) { adBlock = false; }
+    if (ADS_ENABLED) { try { adBlock = !!(await sdk.ad.hasAdblock()); } catch (e) { adBlock = false; } }
   }
 
   function applySettings(s) {
@@ -95,6 +98,7 @@ const Platform = (() => {
   /* --------------------------------------------------------------- ads */
   // cb(success:boolean). Standalone: rewarded ads succeed so features stay testable.
   function requestAd(kind, cb) {
+    if (!ADS_ENABLED) { cb(false); return; }
     if (!sdk) { cb(kind === 'rewarded'); return; }
     let done = false;
     const wasPlaying = inGameplay;
@@ -114,7 +118,7 @@ const Platform = (() => {
     } catch (e) { finish(false); }
   }
   function maybeMidgame(cb) {
-    if (!sdk || Date.now() - lastMidgame < MIDGAME_GAP) { cb && cb(); return; }
+    if (!ADS_ENABLED || !sdk || Date.now() - lastMidgame < MIDGAME_GAP) { cb && cb(); return; }
     lastMidgame = Date.now();
     requestAd('midgame', () => cb && cb());
   }
@@ -123,7 +127,7 @@ const Platform = (() => {
   /* ----------------------------------------------------------- banners */
   // containerId must be a visible element sized to a supported banner format
   function showBanner(containerId) {
-    if (!sdk || inGameplay) return;
+    if (!ADS_ENABLED || !sdk || inGameplay) return;
     const el = document.getElementById(containerId);
     if (!el || !el.offsetWidth) return;
     if (bannersShown.has(containerId) && Date.now() - lastBanner < BANNER_GAP) return;
@@ -135,7 +139,7 @@ const Platform = (() => {
     } catch (e) { /* ignore */ }
   }
   function clearBanners() {
-    if (!sdk || !bannersShown.size) return;
+    if (!ADS_ENABLED || !sdk || !bannersShown.size) return;
     safe(() => sdk.banner.clearAllBanners());
     bannersShown.clear();
   }
@@ -158,7 +162,7 @@ const Platform = (() => {
     init, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
     happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device,
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
-    get adBlock() { return adBlock; }, get user() { return user; },
+    get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED; }, get user() { return user; },
     get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },
   };
 })();

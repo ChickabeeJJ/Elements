@@ -67,6 +67,9 @@ The covers come from real gameplay. The only text on them is the game title, wit
 - Saves go through the SDK `data` module on CrazyGames and `localStorage` elsewhere.
 
 ## CrazyGames SDK v3 integration (`js/platform.js`)
+
+**Basic Launch build: ads are switched off** (`ADS_ENABLED = false` in `js/platform.js`). No midgame, rewarded or banner ads are requested, there is no ad-block check, and the Revive / Double Gems ad buttons are hidden. Set the flag to `true` for a Full Launch.
+
 - `SDK.init()`, `environment`
 - `game.loadingStart` / `loadingStop` around boot
 - `game.gameplayStart` / `gameplayStop` on combat start/end, pause, menus and ads

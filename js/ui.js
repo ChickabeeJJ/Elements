@@ -342,7 +342,7 @@ const UI = (() => {
     $('bossBar').classList.add('hidden');
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
     const reward = `<div class="payout"><span class="ic" data-icon="gem"></span><span id="payoutNum">+${res.essence}</span>${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
-    const adRow = `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
+    const adRow = !Platform.adsEnabled ? '' : `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
     const bindAds = sh => {
       const d = sh.querySelector('#rDouble');
       if (d) d.onclick = () => { Sfx.click(); d.disabled = true; Platform.rewarded(ok => {
