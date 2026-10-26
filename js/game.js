@@ -426,7 +426,7 @@ const Game = (() => {
         const dir = f.facing;
         const y0 = clamp(f.root.y - 150, 180, 640);
         dragons.push({ owner: f, mv, el, dir, t: 0, x0: dir > 0 ? view.x0 - 260 : view.x0 + view.w + 260, span: view.w + 520, y0, path: [], hit: new Map() });
-        shake = Math.max(shake, 10); Sfx.boom(1.2); Sfx.rumble();
+        shake = Math.max(shake, 14); realmFlash = Math.max(realmFlash, 0.25); Sfx.boom(1.6); Sfx.rumble();
         break;
       }
       case 'orbit':
@@ -1150,13 +1150,14 @@ const Game = (() => {
       d.segs = dragonSegments(d.path, 26, 30);
       for (let i = 0; i < d.segs.length; i += 2) {
         const sg = d.segs[i];
-        if (Math.random() < 0.06) fx.add({ kind: 'ember', x: sg.x + rand(-10, 10), y: sg.y + rand(-10, 10), vx: rand(-30, 30), vy: -rand(40, 120), color: pick(['#ffcf5a', '#ff8a3d']), size: rand(5, 9), life: rand(0.3, 0.5), drag: 1.5 });
+        if (Math.random() < 0.03) fx.add({ kind: 'ember', x: sg.x + rand(-10, 10), y: sg.y + rand(-10, 10), vx: rand(-30, 30), vy: -rand(40, 120), color: pick(['#ffcf5a', '#ff8a3d']), size: rand(5, 9), life: rand(0.3, 0.5), drag: 1.5 });
       }
       for (const t of opponents(d.owner)) {
         if (!t.alive || blocked(t)) continue;
         const tc = t.center();
         if (time - (d.hit.get(t) || -9) < 0.6) continue;
-        if (!d.segs.some((sg, i) => i % 2 === 0 && dist(sg.x, sg.y, tc.x, tc.y) < 46 * t.s + sg.r)) continue;
+        const hd = d.segs[0], jx = hd.x + Math.cos(hd.a) * 160, jy = hd.y + Math.sin(hd.a) * 160;
+        if (!d.segs.some((sg, i) => i % 2 === 0 && dist(sg.x, sg.y, tc.x, tc.y) < 46 * t.s + sg.r) && dist(jx, jy, tc.x, tc.y) > 70) continue;
         d.hit.set(t, time);
         applyHit(d.owner, t, { mv: d.mv, el: d.el, dmg: d.mv.dmg, knock: d.mv.knock, lift: d.mv.lift, dirX: d.dir, dirY: -1, idx: P.PELVIS, px: tc.x, py: tc.y });
         fx.burst(tc.x, tc.y, '#ffcf5a', 14, 320, { kind: 'flame', size: 9 });
@@ -1215,62 +1216,155 @@ const Game = (() => {
     return out;
   }
 
+  // the summoned dragon: a smooth obsidian serpent with a molten belly and seams, swept spines
+  // trailing fire, beating wings and an angular horned head breathing a jet of flame. No outlines.
   function drawDragon(c, d) {
     const segs = d.segs || [];
-    if (segs.length < 2) return;
-    const fadeIn = Math.min(1, d.t * 4), fadeOut = clamp((d.mv.dur + 0.6 - d.t) / 0.6, 0, 1);
-    c.globalAlpha = Math.min(fadeIn, fadeOut);
-    // warm glow under the whole body
-    c.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < segs.length; i += 3) Glow.draw(c, '#ff8a3d', segs[i].x, segs[i].y, segs[i].r * 2.2, 0.18);
-    c.globalCompositeOperation = 'source-over';
-    // tail tuft of flame
-    const tl = segs[segs.length - 1];
-    for (let k = 0; k < 3; k++) { c.fillStyle = ['#ff5a1f', '#ff8a3d', '#ffe08a'][k]; c.beginPath(); c.arc(tl.x - Math.cos(tl.a) * (10 + k * 6), tl.y - Math.sin(tl.a) * (10 + k * 6) + Math.sin(time * 14 + k) * 4, 9 - k * 2.5, 0, TAU); c.fill(); }
-    // body: back to front, dorsal fins, gold scales with a lighter belly
-    for (let i = segs.length - 1; i >= 1; i--) {
-      const sg = segs[i], nx = -Math.sin(sg.a), ny = Math.cos(sg.a);
-      c.fillStyle = '#e0532d';
-      c.beginPath(); c.moveTo(sg.x - nx * sg.r * 0.7 - Math.cos(sg.a) * 8, sg.y - ny * sg.r * 0.7 - Math.sin(sg.a) * 8);
-      c.lineTo(sg.x - nx * sg.r * 1.55, sg.y - ny * sg.r * 1.55); c.lineTo(sg.x - nx * sg.r * 0.7 + Math.cos(sg.a) * 8, sg.y - ny * sg.r * 0.7 + Math.sin(sg.a) * 8); c.closePath(); c.fill();
-      c.fillStyle = i % 2 ? '#ffb43c' : '#ffcf5a';
-      c.beginPath(); c.arc(sg.x, sg.y, sg.r, 0, TAU); c.fill();
-      c.strokeStyle = 'rgba(168, 54, 28, 0.55)'; c.lineWidth = 2.5; c.stroke();
-      c.fillStyle = 'rgba(255, 244, 205, 0.85)';
-      c.beginPath(); c.ellipse(sg.x + nx * sg.r * 0.45, sg.y + ny * sg.r * 0.45, sg.r * 0.55, sg.r * 0.32, sg.a, 0, TAU); c.fill();
-      if (i % 4 === 2) {   // little legs
-        c.strokeStyle = '#e0532d'; c.lineWidth = 5; c.lineCap = 'round';
-        const sw = Math.sin(time * 12 + i) * 0.5;
-        c.beginPath(); c.moveTo(sg.x + nx * sg.r * 0.6, sg.y + ny * sg.r * 0.6); c.lineTo(sg.x + nx * sg.r * 1.4 - Math.cos(sg.a + sw) * 10, sg.y + ny * sg.r * 1.4 - Math.sin(sg.a + sw) * 10); c.stroke();
+    if (segs.length < 4) return;
+    const n = segs.length;
+    const alpha = Math.min(1, d.t * 4) * clamp((d.mv.dur + 0.6 - d.t) / 0.6, 0, 1);
+    const width = i => {
+      const u = i / (n - 1);
+      return 34 * (i === 0 ? 0.8 : u < 0.12 ? 0.82 + u * 1.5 : 1 - Math.pow((u - 0.12) / 0.88, 1.15) * 0.9);
+    };
+    // which side of the spine faces up (spines go on top, belly underneath)
+    const up = sg => (Math.cos(sg.a) >= 0 ? 1 : -1);
+    const edge = (i, side, k = 1) => { const sg = segs[i], s2 = side * up(sg) * width(i) * k; return { x: sg.x - Math.sin(sg.a) * s2, y: sg.y + Math.cos(sg.a) * s2 }; };
+    const ribbon = (k, offs = 0) => {
+      const top = [], bot = [];
+      for (let i = 0; i < n; i++) {
+        const sg = segs[i], o = offs * width(i) * up(sg);
+        const nx = -Math.sin(sg.a), ny = Math.cos(sg.a), w = width(i) * k;
+        top.push({ x: sg.x + nx * (o - w * up(sg)), y: sg.y + ny * (o - w * up(sg)) });
+        bot.push({ x: sg.x + nx * (o + w * up(sg)), y: sg.y + ny * (o + w * up(sg)) });
       }
+      const pts = top.concat(bot.reverse());
+      c.beginPath(); c.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) { const p0 = pts[i - 1], p1 = pts[i]; c.quadraticCurveTo(p0.x, p0.y, (p0.x + p1.x) / 2, (p0.y + p1.y) / 2); }
+      c.closePath();
+    };
+    c.save();
+    c.globalAlpha = alpha;
+    // heat glow on the ground and around the body
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < n; i += 4) Glow.draw(c, '#ff4a12', segs[i].x, segs[i].y, width(i) * 3.2, 0.16);
+    c.globalCompositeOperation = 'source-over';
+
+    // far wing (behind the body)
+    const wi = Math.min(3, n - 1), ws = segs[wi];
+    const flap = Math.sin(d.t * 9);
+    const wing = (sideK, shade) => {
+      // bat wing: finger bones fanning back from the shoulder, scalloped membrane between them
+      const sx = ws.x, sy = ws.y, back = ws.a + Math.PI, lift = up(ws);
+      const span = 180 * sideK, ang = back + lift * (1.3 + flap * 0.5);
+      const fingers = [[0, 1], [-0.42, 0.86], [-0.8, 0.7], [-1.12, 0.56]].map(([da, l]) => ({ x: sx + Math.cos(ang + da * lift) * span * l, y: sy + Math.sin(ang + da * lift) * span * l }));
+      const tail = { x: sx + Math.cos(back) * 120, y: sy + Math.sin(back) * 120 };
+      const pts = fingers.concat([tail]);
+      c.fillStyle = shade;
+      c.beginPath(); c.moveTo(sx, sy); c.lineTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        const p0 = pts[i - 1], p1 = pts[i], mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
+        c.quadraticCurveTo(lerp(mx, sx, 0.3), lerp(my, sy, 0.3), p1.x, p1.y);
+      }
+      c.closePath(); c.fill();
+      // bones, with a molten glow along the leading one
+      c.fillStyle = '#120404';
+      for (const f of fingers) {
+        const dx = f.x - sx, dy = f.y - sy, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 3, ny = dx / l * 3;
+        c.beginPath(); c.moveTo(sx + nx, sy + ny); c.lineTo(f.x, f.y); c.lineTo(sx - nx, sy - ny); c.closePath(); c.fill();
+      }
+      c.globalCompositeOperation = 'lighter';
+      c.strokeStyle = 'rgba(255, 110, 40, 0.5)'; c.lineWidth = 2.5; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(sx, sy); c.lineTo(fingers[0].x, fingers[0].y); c.stroke();
+      c.globalCompositeOperation = 'source-over';
+    };
+    wing(0.85, '#1c0707');
+
+    // body: obsidian ribbon, darker underside shading, molten belly stripe
+    ribbon(1); c.fillStyle = '#2a0a09'; c.fill();
+    ribbon(0.55, 0.42); c.fillStyle = '#41110d'; c.fill();
+    c.globalCompositeOperation = 'lighter';
+    ribbon(0.22, 0.62); c.fillStyle = 'rgba(255, 96, 30, 0.75)'; c.fill();
+    // molten seams pulsing down the body
+    for (let i = 2; i < n - 2; i += 2) {
+      const pulse = 0.35 + 0.35 * Math.sin(time * 8 - i * 0.6);
+      const a1 = edge(i, -1, 0.75), a2 = edge(i, 1, 0.2), mid = segs[i], fwd = Math.cos(mid.a), fwy = Math.sin(mid.a);
+      c.strokeStyle = `rgba(255, 140, 50, ${pulse})`; c.lineWidth = 2.2;
+      c.beginPath(); c.moveTo(a1.x, a1.y); c.quadraticCurveTo(mid.x - fwd * 8, mid.y - fwy * 8, a2.x, a2.y); c.stroke();
     }
-    // head
-    const h = segs[0], fx_ = Math.cos(h.a), fy_ = Math.sin(h.a), nx = -fy_, ny = fx_;
-    c.save(); c.translate(h.x, h.y); c.rotate(h.a);
-    c.scale(1.35, Math.cos(h.a) < 0 ? -1.35 : 1.35);
-    // whiskers
-    c.strokeStyle = '#fff0b0'; c.lineWidth = 2.5; c.lineCap = 'round';
-    for (const sgn of [-1, 1]) { c.beginPath(); c.moveTo(30, sgn * 8); for (let k = 1; k <= 6; k++) c.lineTo(30 - k * 12, sgn * (8 + k * 5) + Math.sin(time * 9 + k + sgn) * 4); c.stroke(); }
+    c.globalCompositeOperation = 'source-over';
+
+    // swept-back dorsal spines with fire licking off the tips
+    for (let i = 1; i < n - 3; i++) {
+      const sg = segs[i], base = edge(i, -1, 0.85), w = width(i);
+      const back = sg.a + Math.PI, out = -up(sg);
+      const len = w * (i < 4 ? 1.5 : 1.1), sweep = 0.75;
+      const tip = { x: base.x + (Math.cos(back) * Math.sin(sweep) - Math.sin(sg.a) * out * Math.cos(sweep)) * len, y: base.y + (Math.sin(back) * Math.sin(sweep) + Math.cos(sg.a) * out * Math.cos(sweep)) * len };
+      const b1 = { x: base.x + Math.cos(sg.a) * w * 0.35, y: base.y + Math.sin(sg.a) * w * 0.35 }, b2 = { x: base.x - Math.cos(sg.a) * w * 0.35, y: base.y - Math.sin(sg.a) * w * 0.35 };
+      c.fillStyle = '#1a0606';
+      c.beginPath(); c.moveTo(b1.x, b1.y); c.quadraticCurveTo((b1.x + tip.x) / 2, (b1.y + tip.y) / 2, tip.x, tip.y); c.lineTo(b2.x, b2.y); c.closePath(); c.fill();
+      if (i % 3 === 0 && Math.random() < 0.2) fx.add({ kind: 'ember', x: tip.x, y: tip.y, vx: Math.cos(back) * 60 + rand(-20, 20), vy: -rand(80, 180), color: pick(['#ff3a0a', '#e0532d', '#ff5a1f']), size: rand(6, 10), life: rand(0.25, 0.45), drag: 2 });
+    }
+    // tail: a whip of fire
+    const tl = segs[n - 1];
+    c.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 4; k++) Glow.draw(c, ['#ff3a0a', '#ff6a1f', '#ffa040', '#ffe0a0'][k], tl.x - Math.cos(tl.a) * (8 + k * 10), tl.y - Math.sin(tl.a) * (8 + k * 10) + Math.sin(time * 16 + k) * 5, 16 - k * 3, 0.8);
+    c.globalCompositeOperation = 'source-over';
+    if (Math.random() < 0.5) fx.add({ kind: 'smoke', x: tl.x, y: tl.y, vx: rand(-20, 20), vy: -rand(20, 50), color: '#2a1414', size: rand(10, 16), life: rand(0.6, 0.9), add: false });
+
+    // near wing (in front of the body)
+    wing(1, '#320c0a');
+
+    // head: angular skull, swept horns, blazing slit eye, open jaw with a roaring jet of flame
+    const h = segs[0];
+    c.translate(h.x, h.y); c.rotate(h.a);
+    if (Math.cos(h.a) < 0) c.scale(1, -1);
+    c.scale(1.25, 1.25);
+    const jaw = 0.28 + Math.abs(Math.sin(time * 7)) * 0.18;
     // horns
-    c.strokeStyle = '#fff3d0'; c.lineWidth = 6;
-    c.beginPath(); c.moveTo(-6, -18); c.quadraticCurveTo(-26, -40, -48, -36); c.stroke();
-    c.beginPath(); c.moveTo(4, -20); c.quadraticCurveTo(-10, -46, -30, -50); c.stroke();
-    // skull + snout + jaw
-    c.fillStyle = '#ffcf5a';
-    c.beginPath(); c.ellipse(0, -2, 34, 24, 0, 0, TAU); c.fill();
-    c.beginPath(); c.moveTo(18, -16); c.quadraticCurveTo(58, -14, 62, -2); c.lineTo(22, 6); c.closePath(); c.fill();
-    const jaw = 0.25 + Math.abs(Math.sin(time * 6)) * 0.2;
-    c.fillStyle = '#ffb43c';
-    c.save(); c.translate(14, 8); c.rotate(jaw); c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(30, 4, 44, 2); c.lineTo(0, 12); c.closePath(); c.fill(); c.restore();
-    c.fillStyle = '#e0532d';
-    c.beginPath(); c.moveTo(-14, -22); c.lineTo(-2, -34); c.lineTo(8, -22); c.closePath(); c.fill();
-    c.fillStyle = '#7a1f0e'; c.beginPath(); c.ellipse(16, -9, 4.5, 3, -0.2, 0, TAU); c.fill();
-    c.fillStyle = '#fff6d0'; c.beginPath(); c.arc(17, -10, 1.6, 0, TAU); c.fill();
-    c.strokeStyle = 'rgba(168, 54, 28, 0.6)'; c.lineWidth = 2; c.beginPath(); c.ellipse(0, -2, 34, 24, 0, 0, TAU); c.stroke();
+    c.fillStyle = '#140505';
+    c.beginPath(); c.moveTo(-4, -16); c.quadraticCurveTo(-34, -30, -74, -26); c.quadraticCurveTo(-40, -20, -14, -8); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(8, -18); c.quadraticCurveTo(-18, -44, -56, -52); c.quadraticCurveTo(-24, -34, 0, -8); c.closePath(); c.fill();
+    // lower jaw (open)
+    c.save(); c.translate(6, 6); c.rotate(jaw);
+    c.fillStyle = '#240807';
+    c.beginPath(); c.moveTo(-14, -2); c.lineTo(48, 2); c.lineTo(40, 9); c.lineTo(-10, 10); c.closePath(); c.fill();
+    c.fillStyle = '#f4e6d0';
+    for (let k = 0; k < 4; k++) { c.beginPath(); c.moveTo(10 + k * 9, 2); c.lineTo(14 + k * 9, -4); c.lineTo(18 + k * 9, 2); c.closePath(); c.fill(); }
     c.restore();
-    // breath out of the mouth
-    if (Math.random() < 0.45) fx.add({ kind: 'flame', x: h.x + fx_ * 86, y: h.y + fy_ * 86, vx: fx_ * 600 + rand(-60, 60), vy: fy_ * 600 + rand(-60, 60), color: pick(['#ff8a3d', '#ffcf5a', '#ff5a1f']), size: rand(8, 12), life: 0.3, drag: 3 });
-    c.globalAlpha = 1;
+    // mouth glow
+    c.globalCompositeOperation = 'lighter';
+    Glow.draw(c, '#ff6a1f', 30, 8, 30, 0.9);
+    c.globalCompositeOperation = 'source-over';
+    // skull + snout
+    c.fillStyle = '#2a0a09';
+    c.beginPath(); c.moveTo(-26, -10); c.lineTo(-6, -22); c.lineTo(26, -16); c.lineTo(62, -4); c.lineTo(58, 4); c.lineTo(20, 6); c.lineTo(-20, 14); c.closePath(); c.fill();
+    c.fillStyle = '#41110d';
+    c.beginPath(); c.moveTo(-6, -22); c.lineTo(26, -16); c.lineTo(50, -8); c.lineTo(18, -10); c.closePath(); c.fill();
+    c.fillStyle = '#f4e6d0';
+    for (let k = 0; k < 4; k++) { c.beginPath(); c.moveTo(22 + k * 9, 4); c.lineTo(25 + k * 9, 11); c.lineTo(29 + k * 9, 4); c.closePath(); c.fill(); }
+    // blazing slit eye under a heavy brow
+    c.fillStyle = '#140505';
+    c.beginPath(); c.moveTo(4, -20); c.lineTo(30, -14); c.lineTo(10, -10); c.closePath(); c.fill();
+    c.globalCompositeOperation = 'lighter';
+    Glow.draw(c, '#ffb020', 16, -9, 12, 1);
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = '#ffe680';
+    c.beginPath(); c.moveTo(8, -9); c.lineTo(24, -11); c.lineTo(10, -6); c.closePath(); c.fill();
+    c.restore();
+
+    // roaring jet of flame from the jaws
+    const fxh = Math.cos(h.a), fyh = Math.sin(h.a), mx = h.x + fxh * 78, my = h.y + fyh * 78;
+    c.save(); c.globalAlpha = alpha; c.globalCompositeOperation = 'lighter';
+    const L = 170;
+    const g = c.createLinearGradient(mx, my, mx + fxh * L, my + fyh * L);
+    g.addColorStop(0, 'rgba(255, 230, 150, 0.85)'); g.addColorStop(0.35, 'rgba(255, 120, 40, 0.55)'); g.addColorStop(1, 'rgba(255, 60, 10, 0)');
+    c.fillStyle = g;
+    const nxh = -fyh, nyh = fxh, spread = 36 + Math.sin(time * 30) * 6;
+    c.beginPath(); c.moveTo(mx + nxh * 6, my + nyh * 6); c.lineTo(mx + fxh * L + nxh * spread, my + fyh * L + nyh * spread);
+    c.lineTo(mx + fxh * L - nxh * spread, my + fyh * L - nyh * spread); c.lineTo(mx - nxh * 6, my - nyh * 6); c.closePath(); c.fill();
+    c.restore();
+    for (let k = 0; k < 2; k++) fx.add({ kind: 'ember', x: mx, y: my, vx: fxh * rand(700, 1000) + rand(-80, 80), vy: fyh * rand(700, 1000) + rand(-80, 80), color: pick(['#ffcf5a', '#ff8a3d', '#ff5a1f']), size: rand(8, 13), life: rand(0.18, 0.3), drag: 2 });
   }
 
   function drawSpecials(c) {
