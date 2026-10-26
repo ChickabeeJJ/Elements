@@ -231,6 +231,28 @@ class Fighter {
         }
       }
     }
+    // island bodies are solid: rising through them is allowed, but a fighter that ends up
+    // inside one climbs onto the top if near it, otherwise gets pushed out of the side
+    for (const pl of plats) {
+      if (pl === r.plat || (r.dropT > 0 && pl === r.dropPlat) || !pl.solids) continue;
+      if (r.x <= pl.left || r.x >= pl.right) continue;
+      for (const q of pl.solids) {
+        if (r.x <= q.l || r.x >= q.r || r.y <= q.t || r.y >= q.b) continue;
+        if (!r.grounded && r.vy < 0) break;
+        if (!r.grounded && r.y - pl.top < pl.cells.t * 1.5) {
+          r.y = pl.top; r.vy = 0; r.grounded = true; r.plat = pl; r.jumps = 0;
+        } else {
+          const dl = r.x - q.l, dr = q.r - r.x, db = r.grounded ? Infinity : q.b - r.y;
+          if (db < dl && db < dr) { r.y = q.b + 0.5; r.vy = Math.max(r.vy, 0); }
+          else {
+            const left = dl < dr;
+            r.x = left ? q.l - 0.5 : q.r + 0.5;
+            if (left ? r.vx > 0 : r.vx < 0) r.vx = 0;
+          }
+        }
+        break;
+      }
+    }
     if (!r.grounded) { r.plat = null; if (wasGrounded && r.jumps === 0) r.jumps = 1; }
     if (r.grounded && Math.abs(r.vx) > 20) this.walkPh += Math.abs(r.vx) * dt * 0.05 / this.s;
     if (this.landT) this.landT = Math.max(0, this.landT - dt * 3);
@@ -369,7 +391,7 @@ class Fighter {
         solve(pts[ia], pts[ib], INV_MASS[ia], INV_MASS[ib], L, L, 1);
       }
       for (const [ia, ib, lo, hi] of JOINT_LIMITS) solve(pts[ia], pts[ib], INV_MASS[ia], INV_MASS[ib], lo * s, hi * s, 0.6);
-      if (collide && this.mode !== 'active') for (const p of pts) for (const pl of plats) landPoint(p, pl);
+      if (collide && this.mode !== 'active') for (const p of pts) for (const pl of plats) { landPoint(p, pl); solidPoint(p, pl); }
     }
     if (collide && this.mode === 'active') for (const i of [P.FFOOT, P.BFOOT, P.FKNEE, P.BKNEE]) for (const pl of plats) landPoint(pts[i], pl);
   }
@@ -594,6 +616,22 @@ class Fighter {
     for (const p of left) ctx.lineTo(p[0], p[1]);
     for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i][0], right[i][1]);
     ctx.closePath(); ctx.fill();
+  }
+}
+
+/* push a loose ragdoll point out of an island's tile rows through the nearest open
+   face (top only on the first row), killing the velocity into that face. */
+function solidPoint(p, pl) {
+  if (!pl.solids || p.x <= pl.left || p.x >= pl.right) return;
+  for (const q of pl.solids) {
+    if (p.x <= q.l || p.x >= q.r || p.y <= q.t || p.y >= q.b) continue;
+    const dl = p.x - q.l, dr = q.r - p.x, db = q.b - p.y, du = q === pl.solids[0] ? p.y - q.t : Infinity;
+    const m = Math.min(dl, dr, db, du);
+    if (m === du) { p.y = q.t; p.px = lerp(p.px, p.x, 0.5); p.py = p.y + Math.min(0, p.py - p.y) * 0.15; }
+    else if (m === db) { p.y = q.b; p.py = p.y + Math.max(0, p.py - p.y) * 0.2; }
+    else if (m === dl) { p.x = q.l; p.px = p.x + Math.max(0, p.px - p.x) * 0.2; }
+    else { p.x = q.r; p.px = p.x + Math.min(0, p.px - p.x) * 0.2; }
+    return;
   }
 }
 

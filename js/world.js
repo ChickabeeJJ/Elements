@@ -14,6 +14,9 @@ class Island {
     this.t = 0;
     this.dx = 0; this.dy = 0;
     this.prevTop = y;
+    this.cells = this.layout();
+    this.solids = this.cells.rows.map(() => ({ l: 0, r: 0, t: 0, b: 0 }));
+    this.syncSolids();
   }
 
   get top() { return this.y; }
@@ -32,53 +35,88 @@ class Island {
     }
     this.x = x; this.y = y;
     this.dx = x - px; this.dy = y - py;
+    this.syncSolids();
   }
 
-  // blocky minimal island: a stepped pyramid of square tiles in the realm's palette
+  // blocky island: a stepped pyramid of tiles. The tile rows are also the collision
+  // shape, so what looks solid is solid (the top can still be jumped up through).
   layout() {
-    const n = Math.max(3, Math.round(this.w / 42)), t = this.w / n;
-    const rows = [];
-    let lo = 0, hi = n, r = 0;
+    const n = Math.max(4, Math.round(this.w / 42)), t = this.w / n;
     const want = clamp(Math.round(this.depth / t), 2, 5);
-    const step = Math.max(1, Math.floor((n - 1) / (2 * want)));
-    while (hi - lo > 0 && r < want) {
-      rows.push([lo, hi]);
-      lo += step; hi -= step; r++;
+    const minW = Math.max(2, Math.ceil(n * 0.3));
+    const step = n >= 14 ? 2 : 1;
+    const rows = [[0, n]];
+    while (rows.length < want) {
+      const [a, b] = rows[rows.length - 1];
+      if (b - a - step * 2 < minW) break;
+      rows.push([a + step, b - step]);
     }
     return { n, t, rows };
   }
 
-  draw(ctx, realm) {
-    if (!this.cells || this.cellsW !== this.w) {
-      this.cells = this.layout(); this.cellsW = this.w;
-      const rng = mulberry32(this.seed);
-      this.shade = Array.from({ length: 64 }, () => rng());
-    }
-    const { t, rows } = this.cells;
-    const x0 = this.x - this.w / 2, y0 = this.y - 5;
-    const gap = 2.5;
-    const mortar = mixHex(realm.rockDark, '#000000', 0.35);
-    // mortar silhouette first so the gaps read as crisp dark seams
-    ctx.fillStyle = mortar;
-    rows.forEach(([a, b], r) => ctx.fillRect(x0 + a * t - 1, y0 + r * t - 1, (b - a) * t + 2, t + 2));
-    let k = 0;
+  syncSolids() {
+    const { t, rows } = this.cells, x0 = this.x - this.w / 2;
     rows.forEach(([a, b], r) => {
-      const depthMix = r / Math.max(1, rows.length);
+      const q = this.solids[r];
+      q.l = x0 + a * t; q.r = x0 + b * t; q.t = this.y + r * t; q.b = this.y + (r + 1) * t;
+    });
+  }
+
+  solidAt(x, y) {
+    for (const q of this.solids) if (x > q.l && x < q.r && y > q.t && y < q.b) return true;
+    return false;
+  }
+
+  // flat tiles with no outlines: checker tone, depth darkening, a lit left side,
+  // shaded right side and underside, and a grass/crust cap with a soft shadow below it
+  draw(ctx, realm) {
+    const { n, t, rows } = this.cells;
+    const x0 = this.x - this.w / 2, y0 = this.y;
+    const pal = this.pal && this.pal.id === realm.id ? this.pal : (this.pal = Island.palette(realm));
+    const half = n / 2;
+    rows.forEach(([a, b], r) => {
+      const next = rows[r + 1];
       for (let i = a; i < b; i++) {
-        const v = this.shade[k++ % this.shade.length];
-        const x = x0 + i * t + gap / 2, y = y0 + r * t + gap / 2, s = t - gap;
-        if (r === 0) {
-          ctx.fillStyle = realm.top;
-          ctx.fillRect(x, y, s, s);
-          ctx.fillStyle = realm.topDark;
-          ctx.fillRect(x, y + s * 0.62, s, s * 0.38);
-        } else {
-          const right = i >= (a + b) / 2 ? 0.18 : 0;
-          ctx.fillStyle = mixHex(realm.rock, realm.rockDark, clamp(depthMix * 0.55 + right + (v - 0.5) * 0.16, 0, 1));
-          ctx.fillRect(x, y, s, s);
+        const side = (i + 0.5 - half) / half;           // -1 left … 1 right
+        let k = r * 0.11 + (side > 0.35 ? 0.2 : 0) + ((i + r) % 2) * 0.05 - (side < -0.35 ? 0.06 : 0);
+        ctx.fillStyle = pal.tone(k);
+        const x = x0 + i * t, y = y0 + r * t;
+        ctx.fillRect(x - 0.3, y - 0.3, t + 0.6, t + 0.6);
+        // underside of tiles that overhang the row below
+        if (!next || i < next[0] || i >= next[1]) {
+          ctx.fillStyle = pal.under;
+          ctx.fillRect(x - 0.3, y + t * 0.8, t + 0.6, t * 0.2 + 0.3);
         }
       }
     });
+    // cap
+    const capH = t * 0.36;
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = (i % 2) ? pal.top2 : realm.top;
+      ctx.fillRect(x0 + i * t - 0.3, y0 - 2, t + 0.6, capH + 2);
+    }
+    ctx.fillStyle = pal.hi; ctx.fillRect(x0, y0 - 2, this.w, 3);
+    ctx.fillStyle = realm.topDark; ctx.fillRect(x0, y0 + capH, this.w, t * 0.1);
+    ctx.fillStyle = pal.ao; ctx.fillRect(x0, y0 + capH + t * 0.1, this.w, t * 0.14);
+  }
+
+  static palette(realm) {
+    const tones = [];
+    const tone = k => {
+      const i = clamp(Math.round((k + 0.2) * 40), 0, 60);
+      if (!tones[i]) {
+        const v = i / 40 - 0.2;
+        tones[i] = v < 0 ? mixHex(realm.rock, '#ffffff', -v * 0.6) : mixHex(realm.rock, realm.rockDark, Math.min(1, v * 1.4));
+      }
+      return tones[i];
+    };
+    return {
+      id: realm.id, tone,
+      top2: mixHex(realm.top, '#000000', 0.07),
+      hi: mixHex(realm.top, '#ffffff', 0.3),
+      under: mixHex(realm.rockDark, '#000000', 0.25),
+      ao: 'rgba(0, 0, 0, 0.16)',
+    };
   }
 }
 

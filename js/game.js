@@ -706,7 +706,7 @@ const Game = (() => {
       if (!mv.ghost) {
         for (const isl of islands) {
           if (p.x < isl.left || p.x > isl.right) continue;
-          if ((p.py <= isl.prevTop && p.y >= isl.top) || (p.y > isl.top + 4 && p.y < isl.top + isl.depth * 0.45 && Math.abs(p.x - isl.x) < isl.w * 0.42)) {
+          if ((p.py <= isl.prevTop && p.y >= isl.top) || (p.y > isl.top + 4 && isl.solidAt(p.x, p.y))) {
             p.dead = true;
             detonate(p, p.x, Math.min(p.y, isl.top + 2));
             if (!mv.explode && !mv.zone) { fx.burst(p.x, isl.top, '#8d8d8d', 6, 140, { add: false, kind: 'chunk', g: 1200, size: 4, life: 0.5 }); Sfx.thud(); }
