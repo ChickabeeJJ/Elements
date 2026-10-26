@@ -15,11 +15,21 @@ const SEGS = [
   [2, 7, 7], [7, 8, 6], [2, 9, 7], [9, 10, 6],
 ];
 const BONE_LEN = [17, 45, 24, 24, 24, 24, 29, 28, 29, 28];
-const MUSCLE = [0.2, 0.3, 0.34, 0.16, 0.26, 0.16, 0.24, 0.2, 0.32, 0.2, 0.32];
-const MUSCLE_DAMP = 0.3;
+const MUSCLE = [0.15, 0.22, 0.27, 0.09, 0.14, 0.09, 0.13, 0.15, 0.24, 0.15, 0.24];
+const MUSCLE_DAMP = 0.22;
+// inverse masses: heavy trunk, light extremities, so limbs whip around the body
+const INV_MASS = [0.8, 0.35, 0.3, 1, 1.25, 1, 1.25, 0.75, 1, 0.75, 1];
+// soft joint limits [a, b, minLen, maxLen] in unscaled units
+const JOINT_LIMITS = [
+  [2, 8, 36, 58], [2, 10, 36, 58],     // knees never fold flat
+  [1, 4, 18, 49], [1, 6, 18, 49],      // elbows never fold flat
+  [1, 7, 52, 80], [1, 9, 52, 80],      // thighs stay below the chest
+  [0, 2, 56, 64],                      // head stays on the spine
+  [0, 3, 22, 60], [0, 5, 22, 60],      // arms can't fold over the face
+];
 const HEAD_R = 13;
 const ROOT_G = 2700;
-const BODY_G = 2400;
+const BODY_G = 2700;
 
 class Fighter {
   constructor(o) {
@@ -123,6 +133,13 @@ class Fighter {
       const dt = STEP, r = this.root;
       for (const p of this.pts) { p.px -= r.vx * dt * 0.6; p.py -= r.vy * dt * 0.6; }
     }
+    // heavy hits set the body spinning: head and feet pushed opposite ways
+    const kick = Math.hypot(kx, ky);
+    if (kick > 300) {
+      const dir = Math.sign(kx || 1) * Math.min(1, kick / 1400) * 260 * STEP;
+      this.pts[P.HEAD].px -= dir; this.pts[P.NECK].px -= dir * 0.5;
+      for (const i of [P.FFOOT, P.BFOOT]) this.pts[i].px += dir;
+    }
     this.mode = 'tumble';
     this.stunT = Math.max(this.stunT, dur);
     this.action = null;
@@ -156,7 +173,7 @@ class Fighter {
 
     if (this.mode === 'active' || this.mode === 'rising') {
       if (this.mode === 'rising') {
-        this.m = Math.min(1, this.m + dt / 0.5);
+        this.m = Math.min(1, this.m + dt / 0.7);
         if (this.m >= 0.85) this.mode = 'active';
       } else {
         this.m = st.shock > 0 ? 0.4 : Math.min(1, this.m + dt * 3);
@@ -319,10 +336,11 @@ class Fighter {
 
   stepBody(dt, plats, forces) {
     const m = this.m, pts = this.pts, T = this.T, Tp = this.Tp;
-    const g = BODY_G * dt * dt * (1 - 0.92 * m);
+    const g = BODY_G * dt * dt * (1 - 0.9 * m);
+    const air = m < 0.5 ? 0.998 : 0.99;
     for (let i = 0; i < 11; i++) {
       const p = pts[i];
-      let vx = (p.x - p.px) * 0.995, vy = (p.y - p.py) * 0.995;
+      let vx = (p.x - p.px) * air, vy = (p.y - p.py) * air;
       if (forces && m < 0.5) { const f = forces(p.x, p.y, this); vx += f.x * dt * dt; vy += f.y * dt * dt; }
       p.px = p.x; p.py = p.y;
       p.x += vx; p.y += vy + g;
@@ -334,24 +352,25 @@ class Fighter {
       }
     }
     const s = this.s;
-    for (let it = 0; it < 5; it++) {
+    const solve = (A, B, wa, wb, d0, d1, stiff) => {
+      const dx = B.x - A.x, dy = B.y - A.y;
+      const d = Math.hypot(dx, dy) || 1e-4;
+      const target = d < d0 ? d0 : d > d1 ? d1 : d;
+      if (target === d) return;
+      const k = ((d - target) / d) * stiff / (wa + wb);
+      A.x += dx * k * wa; A.y += dy * k * wa;
+      B.x -= dx * k * wb; B.y -= dy * k * wb;
+    };
+    const collide = this.mode !== 'active' || this.root.dropT <= 0;
+    for (let it = 0; it < 6; it++) {
       for (let b = 0; b < SEGS.length; b++) {
-        const A = pts[SEGS[b][0]], B = pts[SEGS[b][1]];
-        const dx = B.x - A.x, dy = B.y - A.y;
-        const d = Math.hypot(dx, dy) || 1e-4;
-        const diff = ((d - BONE_LEN[b] * s) / d) * 0.5;
-        A.x += dx * diff; A.y += dy * diff;
-        B.x -= dx * diff; B.y -= dy * diff;
+        const ia = SEGS[b][0], ib = SEGS[b][1], L = BONE_LEN[b] * s;
+        solve(pts[ia], pts[ib], INV_MASS[ia], INV_MASS[ib], L, L, 1);
       }
-      if (m < 0.6) {
-        // keep head roughly on the spine when limp
-        const A = pts[0], B = pts[2];
-        const dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy) || 1e-4;
-        const diff = ((d - 61 * s) / d) * 0.25;
-        A.x += dx * diff; A.y += dy * diff; B.x -= dx * diff; B.y -= dy * diff;
-      }
+      for (const [ia, ib, lo, hi] of JOINT_LIMITS) solve(pts[ia], pts[ib], INV_MASS[ia], INV_MASS[ib], lo * s, hi * s, 0.6);
+      if (collide && this.mode !== 'active') for (const p of pts) for (const pl of plats) landPoint(p, pl);
     }
-    if (this.mode !== 'active') for (const p of pts) for (const pl of plats) landPoint(p, pl);
+    if (collide && this.mode === 'active') for (const i of [P.FFOOT, P.BFOOT, P.FKNEE, P.BKNEE]) for (const pl of plats) landPoint(pts[i], pl);
   }
 
   followBody(dt, plats) {
@@ -582,7 +601,7 @@ function landPoint(p, pl) {
   if (p.x < pl.left || p.x > pl.right) return;
   if (p.y > pl.top && p.py <= pl.prevTop + 1.5) {
     p.y = pl.top;
-    p.px = lerp(p.px, p.x, 0.35);          // friction
+    p.px = lerp(p.px, p.x, 0.5);           // friction
     p.py = p.y + (p.py - p.y) * 0.15;
   }
 }

@@ -139,7 +139,7 @@ const Game = (() => {
 
   /* -------------------------------------------------------- enemies */
   function bodyColors() {
-    return ['#c4c4c4', '#a1a1a1'];
+    return realm.id === 'void' ? ['#2a2433', '#1b1722'] : ['#3a3944', '#282731'];
   }
 
   const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile']);
@@ -580,19 +580,15 @@ const Game = (() => {
 
   function ringOut(f) {
     if (f.isPlayer) {
-      if (f.mode === 'dead' || state !== 'play') { f.gone = true; return; }
+      f.gone = true;
+      if (f.mode === 'dead' || state !== 'play') return;
+      // the void is final
       run.falls++;
       Sfx.ringout();
       shake = 14;
-      const loss = Math.round(f.maxHp * 0.25);
-      f.hp -= loss;
-      hooks.onToast && hooks.onToast('You fell! −' + loss + ' HP');
-      if (f.hp <= 0) { f.hp = 0; f.mode = 'dead'; f.gone = true; lose(); return; }
-      const sp = spawnPoint();
-      teleport(f, sp.x, sp.y - 420);
-      f.mode = 'active'; f.m = 1; f.stunT = 0; f.action = null; f.dash = null; f.slam = false;
-      f.root.vy = 300;
-      f.invuln = 1.8;
+      f.hp = 0; f.mode = 'dead';
+      hooks.onToast && hooks.onToast('Lost to the void', true);
+      lose();
       return;
     }
     if (f.mode !== 'dead') {
@@ -1189,6 +1185,7 @@ const Game = (() => {
 
     fx.draw(c);
     for (const e of enemies) if (e.alive && !e.decor && e.kind !== 'boss') drawEnemyBar(c, e);
+    if (player && player.alive && state !== 'idle') drawPlayerMarker(c);
     for (const e of enemies) if (e.alive && e.action && !e.action.fired && !e.decor) drawTelegraph(c, e);
     if (player && player.alive && state === 'play' && input.mouse) drawReticle(c);
 
@@ -1387,15 +1384,27 @@ const Game = (() => {
     c.globalAlpha = 1;
   }
 
-  function drawEnemyBar(c, e) {
-    const s = e.s;
-    const hd = e.head();
-    const w = 46 * Math.max(1, s * 0.9), h = 8;
-    const x = hd.x - w / 2, y = hd.y - 26 * s - 16;
-    const r = clamp(e.hp / e.maxHp, 0, 1);
-    c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x, y, w, h);
-    c.fillStyle = '#d93b4b'; c.fillRect(x, y, w * r, h);
-    c.fillStyle = AURA[e.el]; c.fillRect(x - 10, y, 6, h);
+  // one clean bar style for every fighter: dark rounded track, single fill colour
+  function drawHeadBar(c, f, fill, w) {
+    const hd = f.head();
+    const h = 8, x = hd.x - w / 2, y = hd.y - 24 * f.s - 18;
+    const r = clamp(f.hp / f.maxHp, 0, 1);
+    c.fillStyle = 'rgba(20,18,28,0.72)';
+    c.beginPath(); c.roundRect(x - 2, y - 2, w + 4, h + 4, 6); c.fill();
+    if (r > 0) { c.fillStyle = fill; c.beginPath(); c.roundRect(x, y, Math.max(h, w * r), h, 4); c.fill(); }
+    if (f.shield > 0) { c.fillStyle = 'rgba(160,215,255,0.9)'; c.beginPath(); c.roundRect(x, y, Math.max(4, w * clamp(f.shield / f.maxHp, 0, 1)), h / 2, 2); c.fill(); }
+    return y;
+  }
+  function drawEnemyBar(c, e) { drawHeadBar(c, e, '#e5484d', 50 * Math.max(1, e.s * 0.9)); }
+  function drawPlayerMarker(c) {
+    const f = player;
+    const y = drawHeadBar(c, f, '#56d364', 62);
+    // bobbing arrow so you can always find yourself
+    const ax = f.head().x, ay = y - 14 + Math.sin(time * 5) * 3;
+    c.fillStyle = ELEMENT_BY_ID[f.el].color;
+    c.strokeStyle = 'rgba(20,18,28,0.85)'; c.lineWidth = 3; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(ax - 10, ay - 10); c.lineTo(ax + 10, ay - 10); c.lineTo(ax, ay + 2); c.closePath();
+    c.stroke(); c.fill();
   }
 
   function drawTelegraph(c, e) {

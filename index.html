@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#3d413d">
+  <meta name="theme-color" content="#1d2233">
   <meta name="description" content="Elementfall - a ragdoll brawler across five elemental realms. Master fire, frost, storm, void and more, knock foes off floating islands, beat 30 stages and bosses, then survive Endless.">
   <title>Elementfall</title>
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=5">
   <script>if (/crazygames/.test(location.hostname + document.referrer)) document.write('<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"><\/script>');</script>
 </head>
 <body>
@@ -14,35 +14,33 @@
 
   <!-- =============================== HUD =============================== -->
   <div id="hud" class="hidden">
-    <div class="hud-tl">
-      <div class="stat"><span class="ic" data-icon="skull"></span><b id="hudKills">0</b></div>
-      <div class="hpbar"><div class="hp-ghost" id="hpGhost"></div><div class="hp-fill" id="hpFill"></div><div class="hp-shield" id="hpShield"></div><span id="hpText">120</span></div>
-      <div class="status-row" id="statusRow"></div>
-    </div>
-    <div class="hud-tc">
-      <div class="wave" id="waveChip"><b id="waveText">WAVE 1/3</b><span id="leftText">3 LEFT</span></div>
-      <div class="bossbar hidden" id="bossBar">
-        <b id="bossName">BOSS</b>
-        <div class="boss-track"><div class="boss-fill" id="bossFill"></div></div>
-        <small id="bossTitle"></small>
+    <div class="stage-chip" id="stageChip">
+      <span class="chip-emblem" id="chipEmblem"></span>
+      <div class="chip-body">
+        <b id="chipTitle">VERDANT VALE 1-1</b>
+        <div class="chip-sub"><span class="dots" id="waveDots"></span><span id="chipSub">3 FOES</span></div>
       </div>
     </div>
-    <div class="hud-tr">
-      <div class="stat"><span class="ic gem" data-icon="gem"></span><b id="hudEssence">0</b></div>
-      <div class="stage-tag" id="hudStage">1-1</div>
+    <div class="bossbar hidden" id="bossBar">
+      <div class="boss-top"><span class="chip-emblem" id="bossEmblem"></span><b id="bossName">BOSS</b></div>
+      <div class="boss-track"><div class="boss-fill" id="bossFill"></div></div>
+      <small id="bossTitle"></small>
+    </div>
+    <div class="hud-right">
+      <div class="pill"><span class="ic gem" data-icon="gem"></span><b id="hudEssence">0</b></div>
+      <button class="round" id="btnPause" aria-label="Pause"><span class="ic" data-icon="pause"></span></button>
     </div>
 
-    <div class="combo hidden" id="combo"><b id="comboNum">0</b><span>HITS</span></div>
+    <div class="combo hidden" id="combo"><b id="comboNum">0</b><span>COMBO</span></div>
     <div class="banner hidden" id="banner"><span id="bannerText">WAVE 1</span></div>
 
-    <div class="slots-hud" id="loadoutBar"></div>
+    <div class="dock" id="dock"></div>
     <div class="abilities" id="abilities">
-      <button class="ab ab-p1" data-act="p1"><span class="ab-icon"></span><span class="ab-txt"><b class="ab-name"></b><small class="ab-sub"></small></span><span class="cd"></span></button>
-      <button class="ab ab-p2" data-act="p2"><span class="ab-icon"></span><span class="ab-txt"><b class="ab-name"></b><small class="ab-sub"></small></span><span class="cd"></span></button>
-      <button class="ab ab-main" data-act="attack"><span class="ab-icon"></span><span class="ab-txt"><b class="ab-name"></b><small class="ab-sub"></small></span><span class="cd"></span></button>
-      <button class="ab ab-jump" data-act="jump"><span class="ab-icon"><span class="ic" data-icon="up"></span></span><span class="ab-txt"><b class="ab-name">JUMP</b></span></button>
+      <button class="orb orb-p1" data-act="p1"><span class="ring"></span><span class="orb-icon"></span><span class="cd-num"></span><kbd>Q</kbd></button>
+      <button class="orb orb-p2" data-act="p2"><span class="ring"></span><span class="orb-icon"></span><span class="cd-num"></span><kbd>E</kbd></button>
+      <button class="orb orb-main" data-act="attack"><span class="ring"></span><span class="orb-icon"></span><span class="cd-num"></span><kbd>CLICK</kbd></button>
+      <button class="orb orb-jump" data-act="jump"><span class="orb-icon"><span class="ic" data-icon="up"></span></span></button>
     </div>
-    <button class="sq-btn pause" id="btnPause" aria-label="Pause"><span class="ic" data-icon="pause"></span></button>
     <div class="joy" id="joy"><div class="joy-base"></div><div class="joy-knob" id="joyKnob"></div></div>
     <div class="coach hidden" id="coach"><p id="coachText"></p></div>
   </div>
@@ -50,78 +48,77 @@
   <!-- =============================== HOME =============================== -->
   <section id="home" class="screen">
     <div class="corner tl">
-      <div class="stat"><span class="ic" data-icon="skull"></span><b id="homeKills">0</b></div>
-      <div class="stat"><span class="ic star" data-icon="star"></span><b id="homeStars">0</b></div>
+      <div class="pill"><span class="ic star" data-icon="star"></span><b id="homeStars">0</b></div>
     </div>
     <div class="corner tr">
-      <div class="stat"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
-      <button class="sq-btn" data-open="settings" aria-label="Settings"><span class="ic" data-icon="gear"></span></button>
+      <div class="pill"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
+      <button class="round" data-open="settings" aria-label="Settings"><span class="ic" data-icon="gear"></span></button>
     </div>
     <div class="home-center">
       <h1 class="title">ELEMENTFALL</h1>
-      <p class="subtitle">RAGDOLL ELEMENT BRAWL</p>
+      <p class="subtitle">MASTER THE NINE ELEMENTS</p>
       <div class="home-menu">
-        <button class="btn big" id="btnPlay"><b>PLAY</b><small id="playSub">STAGE 1-1</small></button>
-        <button class="btn dark" id="btnEndless"><b>ENDLESS</b><small id="endlessSub">BEST 0</small></button>
+        <button class="btn primary big" id="btnPlay"><b>PLAY</b><small id="playSub">STAGE 1-1</small></button>
+        <button class="btn" id="btnEndless"><b>ENDLESS</b><small id="endlessSub">BEST 0</small></button>
         <div class="btn-row">
-          <button class="btn dark" data-open="codex"><b>ELEMENTS</b><small id="homeElems">1/9</small></button>
-          <button class="btn dark" data-open="forge"><b>UPGRADES</b><small id="homeForge">&nbsp;</small></button>
+          <button class="btn" data-open="codex"><b>ELEMENTS</b></button>
+          <button class="btn" data-open="forge"><b>UPGRADES</b><small id="homeForge"></small></button>
         </div>
       </div>
     </div>
-    <button class="loadout-mini" id="homeLoadout" aria-label="Loadout"></button>
+    <div class="loadout-card" id="homeLoadout"></div>
   </section>
 
   <!-- =============================== MAP =============================== -->
   <section id="map" class="screen hidden">
     <header class="bar">
-      <button class="sq-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
-      <nav class="tabs" id="realmTabs"></nav>
-      <div class="stat"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
+      <button class="round" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
+      <nav class="seg" id="realmTabs"></nav>
+      <button class="btn small" data-open="loadout"><b>LOADOUT</b></button>
     </header>
-    <div class="realm-line" id="realmLine"></div>
-    <div class="stage-row" id="stageRow"></div>
+    <div class="realm-head" id="realmHead"></div>
+    <div class="stage-grid" id="stageGrid"></div>
   </section>
 
   <!-- ============================== CODEX ============================== -->
   <section id="codex" class="screen hidden">
     <header class="bar">
-      <button class="sq-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
+      <button class="round" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
       <h2>ELEMENTS</h2>
-      <div class="stat"><b id="codexCount">1/9</b></div>
+      <div class="pill"><b id="codexCount">1/9</b></div>
     </header>
     <div class="codex">
       <div class="codex-list" id="codexList"></div>
-      <div class="codex-detail" id="codexDetail"></div>
+      <div class="codex-detail card" id="codexDetail"></div>
     </div>
   </section>
 
   <!-- ============================== FORGE ============================== -->
   <section id="forge" class="screen hidden">
     <header class="bar">
-      <button class="sq-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
+      <button class="round" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
       <h2>UPGRADES</h2>
-      <div class="stat"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
+      <div class="pill"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
     </header>
-    <div class="forge" id="forgeList"></div>
+    <div class="forge" id="forgeGrid"></div>
   </section>
 
   <div id="modal" class="modal hidden"><div class="sheet" id="sheet"></div></div>
   <div id="toasts"></div>
-  <div id="rotate" class="hidden"><div><span class="ic" data-icon="rotate"></span><p>TURN YOUR DEVICE SIDEWAYS</p><button class="btn" id="btnRotateOk"><b>PLAY ANYWAY</b></button></div></div>
+  <div id="rotate" class="hidden"><div><span class="ic" data-icon="rotate"></span><p>TURN YOUR DEVICE SIDEWAYS</p><button class="btn primary" id="btnRotateOk"><b>PLAY ANYWAY</b></button></div></div>
 
-  <script src="js/util.js?v=4"></script>
-  <script src="js/platform.js?v=4"></script>
-  <script src="js/audio.js?v=4"></script>
-  <script src="js/elements.js?v=4"></script>
-  <script src="js/realms.js?v=4"></script>
-  <script src="js/progress.js?v=4"></script>
-  <script src="js/ragdoll.js?v=4"></script>
-  <script src="js/world.js?v=4"></script>
-  <script src="js/fx.js?v=4"></script>
-  <script src="js/game.js?v=4"></script>
-  <script src="js/icons.js?v=4"></script>
-  <script src="js/ui.js?v=4"></script>
-  <script src="js/main.js?v=4"></script>
+  <script src="js/util.js?v=5"></script>
+  <script src="js/platform.js?v=5"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/elements.js?v=5"></script>
+  <script src="js/realms.js?v=5"></script>
+  <script src="js/progress.js?v=5"></script>
+  <script src="js/ragdoll.js?v=5"></script>
+  <script src="js/world.js?v=5"></script>
+  <script src="js/fx.js?v=5"></script>
+  <script src="js/game.js?v=5"></script>
+  <script src="js/icons.js?v=5"></script>
+  <script src="js/ui.js?v=5"></script>
+  <script src="js/main.js?v=5"></script>
 </body>
 </html>

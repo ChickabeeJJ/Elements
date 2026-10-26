@@ -1,8 +1,8 @@
 # Elementfall
 
-A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**.
+A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**, but careful: if you fall into the void yourself, the run is over.
 
-You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. You unlock elements through a **30-stage campaign** across five realms, take up to three into each fight, and can swap between them mid-combo. There's also an **Endless** mode.
+You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. You unlock elements through a **30-stage campaign** across five realms. Your loadout of up to three elements is saved, so stages start straight away. Change it any time from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode.
 
 It's pure HTML5 and vanilla JS, with no build step and no dependencies. All art is drawn procedurally and every sound is synthesized.
 
@@ -50,7 +50,7 @@ On touch screens, a floating joystick on the left handles movement (pull down to
 
 ```
 index.html
-css/style.css     flat minimal UI: charcoal panels, flat buttons, Bungee labels
+css/style.css     UI: navy glass panels, pill buttons, hex element dock, ability orbs
 js/util.js        math, seeded RNG, glow sprite cache
 js/platform.js    CrazyGames SDK wrapper + storage
 js/audio.js       synthesized SFX + generative per-realm music
