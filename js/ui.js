@@ -444,7 +444,7 @@ const UI = (() => {
     { label: 'DOUBLE JUMP', key: () => cap('SPACE') + cap('SPACE'), focus: '.orb-jump', icon: 'up', done: t => t.jumped >= 2 },
     { label: 'HIT THE DUMMY', key: () => MOUSE, focus: '.orb-main', icon: 'palm', count: t => `${Math.min(3, t.hits)}/3`, done: t => t.hits >= 3 },
     { label: 'USE A POWER', key: () => cap(KEYS[1]) + cap(KEYS[2]), focus: '.orb-p1, .orb-p2', icon: 'burst', done: t => t.powers >= 1 },
-    { label: 'KNOCK FOES OFF · DON’T FALL', key: () => GOAL, touchKey: () => GOAL, done: (t, dt) => (t.last = (t.last || 0) + dt) > 3 },
+    { label: 'KNOCK THE DUMMY OFF', key: () => GOAL, touchKey: () => GOAL, done: t => (t.ringouts || 0) >= 1 },
   ];
   let tutIdx = 0, tutLast = 0, tutWait = 0;
   function startTutorial() {

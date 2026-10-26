@@ -662,7 +662,9 @@ const Game = (() => {
       // the menu / training dummy reacts but never dies
       if (run && run.tut && att && att.isPlayer) run.tut.hits++;
       t.flash = 1;
-      t.knock(o.dirX * o.knock * 0.6, -o.lift * o.knock * 0.6, o.idx, o.knock > 600 ? 0.6 : 0);
+      // in training the dummy flies properly so it can be knocked off; the menu dummy stays tame
+      const k = mode === 'tutorial' ? 1.35 : 0.6;
+      t.knock(o.dirX * o.knock * k, -Math.max(o.lift, mode === 'tutorial' ? 0.35 : 0) * o.knock * k, o.idx, o.knock * k > (mode === 'tutorial' ? 300 : 360) ? 0.6 : 0);
       fx.burst(o.px, o.py, (ELEMENT_BY_ID[o.el] || NEUTRAL).color, 10, 240);
       return;
     }
@@ -1592,12 +1594,13 @@ const Game = (() => {
       f.update(dt, islands, zoneForce);
       if (f.decor) {
         f.hp = f.maxHp;
-        if (f.mode === 'active') f.root.x = clamp(f.root.x, islands[0].left + 60, islands[0].right - 60);
+        if (f.mode === 'active' && mode !== 'tutorial') f.root.x = clamp(f.root.x, islands[0].left + 60, islands[0].right - 60);
       }
       const yy = f.alive ? Math.min(f.root.y, f.pelvis.y + 60) : f.pelvis.y;
       if (yy > RINGOUT_Y) {
         if (f.decor || (state === 'idle' && f.isPlayer)) {
           const isl = islands[0];
+          if (f.decor && run && run.tut) { run.tut.ringouts = (run.tut.ringouts || 0) + 1; Sfx.kill(); hooks.onToast && hooks.onToast('RING OUT!'); }
           teleport(f, isl.x + (f.decor ? 170 : -120), isl.top - 300);
           f.mode = 'active'; f.m = 1; f.stunT = 0;
         } else ringOut(f);
