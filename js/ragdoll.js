@@ -420,6 +420,7 @@ class Fighter {
   hitCircle(x, y, r) { return this.hitCapsule(x, y, x + 0.01, y, r); }
 
   /* --------------------------------------------------------------- draw */
+  // flat, chunky mannequin: thick rounded limbs, no outlines, no faces
   draw(ctx, time) {
     const s = this.s, pts = this.pts, st = this.status;
     const fade = this.mode === 'dead' ? clamp(1 - (this.deadT - 4) / 1.2, 0, 1) : 1;
@@ -428,136 +429,131 @@ class Fighter {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (this.cape) this.drawCape(ctx);
 
-    const body = this.flash > 0 ? mixHex(this.body, '#ffffff', this.flash) : this.body;
-    const shade = this.flash > 0 ? mixHex(this.shade, '#ffffff', this.flash) : this.shade;
-    const limb = (a, b, c, w, col) => {
+    const fl = this.flash;
+    const body = fl > 0 ? mixHex(this.body, '#ffffff', fl) : this.body;
+    const shade = fl > 0 ? mixHex(this.shade, '#ffffff', fl) : this.shade;
+    const seg = (a, b, w, col) => {
       ctx.strokeStyle = col; ctx.lineWidth = w * s;
-      ctx.beginPath(); ctx.moveTo(pts[a].x, pts[a].y); ctx.lineTo(pts[b].x, pts[b].y); ctx.lineTo(pts[c].x, pts[c].y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pts[a].x, pts[a].y); ctx.lineTo(pts[b].x, pts[b].y); ctx.stroke();
     };
-    // rim so dark fighters read on dark skies
-    if (!this.isPlayer && this.alive) {
-      ctx.save(); ctx.globalAlpha *= 0.55;
-      for (const [a, b, c] of [[2, 9, 10], [1, 5, 6], [2, 7, 8], [1, 3, 4]]) limb(a, b, c, 12.5, this.accent);
-      ctx.strokeStyle = this.accent; ctx.lineWidth = 15 * s;
-      ctx.beginPath(); ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.stroke();
-      ctx.fillStyle = this.accent; ctx.beginPath(); ctx.arc(pts[0].x, pts[0].y, (HEAD_R + 2.5) * s, 0, TAU); ctx.fill();
-      ctx.restore();
-    }
-    limb(2, 9, 10, 9, shade);
-    limb(1, 5, 6, 8, shade);
-    ctx.strokeStyle = body; ctx.lineWidth = 12 * s;
-    ctx.beginPath(); ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.stroke();
-    limb(2, 7, 8, 9.5, body);
+    // back limbs in the shade tone
+    seg(2, 9, 13, shade); seg(9, 10, 11, shade);
+    seg(1, 5, 11, shade); seg(5, 6, 9.5, shade);
+    // torso: thick capsule with a slightly narrower waist
+    seg(1, 2, 22, body);
+    const n = pts[P.NECK], pv = pts[P.PELVIS];
+    // element sash across the waist
+    ctx.strokeStyle = this.accent; ctx.lineWidth = 6 * s;
+    ctx.beginPath(); ctx.moveTo(lerp(n.x, pv.x, 0.78), lerp(n.y, pv.y, 0.78)); ctx.lineTo(lerp(n.x, pv.x, 0.86), lerp(n.y, pv.y, 0.86)); ctx.stroke();
+    // front leg
+    seg(2, 7, 13.5, body); seg(7, 8, 11.5, body);
+    // head: rounded block
     const hd = pts[P.HEAD];
     ctx.fillStyle = body;
-    ctx.beginPath(); ctx.arc(hd.x, hd.y, HEAD_R * s, 0, TAU); ctx.fill();
+    const hr = HEAD_R * s;
+    ctx.beginPath(); ctx.roundRect(hd.x - hr, hd.y - hr * 1.05, hr * 2, hr * 2.1, hr * 0.8); ctx.fill();
     this.drawHeadgear(ctx, hd, time);
-    limb(1, 3, 4, 8.5, body);
-
-    // elemental hands
-    if (this.alive && this.el !== 'none') {
+    // front arm on top
+    seg(1, 3, 11, body); seg(3, 4, 9.5, body);
+    // elemental wrist cuffs
+    if (this.el !== 'none') {
+      for (const [e, h] of [[P.FELB, P.FHAND], [P.BELB, P.BHAND]]) {
+        const E = pts[e], Hh = pts[h];
+        ctx.strokeStyle = this.accent; ctx.lineWidth = 10.5 * s;
+        ctx.beginPath(); ctx.moveTo(lerp(E.x, Hh.x, 0.62), lerp(E.y, Hh.y, 0.62)); ctx.lineTo(lerp(E.x, Hh.x, 0.78), lerp(E.y, Hh.y, 0.78)); ctx.stroke();
+      }
+    }
+    if (this.isPlayer && this.alive && this.el !== 'none') {
       ctx.globalCompositeOperation = 'lighter';
-      const c = AURA[this.el];
-      for (const i of [P.FHAND, P.BHAND]) Glow.draw(ctx, c, pts[i].x, pts[i].y, (this.isPlayer ? 20 : 14) * s, this.isPlayer ? 0.85 : 0.6);
+      Glow.draw(ctx, AURA[this.el], pts[P.FHAND].x, pts[P.FHAND].y, 16 * s, 0.55);
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = c;
-      ctx.beginPath(); ctx.arc(pts[P.FHAND].x, pts[P.FHAND].y, 5 * s, 0, TAU); ctx.fill();
     }
 
     if (st.freeze > 0) {
-      ctx.globalAlpha = fade * clamp(st.freeze * 2, 0, 0.8);
-      for (const [a, b] of SEGS) {
-        ctx.strokeStyle = '#c4f1ff'; ctx.lineWidth = 17 * s;
-        ctx.beginPath(); ctx.moveTo(pts[a].x, pts[a].y); ctx.lineTo(pts[b].x, pts[b].y); ctx.stroke();
-      }
-      ctx.fillStyle = '#d8f6ff';
-      ctx.beginPath(); ctx.arc(hd.x, hd.y, (HEAD_R + 5) * s, 0, TAU); ctx.fill();
+      ctx.globalAlpha = fade * clamp(st.freeze * 2, 0, 0.7);
+      for (const [a, b] of SEGS) seg(a, b, 20, '#bfe9f7');
+      ctx.fillStyle = '#d4f2fb';
+      ctx.beginPath(); ctx.roundRect(hd.x - hr - 4 * s, hd.y - hr - 5 * s, hr * 2 + 8 * s, hr * 2.1 + 9 * s, hr); ctx.fill();
       ctx.globalAlpha = fade;
     }
     if (st.root > 0) {
-      ctx.strokeStyle = '#4f9e3c'; ctx.lineWidth = 3 * s;
+      ctx.strokeStyle = '#5f9e46'; ctx.lineWidth = 3.5 * s;
       for (const [a, b] of [[P.FKNEE, P.FFOOT], [P.BKNEE, P.BFOOT]]) {
         const A = pts[a], B = pts[b];
         ctx.beginPath();
         for (let i = 0; i <= 10; i++) {
-          const u = i / 10, w = Math.sin(u * 14 + time * 3) * 6 * s;
+          const u = i / 10, w = Math.sin(u * 14 + time * 3) * 7 * s;
           const x = lerp(A.x, B.x, u) + w, y = lerp(A.y, B.y, u);
           i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         }
         ctx.stroke();
       }
     }
+    if (st.burn > 0) {
+      ctx.fillStyle = '#ff8a3d';
+      ctx.globalAlpha = fade * 0.25;
+      const c = this.center();
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, 26 * s, 50 * s, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = fade;
+    }
     if (this.shield > 0) {
       const c = this.center();
-      ctx.globalAlpha = fade * (0.35 + Math.sin(time * 6) * 0.08);
+      ctx.globalAlpha = fade * 0.22;
       ctx.fillStyle = '#7cc8ff';
-      ctx.beginPath(); ctx.arc(c.x, c.y - 10 * s, 72 * s, 0, TAU); ctx.fill();
-      ctx.globalAlpha = fade * 0.9;
-      ctx.strokeStyle = '#d5efff'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(c.x, c.y - 10 * s, 72 * s, 0, TAU); ctx.stroke();
-      ctx.beginPath(); ctx.arc(c.x - 22 * s, c.y - 40 * s, 14 * s, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke();
+      ctx.beginPath(); ctx.arc(c.x, c.y - 10 * s, 74 * s, 0, TAU); ctx.fill();
+      ctx.globalAlpha = fade * 0.85;
+      ctx.strokeStyle = '#bfe3ff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(c.x, c.y - 10 * s, 74 * s, 0, TAU); ctx.stroke();
     }
     ctx.globalAlpha = 1;
   }
 
   drawHeadgear(ctx, hd, time) {
-    const s = this.s, f = this.facing;
+    const s = this.s, f = this.facing, hr = HEAD_R * s;
     if (this.isPlayer) {
-      ctx.fillStyle = this.shade;
+      // wrapped band in the element colour with two trailing tails
+      ctx.fillStyle = this.accent;
+      ctx.fillRect(hd.x - hr, hd.y - hr * 0.55, hr * 2, 5 * s);
+      ctx.strokeStyle = this.accent; ctx.lineWidth = 3.5 * s; ctx.lineCap = 'round';
+      const wave = Math.sin(time * 6 + this.t) * 3 * s;
       ctx.beginPath();
-      ctx.arc(hd.x, hd.y - 1 * s, (HEAD_R + 2.5) * s, Math.PI * 0.95, Math.PI * 2.05);
-      ctx.quadraticCurveTo(hd.x - f * 10 * s, hd.y - 10 * s, hd.x - f * (HEAD_R + 9) * s, hd.y + 4 * s);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#2a2730';
-      ctx.beginPath(); ctx.arc(hd.x + f * 6 * s, hd.y - 1 * s, 2.3 * s, 0, TAU); ctx.fill();
+      ctx.moveTo(hd.x - f * hr, hd.y - hr * 0.45);
+      ctx.quadraticCurveTo(hd.x - f * (hr + 10 * s), hd.y - hr * 0.5 + wave, hd.x - f * (hr + 18 * s), hd.y - hr * 0.1 + wave);
+      ctx.stroke();
       return;
     }
-    if (this.alive) Glow.draw(ctx, this.accent, hd.x + f * 6 * s, hd.y - 1 * s, 10 * s, 0.9);
-    ctx.fillStyle = this.alive ? this.accent : '#555';
-    ctx.beginPath(); ctx.ellipse(hd.x + f * 6 * s, hd.y - 1 * s, 3 * s, 2.2 * s, 0, 0, TAU); ctx.fill();
     if (this.kind === 'brute' || this.kind === 'boss') {
-      ctx.fillStyle = '#8b8f9c';
-      ctx.beginPath();
-      ctx.arc(hd.x, hd.y, (HEAD_R + 2.5) * s, Math.PI, 0);
-      ctx.lineTo(hd.x + (HEAD_R + 2.5) * s, hd.y + 3 * s);
-      ctx.lineTo(hd.x - (HEAD_R + 2.5) * s, hd.y + 3 * s);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#20232b';
-      ctx.fillRect(hd.x + f * 2 * s - (f < 0 ? 10 * s : 0), hd.y - 3 * s, 10 * s, 2.5 * s);
-      // shoulder plate
-      const n = this.pts[P.NECK];
-      ctx.fillStyle = '#7a7e8b';
-      ctx.beginPath(); ctx.ellipse(n.x, n.y + 4 * s, 15 * s, 8 * s, 0, Math.PI, 0); ctx.fill();
+      // flat grey plates: helmet cap, shoulder and chest
+      ctx.fillStyle = '#9a9a9a';
+      ctx.beginPath(); ctx.roundRect(hd.x - hr - 2 * s, hd.y - hr * 1.15, hr * 2 + 4 * s, hr * 1.15, [hr * 0.9, hr * 0.9, 2 * s, 2 * s]); ctx.fill();
+      const n = this.pts[P.NECK], pv = this.pts[P.PELVIS];
+      ctx.strokeStyle = '#8c8c8c'; ctx.lineWidth = 24 * s;
+      ctx.beginPath(); ctx.moveTo(n.x, n.y + 2 * s); ctx.lineTo(lerp(n.x, pv.x, 0.45), lerp(n.y, pv.y, 0.45)); ctx.stroke();
+      ctx.fillStyle = '#a6a6a6';
+      ctx.beginPath(); ctx.ellipse(n.x, n.y + 2 * s, 16 * s, 8 * s, 0, Math.PI, 0); ctx.fill();
     }
     if (this.kind === 'boss') {
+      // tall element-coloured crest rising from the helmet
       ctx.fillStyle = this.accent;
-      const by = hd.y - (HEAD_R + 1) * s;
+      const by = hd.y - hr * 1.1;
       ctx.beginPath();
-      ctx.moveTo(hd.x - 12 * s, by);
-      for (let i = 0; i < 5; i++) {
-        const x = hd.x - 12 * s + i * 6 * s;
-        ctx.lineTo(x + 3 * s, by - (i % 2 ? 6 : 11) * s);
-        ctx.lineTo(x + 6 * s, by);
-      }
+      ctx.moveTo(hd.x - 6 * s, by);
+      ctx.lineTo(hd.x - f * 4 * s, by - 18 * s);
+      ctx.lineTo(hd.x + 6 * s, by);
       ctx.closePath(); ctx.fill();
-      if (this.alive) Glow.draw(ctx, this.accent, hd.x, by - 6 * s, 26 * s, 0.35 + Math.sin(time * 3) * 0.1);
+      ctx.fillRect(hd.x - hr - 2 * s, hd.y - hr * 0.2, hr * 2 + 4 * s, 4 * s);
     } else if (this.kind === 'caster') {
       ctx.fillStyle = this.shade;
       ctx.beginPath();
-      ctx.moveTo(hd.x - 15 * s, hd.y + 2 * s);
-      ctx.quadraticCurveTo(hd.x - 4 * s, hd.y - 22 * s, hd.x - f * 12 * s, hd.y - 30 * s);
-      ctx.quadraticCurveTo(hd.x + 8 * s, hd.y - 16 * s, hd.x + 15 * s, hd.y + 2 * s);
+      ctx.moveTo(hd.x - hr - 3 * s, hd.y + hr * 0.4);
+      ctx.quadraticCurveTo(hd.x - hr * 0.4, hd.y - hr * 1.8, hd.x - f * hr * 0.9, hd.y - hr * 2.4);
+      ctx.quadraticCurveTo(hd.x + hr * 0.6, hd.y - hr * 1.2, hd.x + hr + 3 * s, hd.y + hr * 0.4);
       ctx.closePath(); ctx.fill();
       ctx.fillStyle = this.accent;
-      ctx.beginPath(); ctx.ellipse(hd.x + f * 6 * s, hd.y - 1 * s, 3 * s, 2.2 * s, 0, 0, TAU); ctx.fill();
+      ctx.fillRect(hd.x - hr - 1 * s, hd.y - hr * 0.1, hr * 2 + 2 * s, 3.5 * s);
     } else if (this.kind === 'grunt') {
-      ctx.strokeStyle = this.accent; ctx.lineWidth = 3.5 * s;
-      ctx.beginPath(); ctx.arc(hd.x, hd.y, (HEAD_R - 1) * s, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
-      ctx.lineWidth = 2.5 * s;
-      ctx.beginPath();
-      ctx.moveTo(hd.x - f * 11 * s, hd.y - 6 * s);
-      ctx.quadraticCurveTo(hd.x - f * 20 * s, hd.y - 6 * s + Math.sin(time * 5 + this.t) * 3 * s, hd.x - f * 26 * s, hd.y - 2 * s);
-      ctx.stroke();
+      ctx.fillStyle = this.accent;
+      ctx.fillRect(hd.x - hr, hd.y - hr * 0.55, hr * 2, 5 * s);
     }
   }
 
@@ -565,12 +561,12 @@ class Fighter {
     const c = this.cape;
     ctx.fillStyle = this.capeColor || this.accent;
     ctx.beginPath();
-    const w0 = 7 * this.s;
+    const w0 = 8 * this.s;
     const left = [], right = [];
     for (let i = 0; i < c.length; i++) {
       const a = c[Math.max(0, i - 1)], b = c[Math.min(c.length - 1, i + 1)];
       const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
-      const w = w0 * (1 - i / c.length * 0.55);
+      const w = w0 * (1 - i / c.length * 0.4);
       left.push([c[i].x - dy / l * w, c[i].y + dx / l * w]);
       right.push([c[i].x + dy / l * w, c[i].y - dx / l * w]);
     }

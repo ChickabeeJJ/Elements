@@ -1,8 +1,7 @@
 'use strict';
 /* =========================================================================
-   UI: home, campaign map, battle prep (loadout), element grimoire,
-   upgrades, settings/pause/results modals, the battle HUD and touch
-   controls. Pure DOM over the canvas.
+   UI (flat style): home, campaign, battle prep, elements, upgrades,
+   settings/pause/results, the battle HUD and touch controls.
    ========================================================================= */
 
 const UI = (() => {
@@ -16,15 +15,17 @@ const UI = (() => {
   let rotateDismissed = false;
   let returnTo = 'home';
 
-  const medal = (id, cls = '') => `<span class="medal ${cls}" style="--c:${(ELEMENT_BY_ID[id] || NEUTRAL).color}">${elementIcon(id)}</span>`;
+  const chip = (id, cls = '') => `<span class="chip ${cls}" style="--c:${(ELEMENT_BY_ID[id] || NEUTRAL).color}">${elementIcon(id)}</span>`;
+  const elName = id => (ELEMENT_BY_ID[id] || NEUTRAL).name.toUpperCase();
+  const KEYS = ['LMB', 'Q', 'E'];
   const TIPS = [
-    'Knocking a foe off the islands is an instant kill: the more hurt they are, the further they fly.',
-    'Hitting an elemental weakness deals 160% damage. Check the realm before you pick a loadout.',
-    'A "!" over an enemy means an attack is coming. Jump or dash out of the way.',
+    'Knock foes off the islands for an instant ring-out. Hurt foes fly further.',
+    'Hitting an elemental weakness deals 160% damage.',
+    'A "!" over an enemy means an attack is coming. Jump or dash away.',
     'Double jump to recover if you get knocked off an edge.',
-    'Rime freezes foes solid; Ice Lance and Stone shatter them.',
-    'Soak foes with Tide, then hit them with Storm for bonus damage.',
-    'Swap elements mid-fight with 1, 2 and 3 to chain powers together.',
+    'Frozen foes shatter under Stone and Ice Lance.',
+    'Soak foes with Tide, then hit them with Storm.',
+    'Swap elements mid-fight with 1, 2 and 3 to chain powers.',
     'Upgrades are permanent. Spend essence between stages.',
   ];
 
@@ -36,20 +37,24 @@ const UI = (() => {
     document.body.classList.toggle('playing', name === null);
     if (name === 'home') refreshHome();
     if (name) Platform.gameplayStop();
-    refreshEssence();
+    document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
-  function refreshEssence() { document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); }); }
+
+  function slotLines(ids, active = -1) {
+    return ids.map((id, i) => `<div class="slot-line${i === active ? ' on' : ''}" data-i="${i}"><span class="radio${i === active ? ' on' : ''}"></span><span class="num">${i + 1}</span>${chip(id)}<span class="name">${elName(id)}</span></div>`).join('');
+  }
 
   function refreshHome() {
     const [r, s] = Save.nextStage();
     const all = Object.keys(Save.data.stars).length >= TOTAL_STAGES;
-    $('playSub').textContent = all ? 'All stages clear' : `Stage ${stageLabel(r, s)} · ${REALMS[r].name}`;
-    $('endlessSub').textContent = 'Best ' + Save.data.endlessBest + ' kills';
+    $('playSub').textContent = all ? 'ALL CLEAR' : `STAGE ${stageLabel(r, s)} · ${REALMS[r].name.toUpperCase()}`;
+    $('endlessSub').textContent = 'BEST ' + Save.data.endlessBest;
     $('homeStars').textContent = Save.totalStars() + '/' + TOTAL_STAGES * 3;
+    $('homeKills').textContent = fmt(Save.data.stats.kills || 0);
     $('homeElems').textContent = Save.unlockedElements().length + '/' + ELEMENTS.length;
     const cheapest = Math.min(...UPGRADES.map(u => Save.upgradeCost(u.id) ?? Infinity));
-    $('homeForge').textContent = cheapest <= Save.data.essence ? 'Upgrade ready!' : 'Forge';
-    $('homeLoadout').innerHTML = `<span class="lbl">Loadout</span><span class="row">${Save.loadout().map(id => medal(id)).join('')}</span>`;
+    $('homeForge').textContent = cheapest <= Save.data.essence ? 'READY' : ' ';
+    $('homeLoadout').innerHTML = `<span class="lbl">LOADOUT</span>${slotLines(Save.loadout(), 0)}`;
   }
 
   /* --------------------------------------------------------------- map */
@@ -61,111 +66,93 @@ const UI = (() => {
     renderMap();
   }
 
-  function realmArt(realm) {
-    return `<svg class="art" viewBox="0 0 200 128" preserveAspectRatio="xMidYMid slice">
-      <defs><linearGradient id="g${realm.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${realm.sky[0]}"/><stop offset="0.6" stop-color="${realm.sky[1]}"/><stop offset="1" stop-color="${realm.sky[2]}"/></linearGradient></defs>
-      <rect width="200" height="128" fill="url(#g${realm.id})"/>
-      <circle cx="${realm.sunPos[0] * 200}" cy="${realm.sunPos[1] * 128 + 6}" r="13" fill="${realm.sun}" opacity=".9"/>
-      <path d="M0 86 Q30 60 60 80 T120 72 T200 78 V128 H0Z" fill="${realm.hills[0]}"/>
-      <path d="M0 100 Q40 82 80 98 T160 92 T200 96 V128 H0Z" fill="${realm.hills[1]}"/>
-      <path d="M118 74 h52 l-6 8 -14 22 -12 -10 -14 -12z" fill="${realm.rock}"/><rect x="116" y="70" width="56" height="6" rx="3" fill="${realm.top}"/>
-      <path d="M0 112 Q50 104 100 114 T200 110 V128 H0Z" fill="${realm.hills[2]}"/>
-    </svg>`;
-  }
-
   function renderMap() {
-    const strip = $('chapters');
-    strip.innerHTML = '';
+    const tabs = $('realmTabs');
+    tabs.innerHTML = '';
     REALMS.forEach((realm, i) => {
       const open = Save.realmOpen(i);
-      const stars = Array.from({ length: STAGES_PER_REALM }, (_, s) => Save.data.stars[stageKey(i, s)] || 0).reduce((a, b) => a + b, 0);
       const b = document.createElement('button');
-      b.className = 'chapter' + (i === mapRealm ? ' active' : '') + (open ? '' : ' locked');
-      b.innerHTML = `${realmArt(realm)}<span class="num">REALM ${i + 1}</span><b>${realm.name}</b><span class="meta"><span class="ic" data-icon="star"></span>${stars}/${STAGES_PER_REALM * 3}</span>${open ? '' : '<span class="ic lockic" data-icon="lock"></span>'}`;
+      b.className = 'tab' + (i === mapRealm ? ' active' : '') + (open ? '' : ' locked');
+      b.innerHTML = realm.name.toUpperCase() + (open ? '' : '<span class="ic" data-icon="lock"></span>');
       b.onclick = () => {
-        if (!open) { Sfx.denied(); toast(`Defeat ${REALMS[i - 1].boss.name} to open ${realm.name}`); return; }
+        if (!open) { Sfx.denied(); toast(`DEFEAT ${REALMS[i - 1].boss.name.toUpperCase()} FIRST`); return; }
         Sfx.click(); mapRealm = i; Game.idleScene(i); renderMap();
       };
-      strip.appendChild(b);
+      tabs.appendChild(b);
     });
-
     const realm = REALMS[mapRealm];
     const aff = AFFINITY[realm.element];
+    const stars = Array.from({ length: STAGES_PER_REALM }, (_, s) => Save.data.stars[stageKey(mapRealm, s)] || 0).reduce((a, b) => a + b, 0);
+    $('realmLine').innerHTML = `<h3>${realm.name.toUpperCase()}</h3>
+      <span class="grp">${chip(realm.element)} ${elName(realm.element)} WARRIORS</span>
+      <span class="grp">WEAK TO ${aff.weak.map(w => chip(w)).join('')}</span>
+      <span class="grp"><span class="ic star" data-icon="star"></span> ${stars}/${STAGES_PER_REALM * 3}</span>`;
     const [nr, ns] = Save.nextStage();
-    const d = $('chapterDetail');
-    d.innerHTML = `
-      <div class="panel realm-info">
-        <h3>${realm.name}</h3>
-        <div class="sub">${ELEMENT_BY_ID[realm.element].name} warriors guard these islands. Their champion: <b style="color:${AURA[realm.element]}">${realm.boss.name}</b>.</div>
-        <div class="aff-row"><span class="tag weak">WEAK TO</span>${aff.weak.map(w => medal(w)).join('')}</div>
-        <div class="aff-row"><span class="tag res">RESISTS</span>${aff.resist.map(w => medal(w)).join('')}</div>
-      </div>
-      <div class="panel stage-path">
-        <svg class="path" viewBox="0 0 600 300" preserveAspectRatio="none"><path d="M50 196 C 90 196, 110 104, 150 104 S 210 196, 250 196 S 310 104, 350 104 S 410 196, 450 196 S 510 104, 550 104" fill="none" stroke="#160e29" stroke-width="16" stroke-linecap="round"/><path d="M50 196 C 90 196, 110 104, 150 104 S 210 196, 250 196 S 310 104, 350 104 S 410 196, 450 196 S 510 104, 550 104" fill="none" stroke="#8a74d6" stroke-width="8" stroke-dasharray="2 16" stroke-linecap="round"/></svg>
-        <div class="nodes" id="nodes"></div>
-      </div>`;
-    const nodes = d.querySelector('#nodes');
+    const row = $('stageRow');
+    row.innerHTML = '';
     for (let s = 0; s < STAGES_PER_REALM; s++) {
       const open = Save.stageOpen(mapRealm, s);
       const st = Save.data.stars[stageKey(mapRealm, s)] || 0;
       const boss = s === STAGES_PER_REALM - 1;
       const unlock = elementUnlockedBy(mapRealm, s);
       const cur = mapRealm === nr && s === ns && !st;
-      const n = document.createElement('button');
-      n.className = 'node' + (boss ? ' boss' : '') + (!open ? ' locked' : st ? ' done' : cur ? ' current' : '');
-      n.innerHTML = (boss ? '<span class="ic crown" data-icon="crown"></span>' : '') +
-        (open ? `<span>${s + 1}</span>` : '<span class="ic" data-icon="lock"></span>') +
-        (open ? `<span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>` : '') +
-        (unlock && !st ? `<span class="reward medal" style="--c:${unlock.color}" title="Unlocks ${unlock.name}">${elementIcon(unlock.id)}</span>` : '');
-      n.onclick = () => {
-        if (!open) { Sfx.denied(); toast('Clear the previous stage first'); return; }
+      const el = document.createElement('button');
+      el.className = 'stage' + (boss ? ' boss' : '') + (!open ? ' locked' : st ? ' done' : cur ? ' current' : '');
+      el.innerHTML = `<span class="block">${open ? (boss ? '<span class="ic" data-icon="skull"></span>' : s + 1) : '<span class="ic" data-icon="lock"></span>'}${unlock && !st ? `<span class="tag" style="--c:${unlock.color}" title="Unlocks ${unlock.name}">${elementIcon(unlock.id)}</span>` : ''}</span>
+        <span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>
+        <small>${boss ? realm.boss.name.toUpperCase() : 'STAGE ' + stageLabel(mapRealm, s)}</small>`;
+      el.onclick = () => {
+        if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }
         Sfx.click(); openPrep({ mode: 'stage', r: mapRealm, s });
       };
-      nodes.appendChild(n);
+      row.appendChild(el);
     }
-    Icons.hydrate(strip); Icons.hydrate(d);
+    Icons.hydrate(tabs); Icons.hydrate($('realmLine')); Icons.hydrate(row);
   }
 
   /* ------------------------------------------------------- battle prep */
   function openPrep(opts) {
-    const unlocked = Save.unlockedElements();
     let sel = Save.loadout().slice();
     const realm = opts.mode === 'stage' ? REALMS[opts.r] : null;
     const aff = realm ? AFFINITY[realm.element] : null;
     const draw = () => {
-      const title = opts.mode === 'stage' ? `Stage ${stageLabel(opts.r, opts.s)}` : 'Endless';
       const boss = opts.mode === 'stage' && opts.s === STAGES_PER_REALM - 1;
+      const title = opts.mode === 'stage' ? `STAGE ${stageLabel(opts.r, opts.s)}` : 'ENDLESS';
       const foe = realm
-        ? `<div class="prep-foe">${medal(realm.element)}<div><b>${boss ? realm.boss.name : ELEMENT_BY_ID[realm.element].name + ' warriors'}</b><small>${boss ? realm.boss.title : realm.name} · weak to ${aff.weak.map(w => ELEMENT_BY_ID[w].name).join(', ')}</small></div></div>`
-        : `<div class="prep-foe">${medal('none')}<div><b>Endless waves</b><small>Every realm, ever harder. Best: ${Save.data.endlessBest} kills</small></div></div>`;
+        ? `<div class="foe">${chip(realm.element)}<div><b>${boss ? realm.boss.name.toUpperCase() : elName(realm.element) + ' WARRIORS'}</b><small>Weak to ${aff.weak.map(w => ELEMENT_BY_ID[w].name).join(' and ')}</small></div></div>`
+        : `<div class="foe">${chip('none')}<div><b>ENDLESS WAVES</b><small>Every realm, ever harder. Best ${Save.data.endlessBest}</small></div></div>`;
       modal(`
-        <h2 class="title-ribbon gold">${title}</h2>
-        <div class="prep-top">${foe}</div>
-        <p class="prep-h">Your loadout (up to 3)</p>
-        <div class="slots">${[0, 1, 2].map(i => {
-          const id = sel[i];
-          return `<div class="slot"><kbd>${i + 1}</kbd>${id ? medal(id) : '<span class="empty"><span class="ic" data-icon="plus"></span></span>'}<small>${id ? ELEMENT_BY_ID[id].name : 'Empty'}</small></div>`;
-        }).join('')}</div>
-        <div class="picker">${ELEMENTS.map(e => {
-          const open = unlocked.includes(e);
-          const good = aff && aff.weak.includes(e.id);
-          return `<button class="pick${sel.includes(e.id) ? ' on' : ''}${open ? '' : ' locked'}" data-el="${e.id}">${good && open ? '<span class="badge">STRONG</span>' : ''}${medal(e.id, open ? '' : 'locked')}<small>${open ? e.name : '???'}</small></button>`;
-        }).join('')}</div>
-        <div class="actions">
-          <button class="cbtn cbtn-dark" id="prepBack"><b>Back</b></button>
-          <button class="cbtn cbtn-gold lg" id="prepGo"><span class="ic" data-icon="play"></span><b>Fight!</b></button>
-        </div>`, sh => {
+        <button class="x" id="prepX" aria-label="Close"><span class="ic" data-icon="close"></span></button>
+        <h2>${title}</h2>
+        <div class="prep">
+          <div class="prep-col">
+            ${foe}
+            <p class="prep-h">LOADOUT · UP TO 3</p>
+            <div class="loadout">${[0, 1, 2].map(i => sel[i]
+              ? `<div class="slot-line"><span class="num">${i + 1}</span>${chip(sel[i])}<span class="name">${elName(sel[i])}</span></div>`
+              : `<div class="slot-line empty"><span class="num">${i + 1}</span><span class="ph"></span><span class="name">EMPTY</span></div>`).join('')}</div>
+          </div>
+          <div class="prep-col">
+            <p class="prep-h">ELEMENTS</p>
+            <div class="picker">${ELEMENTS.map(e => {
+              const open = Save.elementOpen(e.id);
+              const good = aff && aff.weak.includes(e.id) && open;
+              return `<button class="pick${sel.includes(e.id) ? ' on' : ''}${open ? '' : ' locked'}" data-el="${e.id}">${good ? '<span class="badge">STRONG</span>' : ''}${chip(e.id, open ? '' : 'locked')}<span>${open ? e.name.toUpperCase() : '???'}</span></button>`;
+            }).join('')}</div>
+          </div>
+        </div>
+        <div class="actions"><button class="btn go big" id="prepGo"><b>FIGHT</b></button></div>`, sh => {
         sh.classList.add('wide');
         sh.querySelectorAll('.pick').forEach(b => b.onclick = () => {
           const id = b.dataset.el;
-          if (!Save.elementOpen(id)) { Sfx.denied(); const e = ELEMENT_BY_ID[id]; toast(`Unlocks at stage ${stageLabel(e.unlock[0], e.unlock[1])}`); return; }
+          if (!Save.elementOpen(id)) { Sfx.denied(); const e = ELEMENT_BY_ID[id]; toast(`UNLOCKS AT STAGE ${stageLabel(e.unlock[0], e.unlock[1])}`); return; }
           Sfx.click();
           if (sel.includes(id)) { if (sel.length > 1) sel = sel.filter(x => x !== id); }
           else if (sel.length < 3) sel.push(id);
           else { sel.shift(); sel.push(id); }
           draw();
         });
-        sh.querySelector('#prepBack').onclick = () => { Sfx.click(); closeModal(); };
+        sh.querySelector('#prepX').onclick = () => { Sfx.click(); closeModal(); };
         sh.querySelector('#prepGo').onclick = () => {
           Sfx.click(); Save.setLoadout(sel); closeModal();
           opts.mode === 'stage' ? startStage(opts.r, opts.s) : startEndless();
@@ -179,13 +166,12 @@ const UI = (() => {
   function openCodex() { show('codex'); renderCodex(); }
   function renderCodex() {
     const list = $('codexList');
-    list.classList.add('panel');
     list.innerHTML = '';
     for (const e of ELEMENTS) {
       const open = Save.elementOpen(e.id);
       const b = document.createElement('button');
-      b.className = 'codex-item' + (e.id === codexSel ? ' active' : '');
-      b.innerHTML = `${medal(e.id, open ? '' : 'locked')}<small>${open ? e.name : '???'}</small>`;
+      b.className = 'el-row' + (e.id === codexSel ? ' active' : '');
+      b.innerHTML = `${chip(e.id, open ? '' : 'locked')}<span>${open ? e.name.toUpperCase() : '???'}</span>`;
       b.onclick = () => { Sfx.click(); codexSel = e.id; renderCodex(); };
       list.appendChild(b);
     }
@@ -194,16 +180,13 @@ const UI = (() => {
     const open = Save.elementOpen(e.id);
     if (open) Game.setPreviewElement(e.id);
     const det = $('codexDetail');
-    det.classList.add('panel');
-    const keys = ['LMB', 'Q', 'E'];
     det.innerHTML = `
-      <div class="cd-head">${medal(e.id, open ? '' : 'locked')}<div><h3 style="color:${open ? e.color : 'inherit'}">${open ? e.name : 'Locked'}</h3><p>${open ? e.blurb : 'Clear stage ' + stageLabel(e.unlock[0], e.unlock[1]) + ' to master this element.'}</p></div></div>
+      <div class="cd-head">${chip(e.id, open ? '' : 'locked')}<div><h3>${open ? e.name.toUpperCase() : 'LOCKED'}</h3><p>${open ? e.blurb : 'Clear stage ' + stageLabel(e.unlock[0], e.unlock[1]) + ' to unlock.'}</p></div></div>
       <div class="moves">${e.moves.map((mv, i) => `
-        <div class="move-card"${open ? '' : ' style="filter:grayscale(1);opacity:.6"'}>
-          <div class="move-top"><span class="move-ic" style="background:linear-gradient(180deg, ${e.color}, ${e.deep})"><span class="ic" data-icon="${mv.icon}"></span></span>
-            <div><h4>${mv.name}</h4><div class="tags">${i === 0 ? '<span class="t-main">MAIN</span>' : '<span>POWER</span>'}${mv.type === 'melee' ? '<span class="t-melee">MELEE</span>' : mv.type === 'ranged' ? '<span class="t-ranged">RANGED</span>' : ''}</div></div></div>
-          <p>${mv.desc}</p>
-          <div class="stats">${mv.dmg ? `<span>${mv.dmg}${mv.count ? '×' + mv.count : ''} dmg</span>` : ''}<span>${mv.cd}s</span><kbd>${keys[i]}</kbd></div>
+        <div class="move"${open ? '' : ' style="opacity:.5"'}>
+          <span class="move-ic" style="--c:${e.color}"><span class="ic" data-icon="${mv.icon}"></span></span>
+          <div><h4>${mv.name.toUpperCase()} <span class="tagx">${i === 0 ? 'MAIN' : 'POWER'}</span>${mv.type === 'melee' ? '<span class="tagx melee">MELEE</span>' : mv.type === 'ranged' ? '<span class="tagx ranged">RANGED</span>' : ''}</h4><p>${mv.desc}</p></div>
+          <div class="num">${mv.dmg ? `<span>${mv.dmg}${mv.count ? '×' + mv.count : ''} DMG</span>` : '<span>&nbsp;</span>'}<span>${mv.cd}S</span><kbd>${KEYS[i]}</kbd></div>
         </div>`).join('')}</div>`;
     Icons.hydrate(det);
   }
@@ -211,40 +194,40 @@ const UI = (() => {
   /* -------------------------------------------------------------- forge */
   function openForge() { show('forge'); renderForge(); }
   function renderForge() {
-    const grid = $('forgeGrid');
-    grid.innerHTML = '';
+    const list = $('forgeList');
+    list.innerHTML = '';
     for (const u of UPGRADES) {
       const lv = Save.data.upgrades[u.id];
       const cost = Save.upgradeCost(u.id);
-      const card = document.createElement('div');
-      card.className = 'panel up-card';
-      card.innerHTML = `
-        <div class="up-top"><span class="up-ic" style="background:linear-gradient(180deg, ${u.color}, ${mixHex(u.color, '#1b1235', 0.45)})"><span class="ic" data-icon="${u.icon === 'shield' ? 'shieldUi' : u.icon}"></span></span>
-          <div><h4>${u.name}</h4><p>${u.desc} · Lv ${lv}/${u.max}</p></div></div>
-        <div class="lv" style="--c:${u.color}">${Array.from({ length: u.max }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div>`;
+      const row = document.createElement('div');
+      row.className = 'up';
+      row.style.setProperty('--c', u.color);
       const b = document.createElement('button');
-      if (cost == null) { b.className = 'cbtn cbtn-dark'; b.innerHTML = '<span class="ic" data-icon="check"></span><b>Maxed</b>'; b.disabled = true; }
+      if (cost == null) { b.className = 'cost max'; b.textContent = 'MAX'; b.disabled = true; }
       else {
-        b.className = 'cbtn ' + (Save.data.essence >= cost ? 'cbtn-teal' : 'cbtn-dark');
-        b.innerHTML = `<span class="ic" data-icon="gem"></span><b>${cost}</b>`;
+        b.className = 'cost' + (Save.data.essence >= cost ? '' : ' poor');
+        b.innerHTML = `<span class="ic" data-icon="gem"></span>${cost}`;
         b.onclick = () => {
-          if (Save.buy(u.id)) { Sfx.pickup(); renderForge(); refreshEssence(); }
-          else { Sfx.denied(); toast('Not enough essence'); }
+          if (Save.buy(u.id)) { Sfx.pickup(); renderForge(); show('forge'); }
+          else { Sfx.denied(); toast('NOT ENOUGH ESSENCE'); }
         };
       }
-      card.appendChild(b);
-      grid.appendChild(card);
+      row.appendChild(b);
+      row.insertAdjacentHTML('beforeend', `<div class="what">${u.name.toUpperCase()} ${u.desc.split(' ')[0].toUpperCase()}<small>${u.desc}</small></div>
+        <div class="pips">${Array.from({ length: u.max }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div>`);
+      list.appendChild(row);
     }
-    Icons.hydrate(grid);
+    Icons.hydrate(list);
   }
 
   /* -------------------------------------------------------------- modal */
-  function modal(html, onOpen) {
+  function modal(html, onOpen, cls = '') {
     const m = $('modal'), s = $('sheet');
-    s.className = 'sheet panel';
+    s.className = 'sheet ' + cls;
     s.innerHTML = html;
     Icons.hydrate(s);
     m.classList.remove('hidden');
+    s.scrollTop = 0;
     s.style.animation = 'none'; void s.offsetWidth; s.style.animation = '';
     onOpen && onOpen(s);
   }
@@ -253,38 +236,40 @@ const UI = (() => {
 
   function openSettings(fromPause) {
     const st = Save.data.settings;
-    const rows = [['sfx', 'sound', 'Sound'], ['music', 'music', 'Music'], ['shake', 'shake', 'Screen shake'], ['numbers', 'hash', 'Damage numbers']];
+    const rows = [['sfx', 'SOUND'], ['music', 'MUSIC'], ['shake', 'SHAKING'], ['numbers', 'NUMBERS']];
     modal(`
-      <h2 class="title-ribbon">Settings</h2>
-      <div class="toggles">${rows.map(([k, ic, label]) => `<button class="toggle${st[k] ? ' on' : ''}" data-k="${k}"><span class="ic" data-icon="${ic}"></span>${label}<span class="sw"></span></button>`).join('')}</div>
+      <button class="x" id="setX" aria-label="Close"><span class="ic" data-icon="close"></span></button>
+      <h2>SETTINGS</h2>
+      <div class="toggles">${rows.map(([k, label]) => `<button class="toggle${st[k] ? ' on' : ''}" data-k="${k}">${label}<span class="sw"></span></button>`).join('')}</div>
       <div class="keys">
-        <span><kbd>A</kbd><kbd>D</kbd></span><span>Move · <kbd>S</kbd> drop through</span>
-        <span><kbd>W</kbd><kbd>SPACE</kbd></span><span>Jump (double jump in the air)</span>
-        <span><kbd>LMB</kbd><kbd>J</kbd></span><span>Main attack (aim with the mouse)</span>
-        <span><kbd>Q</kbd><kbd>E</kbd></span><span>Element powers (also RMB / K / L)</span>
-        <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span><span>Swap element (or mouse wheel)</span>
+        <span><kbd>A</kbd><kbd>D</kbd></span><span>Move, <kbd>S</kbd> to drop through</span>
+        <span><kbd>W</kbd><kbd>SPACE</kbd></span><span>Jump, again in the air</span>
+        <span><kbd>LMB</kbd></span><span>Main attack toward the cursor</span>
+        <span><kbd>Q</kbd><kbd>E</kbd></span><span>Element powers</span>
+        <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span><span>Swap element</span>
       </div>
-      <div class="actions"><button class="cbtn cbtn-gold" id="setDone"><b>Done</b></button></div>
-      <button class="link-danger" id="setReset">Reset all progress</button>`, s => {
+      <div class="actions">
+        ${fromPause ? '<button class="btn" id="setBack"><b>BACK</b></button>' : '<button class="btn" id="setBack"><b>DONE</b></button>'}
+      </div>
+      <button class="link-danger" id="setReset">RESET PROGRESS</button>`, s => {
       s.querySelectorAll('.toggle').forEach(t => t.onclick = () => {
         const k = t.dataset.k;
         st[k] = !st[k];
         t.classList.toggle('on', st[k]);
         applySettings(); Save.save(); Sfx.click();
       });
-      s.querySelector('#setDone').onclick = () => { Sfx.click(); fromPause ? openPause() : closeModal(); };
+      const back = () => { Sfx.click(); fromPause ? openPause() : closeModal(); };
+      s.querySelector('#setX').onclick = back;
+      s.querySelector('#setBack').onclick = back;
       s.querySelector('#setReset').onclick = () => confirmReset(fromPause);
     });
   }
 
   function confirmReset(fromPause) {
-    modal(`<h2 class="title-ribbon red">Reset?</h2><p class="sub">Stars, essence, upgrades and unlocked elements will be erased for good.</p>
-      <div class="actions"><button class="cbtn cbtn-dark" id="rsNo"><b>Cancel</b></button><button class="cbtn cbtn-red" id="rsYes"><b>Erase</b></button></div>`, s => {
+    modal(`<h2 class="lose">RESET PROGRESS?</h2><p class="tip">Stars, essence, upgrades and elements will be erased.</p>
+      <div class="actions"><button class="btn" id="rsNo"><b>CANCEL</b></button><button class="btn dark" id="rsYes"><b>ERASE</b></button></div>`, s => {
       s.querySelector('#rsNo').onclick = () => openSettings(fromPause);
-      s.querySelector('#rsYes').onclick = () => {
-        Save.reset(); applySettings(); closeModal();
-        Game.idleScene(0); show('home'); toast('Progress reset');
-      };
+      s.querySelector('#rsYes').onclick = () => { Save.reset(); applySettings(); closeModal(); Game.idleScene(0); show('home'); toast('PROGRESS RESET'); };
     });
   }
 
@@ -294,17 +279,15 @@ const UI = (() => {
     if (Game.state !== 'play') return;
     Game.paused = true;
     Platform.gameplayStop();
-    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name} · ${stageLabel(lastStart.r, lastStart.s)}` : 'Endless';
+    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : 'ENDLESS';
     modal(`
-      <h2 class="title-ribbon">Paused</h2>
+      <h2>PAUSED</h2>
       <p class="sub">${label}</p>
-      <div class="stack">
-        <button class="cbtn cbtn-gold lg" id="pResume"><span class="ic" data-icon="play"></span><b>Resume</b></button>
-        <div class="actions">
-          <button class="cbtn cbtn-violet" id="pRestart"><span class="ic" data-icon="restart"></span><b>Restart</b></button>
-          <button class="cbtn cbtn-violet" id="pSettings"><span class="ic" data-icon="gear"></span><b>Settings</b></button>
-        </div>
-        <button class="cbtn cbtn-dark" id="pQuit"><span class="ic" data-icon="home"></span><b>Quit</b></button>
+      <div class="actions"><button class="btn big" id="pResume"><b>CONTINUE</b></button></div>
+      <div class="actions">
+        <button class="btn dark" id="pRestart"><b>RESTART</b></button>
+        <button class="btn dark" id="pSettings"><b>SETTINGS</b></button>
+        <button class="btn dark" id="pQuit"><b>MENU</b></button>
       </div>`, s => {
       s.querySelector('#pResume').onclick = resume;
       s.querySelector('#pRestart').onclick = () => { Sfx.click(); closeModal(); Game.quit(); relaunch(); };
@@ -326,20 +309,17 @@ const UI = (() => {
   /* ------------------------------------------------------------ results */
   function showResult(res) {
     $('bossBar').classList.add('hidden');
-    const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>Kills</small></div><div><b>${res.ringouts}</b><small>Ring outs</small></div><div><b>${res.bestCombo}</b><small>Best combo</small></div></div>`;
-    const reward = `<div class="reward"><span class="ic" data-icon="gem"></span>+${res.essence}${res.bonus ? ` <small>incl. ${res.bonus} clear bonus</small>` : ''}</div>`;
+    const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>KILLS</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
+    const reward = `<div class="payout"><span class="ic" data-icon="gem"></span>+${res.essence}${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
     if (res.mode === 'endless') {
       modal(`
-        <h2 class="title-ribbon ${res.best ? 'gold' : ''}">${res.best ? 'New Record!' : 'Run Over'}</h2>
-        <p class="sub">${res.kills} foes defeated · best ${res.bestKills}</p>
+        <h2 class="${res.best ? 'win' : ''}">${res.best ? 'NEW RECORD!' : 'RUN OVER'}</h2>
+        <p class="sub">${res.kills} DEFEATED · BEST ${res.bestKills}</p>
         ${tiles}${reward}
-        <div class="actions">
-          <button class="cbtn cbtn-dark" id="rMenu"><span class="ic" data-icon="home"></span><b>Home</b></button>
-          <button class="cbtn cbtn-gold" id="rAgain"><span class="ic" data-icon="restart"></span><b>Again</b></button>
-        </div>`, s => {
+        <div class="actions"><button class="btn dark" id="rMenu"><b>MENU</b></button><button class="btn go" id="rAgain"><b>AGAIN</b></button></div>`, s => {
         s.querySelector('#rMenu').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(0); show('home'); };
         s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless()); };
-      });
+      }, 'result');
       return;
     }
     const { r, s } = res;
@@ -349,39 +329,39 @@ const UI = (() => {
       const nextS = s + 1 < STAGES_PER_REALM ? s + 1 : 0;
       const hasNext = nextR < REALMS.length;
       const u = res.unlocked;
-      const unlock = u ? `<div class="unlock" style="--c:${u.color}">${medal(u.id)}<div><small>New element unlocked</small><b>${u.name}</b><p>${u.blurb}</p></div></div>` : '';
       modal(`
-        <h2 class="title-ribbon gold">${boss ? 'Realm Conquered!' : 'Victory!'}</h2>
+        <h2 class="win">${boss ? 'REALM CONQUERED!' : 'VICTORY!'}</h2>
         <div class="big-stars">${[1, 2, 3].map(k => `<span class="ic${k <= res.stars ? ' on' : ''}" data-icon="star"></span>`).join('')}</div>
-        <p class="sub">${REALMS[r].name} · Stage ${stageLabel(r, s)}</p>
-        ${tiles}${reward}${unlock}
-        ${boss && res.firstClear && hasNext ? `<p class="sub" style="color:${REALMS[nextR].tint}">${REALMS[nextR].name} is now open!</p>` : ''}
+        <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
+        ${tiles}${reward}
+        ${u ? `<div class="unlock" style="--c:${u.color}">${chip(u.id)}<div><small>NEW ELEMENT UNLOCKED</small><b>${u.name.toUpperCase()}</b><p>${u.blurb}</p></div></div>` : ''}
+        ${boss && res.firstClear && hasNext ? `<p class="sub">${REALMS[nextR].name.toUpperCase()} IS NOW OPEN</p>` : ''}
         <div class="actions">
-          <button class="cbtn cbtn-dark" id="rMap"><span class="ic" data-icon="map"></span><b>Map</b></button>
-          <button class="cbtn cbtn-violet" id="rRetry"><span class="ic" data-icon="restart"></span><b>Retry</b></button>
-          ${hasNext ? '<button class="cbtn cbtn-gold" id="rNext"><b>Next</b><span class="ic" data-icon="next"></span></button>' : ''}
+          <button class="btn dark" id="rMap"><b>MAP</b></button>
+          <button class="btn dark" id="rRetry"><b>RETRY</b></button>
+          ${hasNext ? '<button class="btn go" id="rNext"><b>NEXT</b></button>' : ''}
         </div>`, sh => {
         if (u) { Sfx.unlock(); Platform.happytime(); const l = Save.loadout(); if (l.length < 3 && !l.includes(u.id)) Save.setLoadout(l.concat(u.id)); }
         sh.querySelector('#rMap').onclick = () => { Sfx.click(); closeModal(); openMap(hasNext && boss ? nextR : r); };
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
         const nb = sh.querySelector('#rNext');
-        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => { show('map'); mapRealm = nextR; openPrep({ mode: 'stage', r: nextR, s: nextS }); renderMap(); Game.idleScene(nextR); }); };
-      });
+        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => { openMap(nextR); openPrep({ mode: 'stage', r: nextR, s: nextS }); }); };
+      }, 'result');
     } else {
       modal(`
-        <h2 class="title-ribbon red">Defeated</h2>
-        <p class="sub">${REALMS[r].name} · Stage ${stageLabel(r, s)}</p>
+        <h2 class="lose">DEFEATED</h2>
+        <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
         ${tiles}${reward}
-        <p class="sub" style="margin:0">💡 ${pick(TIPS)}</p>
+        <p class="tip">${pick(TIPS)}</p>
         <div class="actions">
-          <button class="cbtn cbtn-dark" id="rMap"><span class="ic" data-icon="map"></span><b>Map</b></button>
-          <button class="cbtn cbtn-teal" id="rForge"><span class="ic" data-icon="hammer"></span><b>Upgrade</b></button>
-          <button class="cbtn cbtn-gold" id="rRetry"><span class="ic" data-icon="restart"></span><b>Retry</b></button>
+          <button class="btn dark" id="rMap"><b>MAP</b></button>
+          <button class="btn dark" id="rForge"><b>UPGRADES</b></button>
+          <button class="btn go" id="rRetry"><b>RETRY</b></button>
         </div>`, sh => {
         sh.querySelector('#rMap').onclick = () => { Sfx.click(); closeModal(); openMap(r); };
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
-      });
+      }, 'result');
     }
   }
 
@@ -392,7 +372,8 @@ const UI = (() => {
     Game.start({ mode: 'stage', r, s });
     hudCache = {};
     buildHud();
-    banner(s === STAGES_PER_REALM - 1 ? 'Boss Stage' : `Stage ${stageLabel(r, s)}`, s === STAGES_PER_REALM - 1 ? 'boss' : '');
+    $('hudStage').textContent = `${REALMS[r].name.toUpperCase()} · ${stageLabel(r, s)}`;
+    banner(s === STAGES_PER_REALM - 1 ? 'BOSS STAGE' : `STAGE ${stageLabel(r, s)}`, s === STAGES_PER_REALM - 1 ? 'boss' : '');
     maybeCoach();
   }
   function startEndless() {
@@ -401,7 +382,8 @@ const UI = (() => {
     Game.start({ mode: 'endless' });
     hudCache = {};
     buildHud();
-    banner('Endless');
+    $('hudStage').textContent = 'ENDLESS';
+    banner('ENDLESS');
     maybeCoach();
   }
   function relaunch() { if (lastStart) lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : startEndless(); }
@@ -410,28 +392,28 @@ const UI = (() => {
   function buildHud() {
     const h = Game.hud();
     const bar = $('loadoutBar');
-    bar.innerHTML = '';
-    h.loadout.forEach((id, i) => {
-      const b = document.createElement('button');
-      b.className = 'lslot';
-      b.dataset.i = i;
-      b.innerHTML = `${medal(id)}<kbd>${i + 1}</kbd>`;
-      b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); if (Game.selectSlot(i)) Sfx.click(); });
-      bar.appendChild(b);
-    });
-    $('waveChip').classList.toggle('hidden', false);
+    bar.innerHTML = slotLines(h.loadout, h.elIdx);
+    bar.querySelectorAll('.slot-line').forEach(l => l.addEventListener('pointerdown', e => {
+      e.stopPropagation(); e.preventDefault();
+      if (Game.selectSlot(+l.dataset.i)) Sfx.click();
+    }));
     refreshAbilities(h);
   }
 
   function refreshAbilities(h) {
     const el = ELEMENT_BY_ID[h.el];
-    $('hudPortrait').innerHTML = medal(h.el);
-    document.querySelectorAll('.lslot').forEach(s => s.classList.toggle('active', +s.dataset.i === h.elIdx));
+    $('loadoutBar').querySelectorAll('.slot-line').forEach(l => {
+      const on = +l.dataset.i === h.elIdx;
+      l.classList.toggle('on', on);
+      l.querySelector('.radio').classList.toggle('on', on);
+    });
     const btns = [document.querySelector('.ab-main'), document.querySelector('.ab-p1'), document.querySelector('.ab-p2')];
     btns.forEach((b, i) => {
+      const mv = h.moves[i].mv;
       b.style.setProperty('--c', el.color);
-      b.querySelector('.ab-icon').innerHTML = Icons.svg(h.moves[i].mv.icon);
-      b.title = h.moves[i].mv.name;
+      b.querySelector('.ab-icon').innerHTML = Icons.svg(mv.icon);
+      b.querySelector('.ab-name').textContent = mv.name.toUpperCase();
+      b.querySelector('.ab-sub').textContent = KEYS[i];
     });
   }
 
@@ -445,38 +427,36 @@ const UI = (() => {
     set('sh', Math.round(h.shield), v => { $('hpShield').style.width = clamp(v / h.maxHp * 100, 0, 100) + '%'; });
     set('el', h.el + h.elIdx, () => refreshAbilities(h));
     set('ess', h.essence, v => { $('hudEssence').textContent = fmt(v); });
+    set('kills', h.kills, v => { $('hudKills').textContent = v; });
     const st = h.status;
     const sk = ['burn', 'freeze', 'chill', 'soak', 'root', 'shock'].filter(k => st[k] > 0).join(',');
     set('status', sk, v => {
       const map = { burn: 'fire', freeze: 'frost', chill: 'frost', soak: 'water', root: 'nature', shock: 'lightning' };
-      $('statusRow').innerHTML = v ? v.split(',').map(k => `<span style="color:${AURA[map[k]]}" title="${k}">${elementIcon(map[k])}</span>`).join('') : '';
+      $('statusRow').innerHTML = v ? v.split(',').map(k => `<span style="color:${AURA[map[k]]}">${elementIcon(map[k])}</span>`).join('') : '';
     });
-    // cooldown sweeps
     const btns = [document.querySelector('.ab-main'), document.querySelector('.ab-p1'), document.querySelector('.ab-p2')];
     h.moves.forEach((m, i) => {
       const p = m.left > 0 ? Math.round(m.left / m.full * 100) : 0;
-      set('cd' + i, p + ':' + (m.left > 0.95 ? Math.ceil(m.left) : ''), () => {
+      const label = m.left > 0.95 ? Math.ceil(m.left) + 'S' : KEYS[i];
+      set('cd' + i, p + label, () => {
         btns[i].style.setProperty('--p', p + '%');
-        btns[i].querySelector('.cd-num').textContent = i > 0 && m.left > 0.95 ? Math.ceil(m.left) : '';
+        btns[i].classList.toggle('cooling', p > 0);
+        btns[i].querySelector('.ab-sub').textContent = document.body.classList.contains('touch') && !(m.left > 0.95) ? '' : label;
         if (p === 0 && i > 0 && hudCache['was' + i]) { btns[i].classList.remove('ready-flash'); void btns[i].offsetWidth; btns[i].classList.add('ready-flash'); }
         hudCache['was' + i] = p > 0;
       });
     });
     if (Game.mode === 'stage') {
-      set('wave', h.wave + ':' + h.waves + ':' + h.left, () => {
-        $('waveText').textContent = `Wave ${Math.max(1, h.wave + 1)}/${h.waves}`;
-        $('leftText').textContent = h.left;
-      });
+      set('wave', h.wave + ':' + h.waves + ':' + h.left, () => { $('waveText').textContent = `WAVE ${Math.max(1, h.wave + 1)}/${h.waves}`; $('leftText').textContent = `${h.left} LEFT`; });
     } else {
-      set('kills', h.kills, k => { $('waveText').textContent = `${k} kills`; $('leftText').textContent = 'Best ' + Save.data.endlessBest; });
+      set('endless', h.kills, k => { $('waveText').textContent = `${k} DEFEATED`; $('leftText').textContent = `BEST ${Save.data.endlessBest}`; });
     }
     const bb = $('bossBar');
     if (h.boss) {
       if (bb.classList.contains('hidden')) {
         bb.classList.remove('hidden');
-        $('bossName').textContent = h.boss.name;
-        $('bossTitle').textContent = h.boss.title;
-        $('bossEl').innerHTML = `<span style="color:${AURA[h.boss.el]}">${elementIcon(h.boss.el)}</span>`;
+        $('bossName').textContent = h.boss.name.toUpperCase();
+        $('bossTitle').textContent = h.boss.title.toUpperCase();
       }
       set('boss', Math.round(h.boss.ratio * 300), () => { $('bossFill').style.width = h.boss.ratio * 100 + '%'; });
     } else if (!bb.classList.contains('hidden')) bb.classList.add('hidden');
@@ -495,8 +475,8 @@ const UI = (() => {
   function banner(text, cls = '') {
     const b = $('banner');
     b.className = 'banner ' + cls;
-    $('bannerText').textContent = text;
     const span = $('bannerText');
+    span.textContent = text;
     span.style.animation = 'none'; void span.offsetWidth; span.style.animation = '';
     clearTimeout(bannerTimer);
     bannerTimer = setTimeout(() => b.classList.add('hidden'), 1850);
@@ -507,20 +487,17 @@ const UI = (() => {
     const c = $('coach');
     if (Save.data.seenHelp) { c.classList.add('hidden'); return; }
     const touch = document.body.classList.contains('touch');
-    coachStep = 1;
-    $('coachText').innerHTML = touch ? 'Drag on the left to move · tap the big button to attack' : '<kbd>A</kbd> <kbd>D</kbd> move · <kbd>SPACE</kbd> jump · <kbd>LMB</kbd> attack toward the cursor';
-    c.classList.remove('hidden');
-    setTimeout(() => {
-      if (coachStep !== 1) return;
-      coachStep = 2;
-      $('coachText').innerHTML = touch ? 'Use the two small buttons for your element powers' : '<kbd>Q</kbd> <kbd>E</kbd> unleash element powers · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> swap element';
-      setTimeout(() => {
-        if (coachStep !== 2) return;
-        coachStep = 3;
-        $('coachText').innerHTML = 'Knock foes off the islands for an instant ring-out!';
-        setTimeout(() => { coachStep = 0; c.classList.add('hidden'); Save.data.seenHelp = true; Save.save(); }, 4200);
-      }, 5200);
-    }, 5600);
+    const steps = touch
+      ? ['DRAG ON THE LEFT TO MOVE · TAP A BUTTON TO ATTACK', 'THE SMALLER BUTTONS ARE YOUR ELEMENT POWERS', 'KNOCK FOES OFF THE ISLANDS FOR A RING OUT!']
+      : ['A / D TO MOVE · SPACE TO JUMP · CLICK TO ATTACK', 'Q / E FOR POWERS · 1 2 3 TO SWAP ELEMENT', 'KNOCK FOES OFF THE ISLANDS FOR A RING OUT!'];
+    coachStep = 0;
+    const next = () => {
+      if (coachStep >= steps.length) { c.classList.add('hidden'); Save.data.seenHelp = true; Save.save(); return; }
+      $('coachText').textContent = steps[coachStep++];
+      c.classList.remove('hidden');
+      setTimeout(next, 4800);
+    };
+    next();
   }
 
   /* ------------------------------------------------------------ toasts */
@@ -549,11 +526,11 @@ const UI = (() => {
       if (e.pointerId !== jp) return;
       const r = joy.getBoundingClientRect();
       let dx = e.clientX - ox, dy = e.clientY - oy;
-      const l = Math.hypot(dx, dy), max = 56;
+      const l = Math.hypot(dx, dy), max = 54;
       if (l > max) { dx = dx / l * max; dy = dy / l * max; }
       knob.style.left = (ox - r.left + dx) + 'px'; knob.style.top = (oy - r.top + dy) + 'px';
-      Game.setJoy(Math.abs(dx) > 10 ? clamp(dx / 44, -1, 1) : 0);
-      if (dy > 42 && !dropped) { dropped = true; Game.press('drop'); }
+      Game.setJoy(Math.abs(dx) > 10 ? clamp(dx / 42, -1, 1) : 0);
+      if (dy > 40 && !dropped) { dropped = true; Game.press('drop'); }
       if (dy < 20) dropped = false;
     });
     const end = e => { if (e.pointerId !== jp) return; jp = null; joy.classList.remove('on'); Game.setJoy(0); };
@@ -573,7 +550,6 @@ const UI = (() => {
       b.addEventListener('pointermove', e => {
         if (e.pointerId !== pid || act === 'jump') return;
         const dx = e.clientX - sx, dy = e.clientY - sy;
-        // drag off an ability button to aim it manually
         if (Math.hypot(dx, dy) > 22) Game.setDirAim(Math.atan2(dy, dx));
       });
       const up = e => {
@@ -615,13 +591,10 @@ const UI = (() => {
 
     Game.hooks.onEnd = res => showResult(res);
     Game.hooks.onCombo = onCombo;
-    Game.hooks.onBoss = e => { banner(e.ai.boss.name, 'boss'); };
-    Game.hooks.onToast = (t, big) => (big ? banner(t) : toast(t));
-    Game.hooks.onWave = (i, n, boss) => {
-      if (boss) return;
-      if (Game.mode === 'stage') { if (i > 0) banner(i === n - 1 ? 'Final Wave' : `Wave ${i + 1}`); }
-    };
-    Game.hooks.onKill = (e, ringout) => { if (ringout) toast('Ring out! +2'); };
+    Game.hooks.onBoss = e => banner(e.ai.boss.name.toUpperCase(), 'boss');
+    Game.hooks.onToast = (t, big) => (big ? banner(t.toUpperCase()) : toast(t.toUpperCase()));
+    Game.hooks.onWave = (i, n, boss) => { if (!boss && Game.mode === 'stage' && i > 0) banner(i === n - 1 ? 'FINAL WAVE' : `WAVE ${i + 1}`); };
+    Game.hooks.onKill = (e, ringout) => { if (ringout) toast('RING OUT! +2'); };
 
     applySettings();
     Game.idleScene(0);

@@ -8,7 +8,7 @@
   Platform.loadingStart();
   await Platform.init();
   Save.load();
-  try { await Promise.all([document.fonts.load('20px "Lilita One"'), document.fonts.load('900 20px Nunito')]); } catch (e) { /* fonts are optional */ }
+  try { await Promise.all([document.fonts.load('20px Bungee'), document.fonts.load('800 20px Nunito')]); } catch (e) { /* fonts are optional */ }
   Game.init(canvas);
   UI.init();
   Platform.loadingStop();

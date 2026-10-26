@@ -32,6 +32,7 @@ const Icons = (() => {
     shake: `<path d="M7 5.5h10v13H7zM3.5 8v8M20.5 8v8" ${S}/>`,
     hash: `<path d="M9 4 7.5 20M16.5 4 15 20M4.5 9h16M3.5 15h16" ${S}/>`,
     rotate: `<rect x="7" y="2.5" width="10" height="19" rx="2.5" ${S}/><path d="M2.5 15a9.5 9.5 0 0 0 6 6.5M21.5 9a9.5 9.5 0 0 0-6-6.5" ${S}/>`,
+    close: `<path d="M6 6l12 12M18 6 6 18" ${S} stroke-width="3"/>`,
     check: `<path d="M5 12.5l4.5 4.5L19 7" ${S} stroke-width="3"/>`,
     plus: `<path d="M12 5v14M5 12h14" ${S} stroke-width="3"/>`,
     sword: `<path d="M19.5 3.5 10 13M19.5 3.5v4l-8 8M19.5 3.5h-4l-8 8M6.5 13.5l4 4M4 20l3.5-3.5" ${S}/>`,

@@ -1,51 +1,46 @@
 'use strict';
 /* =========================================================================
-   World: floating islands, the parallax realm backdrop (pre-rendered), and
-   ambient weather (leaves, embers, snow, rain + lightning, void motes).
+   World, flat style: charcoal sky with drifting dust specks and faint
+   squares, and floating platforms built from grey stone blocks. Each realm
+   only tints the greys slightly so the elements stay the colour accents.
    ========================================================================= */
+
+const FLAT = {
+  verdant: { bg: '#3d413d', block: '#6c716b', speck: '#cfe3c4', accent: '#8fd46b' },
+  ember:   { bg: '#423b39', block: '#716764', speck: '#f2c9a8', accent: '#ff8a3d' },
+  frost:   { bg: '#3c4146', block: '#6b737a', speck: '#e3f2fb', accent: '#9fe6ff' },
+  storm:   { bg: '#3a3b45', block: '#696b78', speck: '#e4e2ff', accent: '#fff27a' },
+  void:    { bg: '#37333f', block: '#66606f', speck: '#e2d2ff', accent: '#c08bff' },
+};
+const flatOf = realm => FLAT[realm.id] || FLAT.verdant;
 
 class Island {
   constructor(x, y, w, opts = {}) {
     this.x = x; this.y = y; this.w = w;
     this.baseX = x; this.baseY = y;
-    this.depth = opts.depth || Math.min(320, w * 0.6 + 60);
     this.seed = opts.seed || Math.floor(Math.random() * 1e6);
     this.motion = opts.motion || null;    // {ax, ay, speed, phase}
     this.t = 0;
     this.dx = 0; this.dy = 0;
     this.prevTop = y;
-    this.shape = this.buildShape();
+    // blocks: square-ish tiles, rows taper toward the bottom
+    const n = Math.max(2, Math.round(w / 52));
+    this.bs = w / n;
+    this.rows = [];
+    const rng = mulberry32(this.seed);
+    let count = n, inset = 0, row = 0;
+    while (count > 0 && row < 4) {
+      this.rows.push({ inset, count, shade: rng() * 0.05 });
+      const cut = row === 0 ? (n > 4 ? 1 : 0) : 1 + (rng() < 0.4 ? 1 : 0);
+      inset += cut; count -= cut * 2; row++;
+      if (n <= 3 && row >= 2) break;
+    }
+    this.depth = this.rows.length * this.bs;
   }
 
   get top() { return this.y; }
   get left() { return this.x - this.w / 2; }
   get right() { return this.x + this.w / 2; }
-
-  buildShape() {
-    const rng = mulberry32(this.seed);
-    const hw = this.w / 2, pts = [];
-    const n = Math.max(7, Math.floor(this.w / 50));
-    for (let i = 0; i <= n; i++) {
-      const u = i / n;
-      const x = lerp(hw, -hw, u);
-      const taper = Math.sin(u * Math.PI);
-      const y = 14 + taper * this.depth * (0.55 + rng() * 0.45) + (rng() - 0.5) * 10;
-      pts.push([x * (1 - taper * 0.18) + (rng() - 0.5) * 8, y]);
-    }
-    const tufts = [];
-    for (let i = 0; i < Math.floor(this.w / 16); i++) tufts.push([(rng() - 0.5) * this.w * 0.95, 4 + rng() * 7, rng()]);
-    const drips = [];
-    for (let i = 0; i < Math.floor(this.w / 40); i++) drips.push([(rng() - 0.5) * this.w * 0.85, 10 + rng() * 22]);
-    drips.sort((a, b) => b[0] - a[0]);
-    const cracks = [];
-    for (let i = 0; i < Math.max(2, Math.floor(this.w / 120)); i++) {
-      const sx = (rng() - 0.5) * this.w * 0.6;
-      const c = [[sx, 16]];
-      for (let k = 1; k < 4; k++) c.push([sx + (rng() - 0.5) * 30, 16 + k * this.depth * 0.14]);
-      cracks.push(c);
-    }
-    return { pts, tufts, drips, cracks };
-  }
 
   update(dt) {
     this.t += dt;
@@ -61,54 +56,21 @@ class Island {
     this.dx = x - px; this.dy = y - py;
   }
 
-  draw(ctx, realm, time) {
-    const { pts, tufts, drips, cracks } = this.shape;
-    const hw = this.w / 2;
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    const grd = ctx.createLinearGradient(0, 0, 0, this.depth);
-    grd.addColorStop(0, realm.rock);
-    grd.addColorStop(1, realm.rockDark);
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.moveTo(-hw, 6);
-    ctx.lineTo(hw, 6);
-    for (const [px, py] of pts) ctx.lineTo(px, py);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.16)';
-    ctx.beginPath();
-    ctx.moveTo(hw * 0.15, 14);
-    ctx.lineTo(hw, 8);
-    for (let i = 0; i < pts.length / 2; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    ctx.closePath(); ctx.fill();
-    if (realm.glowTop) {
-      ctx.strokeStyle = realm.topDark; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.6 + Math.sin(time * 2 + this.seed) * 0.25;
-      for (const c of cracks) { ctx.beginPath(); c.forEach(([cx, cy], i) => (i ? ctx.lineTo(cx, cy) : ctx.moveTo(cx, cy))); ctx.stroke(); }
-      ctx.globalAlpha = 1;
-    }
-    ctx.fillStyle = realm.topDark;
-    ctx.beginPath();
-    ctx.moveTo(-hw - 4, 0);
-    ctx.lineTo(hw + 4, 0);
-    ctx.lineTo(hw + 1, 14);
-    for (const [dx, dl] of drips) { ctx.lineTo(dx + 7, 13); ctx.quadraticCurveTo(dx, 13 + dl, dx - 7, 13); }
-    ctx.lineTo(-hw - 1, 14);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = realm.top;
-    ctx.beginPath(); ctx.roundRect(-hw - 5, -3, this.w + 10, 10, 5); ctx.fill();
-    for (const [tx, th, r] of tufts) {
-      ctx.beginPath();
-      ctx.moveTo(tx - 4, -1);
-      ctx.lineTo(tx - 1 + Math.sin(time * 1.5 + r * 6) * 1.5, -th - 3);
-      ctx.lineTo(tx + 3, -1);
-      ctx.fill();
-    }
-    if (realm.glowTop) {
-      ctx.globalCompositeOperation = 'lighter';
-      Glow.draw(ctx, realm.topDark, 0, 4, hw * 1.1, 0.16);
-      ctx.globalCompositeOperation = 'source-over';
-    }
-    ctx.restore();
+  draw(ctx, realm) {
+    const fl = flatOf(realm);
+    const bs = this.bs, gap = 3;
+    const x0 = this.left;
+    this.rows.forEach((r, ri) => {
+      const col = mixHex(fl.block, '#2b2b2b', ri * 0.14 + r.shade);
+      ctx.fillStyle = col;
+      for (let i = 0; i < r.count; i++) {
+        const bx = x0 + (r.inset + i) * bs, by = this.y + ri * bs;
+        ctx.fillRect(bx + gap / 2, by + gap / 2, bs - gap, bs - gap);
+      }
+    });
+    // walkable lip in a lighter grey
+    ctx.fillStyle = mixHex(fl.block, '#ffffff', 0.12);
+    ctx.fillRect(x0 + gap / 2, this.y + gap / 2, this.w - gap, 5);
   }
 }
 
@@ -120,74 +82,22 @@ const Backdrop = (() => {
     if (k === key && canvas) return canvas;
     key = k;
     canvas = canvas || document.createElement('canvas');
-    const cw = Math.max(1, Math.ceil(view.w * pxScale)), ch = Math.max(1, Math.ceil(view.h * pxScale));
-    canvas.width = cw; canvas.height = ch;
+    canvas.width = Math.max(1, Math.ceil(view.w * pxScale));
+    canvas.height = Math.max(1, Math.ceil(view.h * pxScale));
     const g = canvas.getContext('2d');
     g.setTransform(pxScale, 0, 0, pxScale, -view.x0 * pxScale, -view.y0 * pxScale);
-    const x0 = view.x0, x1 = view.x0 + view.w, y0 = view.y0, y1 = view.y0 + view.h;
-
-    // sky
-    const sky = g.createLinearGradient(0, y0, 0, y1);
-    sky.addColorStop(0, realm.sky[0]);
-    sky.addColorStop(0.55, realm.sky[1]);
-    sky.addColorStop(1, realm.sky[2]);
-    g.fillStyle = sky; g.fillRect(x0, y0, view.w, view.h);
-
-    // stars in dark realms
-    const rng = mulberry32(realm.id.length * 977);
-    if (realm.id === 'void' || realm.id === 'storm' || realm.id === 'ember') {
-      for (let i = 0; i < 160; i++) {
-        const sx = lerp(x0, x1, rng()), sy = lerp(y0, H * 0.6, rng());
-        g.globalAlpha = 0.2 + rng() * 0.6;
-        g.fillStyle = '#ffffff';
-        g.fillRect(sx, sy, 1.6, 1.6);
-      }
-      g.globalAlpha = 1;
+    const fl = flatOf(realm);
+    g.fillStyle = fl.bg;
+    g.fillRect(view.x0, view.y0, view.w, view.h);
+    // static specks
+    const rng = mulberry32(realm.id.length * 977 + 13);
+    g.fillStyle = fl.speck;
+    for (let i = 0; i < 140; i++) {
+      g.globalAlpha = 0.08 + rng() * 0.22;
+      const r = 1 + rng() * 2.4;
+      g.beginPath(); g.arc(lerp(view.x0, view.x0 + view.w, rng()), lerp(view.y0, view.y0 + view.h, rng()), r, 0, TAU); g.fill();
     }
-
-    // sun / moon
-    const sx = W * realm.sunPos[0], sy = H * realm.sunPos[1];
-    const sun = g.createRadialGradient(sx, sy, 0, sx, sy, 380);
-    sun.addColorStop(0, rgba(realm.sun, 0.9));
-    sun.addColorStop(0.12, rgba(realm.sun, 0.55));
-    sun.addColorStop(0.4, rgba(realm.sun, 0.12));
-    sun.addColorStop(1, rgba(realm.sun, 0));
-    g.fillStyle = sun; g.fillRect(x0, y0, view.w, view.h);
-    g.fillStyle = realm.sun;
-    g.beginPath(); g.arc(sx, sy, 46, 0, TAU); g.fill();
-    if (realm.id === 'void') {
-      g.fillStyle = realm.sky[1];
-      g.beginPath(); g.arc(sx + 18, sy - 10, 42, 0, TAU); g.fill();
-    }
-
-    // layered ridges
-    const layers = realm.hills;
-    for (let li = 0; li < layers.length; li++) {
-      const base = H * (0.55 + li * 0.13);
-      const amp = 110 - li * 22;
-      const ph = [rng() * 10, rng() * 10, rng() * 10];
-      g.fillStyle = layers[li];
-      g.beginPath();
-      g.moveTo(x0, y1);
-      for (let x = x0; x <= x1 + 20; x += 12) {
-        const n = Math.sin(x * 0.0021 + ph[0]) * 0.55 + Math.sin(x * 0.0057 + ph[1]) * 0.3 + Math.sin(x * 0.013 + ph[2]) * 0.15;
-        let yy = base - n * amp;
-        if (realm.id === 'frost' || realm.id === 'storm') yy -= Math.abs(Math.sin(x * 0.009 + ph[1])) * 40 * (1 - li * 0.3);
-        g.lineTo(x, yy);
-      }
-      g.lineTo(x1, y1);
-      g.closePath(); g.fill();
-      // haze between layers
-      const fog = g.createLinearGradient(0, base - amp, 0, y1);
-      fog.addColorStop(0, rgba(realm.fog, 0));
-      fog.addColorStop(1, rgba(realm.fog, 0.22 - li * 0.05));
-      g.fillStyle = fog; g.fillRect(x0, base - amp, view.w, y1 - base + amp);
-    }
-    // abyss fade at the bottom
-    const abyss = g.createLinearGradient(0, H * 0.75, 0, y1);
-    abyss.addColorStop(0, rgba(realm.hills[2], 0));
-    abyss.addColorStop(1, rgba(mixHex(realm.hills[2], '#000000', 0.5), 0.95));
-    g.fillStyle = abyss; g.fillRect(x0, H * 0.75, view.w, y1 - H * 0.75);
+    g.globalAlpha = 1;
     return canvas;
   }
   return { render };
@@ -195,110 +105,59 @@ const Backdrop = (() => {
 
 /* --------------------------------------------------------------- ambience */
 class Ambience {
-  constructor() { this.parts = []; this.clouds = []; this.flash = 0; this.bolt = null; this.realm = null; }
+  constructor() { this.specks = []; this.squares = []; this.realm = null; this.flash = 0; }
 
   setRealm(realm, view) {
     if (this.realm === realm) return;
     this.realm = realm;
-    this.parts.length = 0;
-    this.clouds = [];
-    for (let i = 0; i < 7; i++) {
-      this.clouds.push({ x: rand(view.x0, view.x0 + view.w), y: rand(60, 420), s: rand(0.6, 1.4), v: rand(6, 18) });
-    }
-  }
-
-  update(dt, view) {
-    const r = this.realm;
-    if (!r) return;
-    for (const c of this.clouds) {
-      c.x += c.v * dt;
-      if (c.x - 260 * c.s > view.x0 + view.w) c.x = view.x0 - 260 * c.s;
-    }
-    const want = { leaf: 26, ember: 60, snow: 110, rain: 150, mote: 70 }[r.ambient] || 0;
-    while (this.parts.length < want) this.parts.push(this.spawn(view, true));
-    for (const p of this.parts) {
-      p.t += dt;
-      p.x += p.vx * dt; p.y += p.vy * dt;
-      if (r.ambient === 'leaf' || r.ambient === 'snow') p.x += Math.sin(p.t * p.f + p.ph) * 22 * dt;
-      if (p.y > view.y0 + view.h + 20 || p.y < view.y0 - 40 || p.x > view.x0 + view.w + 40 || p.x < view.x0 - 60) Object.assign(p, this.spawn(view, false));
-    }
-    if (r.flashes) {
-      this.flash = Math.max(0, this.flash - dt * 3);
-      if (Math.random() < dt * 0.12) {
-        this.flash = 1;
-        const bx = rand(view.x0, view.x0 + view.w);
-        const pts = [[bx, view.y0]];
-        let y = view.y0;
-        while (y < H * 0.62) { y += rand(30, 70); pts.push([pts[pts.length - 1][0] + rand(-40, 40), y]); }
-        this.bolt = { pts, life: 0.35 };
-        Sfx.thunder();
-      }
-      if (this.bolt) { this.bolt.life -= dt; if (this.bolt.life <= 0) this.bolt = null; }
-    }
+    this.specks = [];
+    for (let i = 0; i < 46; i++) this.specks.push(this.spawn(view, true));
+    this.squares = [];
+    for (let i = 0; i < 3; i++) this.squares.push({ x: rand(view.x0, view.x0 + view.w), y: rand(view.y0 + 80, view.y0 + view.h - 80), s: rand(120, 220), a: rand(0, 6), va: rand(-0.08, 0.08), vx: rand(-8, 8), vy: rand(-5, 5) });
   }
 
   spawn(view, anywhere) {
-    const r = this.realm.ambient;
-    const x = rand(view.x0 - 40, view.x0 + view.w);
-    const top = view.y0 - 20, bot = view.y0 + view.h + 10;
-    const p = { x, y: anywhere ? rand(top, bot) : top, t: 0, f: rand(0.8, 2), ph: rand(0, 6), s: rand(0.6, 1.4), rot: rand(0, 6) };
-    if (r === 'leaf') { p.vx = rand(20, 60); p.vy = rand(30, 60); }
-    else if (r === 'snow') { p.vx = rand(-10, 15); p.vy = rand(40, 90); }
-    else if (r === 'rain') { p.vx = -180; p.vy = rand(900, 1200); }
-    else { // embers + motes rise
-      p.y = anywhere ? rand(top, bot) : bot; p.vx = rand(-12, 12); p.vy = r === 'ember' ? rand(-70, -30) : rand(-40, -15);
-    }
-    return p;
+    return {
+      x: rand(view.x0, view.x0 + view.w), y: anywhere ? rand(view.y0, view.y0 + view.h) : view.y0 + view.h + 10,
+      r: rand(1.2, 3.2), vy: -rand(6, 22), vx: rand(-6, 6), a: rand(0.12, 0.4), ph: rand(0, 6),
+    };
   }
 
-  drawBack(ctx, view, time) {
-    const r = this.realm;
-    if (!r) return;
-    // drifting clouds / smoke
-    for (const c of this.clouds) {
-      ctx.globalAlpha = r.id === 'void' ? 0.12 : r.id === 'ember' ? 0.2 : 0.35;
-      for (let k = 0; k < 4; k++) {
-        Glow.draw(ctx, r.fog, c.x + k * 70 * c.s, c.y + Math.sin(k * 2) * 14 * c.s, 90 * c.s, ctx.globalAlpha);
-      }
+  update(dt, view) {
+    if (!this.realm) return;
+    for (const p of this.specks) {
+      p.x += p.vx * dt; p.y += p.vy * dt; p.ph += dt;
+      if (p.y < view.y0 - 10) Object.assign(p, this.spawn(view, false));
+    }
+    for (const q of this.squares) {
+      q.a += q.va * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+      if (q.x < view.x0 - 300) q.x = view.x0 + view.w + 200;
+      if (q.x > view.x0 + view.w + 300) q.x = view.x0 - 200;
+    }
+    this.flash = Math.max(0, this.flash - dt * 3);
+  }
+
+  drawBack(ctx) {
+    if (!this.realm) return;
+    ctx.fillStyle = '#ffffff';
+    for (const q of this.squares) {
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.a);
+      ctx.globalAlpha = 0.045;
+      ctx.fillRect(-q.s / 2, -q.s / 2, q.s, q.s);
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
-    if (this.bolt) {
-      ctx.strokeStyle = rgba('#e8e4ff', this.bolt.life * 2);
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      this.bolt.pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-      ctx.stroke();
-    }
   }
 
-  drawFront(ctx, view, time) {
-    const r = this.realm;
-    if (!r) return;
-    const kind = r.ambient;
-    if (kind === 'rain') {
-      ctx.strokeStyle = 'rgba(200,210,255,0.28)'; ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      for (const p of this.parts) { ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.022, p.y - p.vy * 0.022); }
-      ctx.stroke();
-    } else if (kind === 'snow') {
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      for (const p of this.parts) { ctx.beginPath(); ctx.arc(p.x, p.y, 2.2 * p.s, 0, TAU); ctx.fill(); }
-    } else if (kind === 'leaf') {
-      for (const p of this.parts) {
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot + p.t * p.f);
-        ctx.fillStyle = p.s > 1 ? '#7cc95a' : '#a8de7a';
-        ctx.beginPath(); ctx.ellipse(0, 0, 6 * p.s, 2.6 * p.s, 0, 0, TAU); ctx.fill();
-        ctx.restore();
-      }
-    } else {
-      ctx.globalCompositeOperation = 'lighter';
-      const col = kind === 'ember' ? '#ff9a4a' : '#b58cff';
-      for (const p of this.parts) Glow.draw(ctx, col, p.x, p.y, 7 * p.s, 0.5 + Math.sin(p.t * 3 + p.ph) * 0.3);
-      ctx.globalCompositeOperation = 'source-over';
+  drawFront(ctx, view) {
+    if (!this.realm) return;
+    const fl = flatOf(this.realm);
+    ctx.fillStyle = fl.speck;
+    for (const p of this.specks) {
+      ctx.globalAlpha = p.a * (0.7 + Math.sin(p.ph * 2) * 0.3);
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
     }
-    if (this.flash > 0) {
-      ctx.fillStyle = `rgba(220,220,255,${this.flash * 0.18})`;
-      ctx.fillRect(view.x0, view.y0, view.w, view.h);
-    }
+    ctx.globalAlpha = 1;
+    if (this.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${this.flash * 0.15})`; ctx.fillRect(view.x0, view.y0, view.w, view.h); }
   }
 }

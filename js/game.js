@@ -65,7 +65,7 @@ const Game = (() => {
   function makePlayer() {
     const sp = spawnPoint();
     const f = new Fighter({
-      x: sp.x - 120, y: sp.y, facing: 1, isPlayer: true, scale: 1.05, body: '#f7f2e7', shade: '#d6cab4',
+      x: sp.x - 120, y: sp.y, facing: 1, isPlayer: true, scale: 1.05, body: '#f4f4f4', shade: '#cdcdcd',
       hp: pStats.hp, speed: 380 * pStats.speedMul, jumpV: 1060 * pStats.jumpMul, maxJumps: 2, weight: 1,
     });
     f.root.grounded = true; f.root.plat = islands[0];
@@ -139,7 +139,7 @@ const Game = (() => {
 
   /* -------------------------------------------------------- enemies */
   function bodyColors() {
-    return realm.id === 'void' ? ['#17111f', '#0c0814'] : realm.id === 'storm' ? ['#1b1c2e', '#10111d'] : ['#2b2836', '#1b1923'];
+    return ['#c4c4c4', '#a1a1a1'];
   }
 
   const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile']);
@@ -661,7 +661,7 @@ const Game = (() => {
           if ((p.py <= isl.prevTop && p.y >= isl.top) || (p.y > isl.top + 4 && p.y < isl.top + isl.depth * 0.45 && Math.abs(p.x - isl.x) < isl.w * 0.42)) {
             p.dead = true;
             detonate(p, p.x, Math.min(p.y, isl.top + 2));
-            if (!mv.explode && !mv.zone) { fx.burst(p.x, isl.top, realm.top, 6, 140, { add: false, kind: 'chunk', g: 1200, size: 4, life: 0.5 }); Sfx.thud(); }
+            if (!mv.explode && !mv.zone) { fx.burst(p.x, isl.top, '#8d8d8d', 6, 140, { add: false, kind: 'chunk', g: 1200, size: 4, life: 0.5 }); Sfx.thud(); }
             break;
           }
         }
@@ -1172,14 +1172,7 @@ const Game = (() => {
     for (const p of pickups) drawPickup(c, p);
 
     c.globalCompositeOperation = 'lighter';
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      const ce = e.center();
-      Glow.draw(c, e.accent, ce.x, ce.y - 10, 90 * e.s, 0.18);
-      if (e.action && !e.action.fired && !e.decor) Glow.draw(c, e.accent, e.hand().x, e.hand().y, 30 + 40 * Math.min(1, e.action.t / e.action.move.windup), 0.8);
-      if (e.status.burn > 0) Glow.draw(c, '#ff7a2a', ce.x, ce.y, 70, 0.35);
-    }
-    if (player && player.alive) Glow.draw(c, ELEMENT_BY_ID[player.el].deep, player.center().x, player.center().y, 110, 0.16);
+    for (const e of enemies) if (e.alive && e.action && !e.action.fired && !e.decor) Glow.draw(c, e.accent, e.hand().x, e.hand().y, 22 + 26 * Math.min(1, e.action.t / e.action.move.windup), 0.7);
     c.globalCompositeOperation = 'source-over';
 
     for (const e of enemies) if (!e.alive && !e.gone) e.draw(c, time);
@@ -1397,26 +1390,22 @@ const Game = (() => {
   function drawEnemyBar(c, e) {
     const s = e.s;
     const hd = e.head();
-    const w = 64 * Math.max(1, s * 0.9), h = 8;
-    const x = hd.x - w / 2 + 8, y = hd.y - 30 * s - 14;
-    c.fillStyle = 'rgba(15,12,24,0.75)';
-    c.beginPath(); c.roundRect(x - 2, y - 2, w + 4, h + 4, 5); c.fill();
+    const w = 46 * Math.max(1, s * 0.9), h = 8;
+    const x = hd.x - w / 2, y = hd.y - 26 * s - 16;
     const r = clamp(e.hp / e.maxHp, 0, 1);
-    c.fillStyle = r > 0.5 ? '#7ee081' : r > 0.25 ? '#ffd166' : '#ff6b6b';
-    c.beginPath(); c.roundRect(x, y, Math.max(2, w * r), h, 4); c.fill();
-    c.fillStyle = 'rgba(15,12,24,0.8)';
-    c.beginPath(); c.arc(x - 12, y + h / 2, 12, 0, TAU); c.fill();
-    c.drawImage(IconCanvas.sprite(e.el, AURA[e.el]), x - 21, y + h / 2 - 9, 18, 18);
+    c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x, y, w, h);
+    c.fillStyle = '#d93b4b'; c.fillRect(x, y, w * r, h);
+    c.fillStyle = AURA[e.el]; c.fillRect(x - 10, y, 6, h);
   }
 
   function drawTelegraph(c, e) {
     const hd = e.head();
     const k = Math.min(1, e.action.t / e.action.move.windup);
-    c.font = `${Math.round(24 + k * 10)}px "Lilita One", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.lineWidth = 5; c.strokeStyle = 'rgba(20,12,30,0.9)';
+    c.font = `${Math.round(24 + k * 10)}px Bungee, Impact, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 5; c.lineJoin = 'round'; c.strokeStyle = 'rgba(24,16,8,0.9)';
     const y = hd.y - 62 * e.s;
     c.strokeText('!', hd.x, y);
-    c.fillStyle = k > 0.7 ? '#ff5d73' : '#ffd166';
+    c.fillStyle = k > 0.7 ? '#ff5a5a' : '#f5b041';
     c.fillText('!', hd.x, y);
   }
 
@@ -1447,9 +1436,6 @@ const Game = (() => {
       c.fillStyle = g; c.fillRect(0, 0, cw, ch);
     }
     if (realmFlash > 0) { c.fillStyle = `rgba(255,255,255,${realmFlash * 0.6})`; c.fillRect(0, 0, cw, ch); }
-    const g = c.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.55, cw / 2, ch / 2, Math.max(cw, ch) * 0.8);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.3)');
-    c.fillStyle = g; c.fillRect(0, 0, cw, ch);
   }
 
   /* ------------------------------------------------------------- api */

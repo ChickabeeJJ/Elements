@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#1a1230">
+  <meta name="theme-color" content="#3d413d">
   <meta name="description" content="Elementfall - a ragdoll brawler across five elemental realms. Master fire, frost, storm, void and more, knock foes off floating islands, beat 30 stages and bosses, then survive Endless.">
   <title>Elementfall</title>
-  <link rel="stylesheet" href="css/style.css?v=2">
+  <link rel="stylesheet" href="css/style.css?v=4">
   <script>if (/crazygames/.test(location.hostname + document.referrer)) document.write('<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"><\/script>');</script>
 </head>
 <body>
@@ -14,85 +14,81 @@
 
   <!-- =============================== HUD =============================== -->
   <div id="hud" class="hidden">
-    <div class="plate">
-      <div class="portrait" id="hudPortrait"></div>
-      <div class="plate-bars">
-        <div class="hpbar"><div class="hp-ghost" id="hpGhost"></div><div class="hp-fill" id="hpFill"></div><div class="hp-shield" id="hpShield"></div><span id="hpText">100</span></div>
-        <div class="status-row" id="statusRow"></div>
-      </div>
+    <div class="hud-tl">
+      <div class="stat"><span class="ic" data-icon="skull"></span><b id="hudKills">0</b></div>
+      <div class="hpbar"><div class="hp-ghost" id="hpGhost"></div><div class="hp-fill" id="hpFill"></div><div class="hp-shield" id="hpShield"></div><span id="hpText">120</span></div>
+      <div class="status-row" id="statusRow"></div>
     </div>
-
-    <div class="hud-center">
-      <div class="wave-chip" id="waveChip"><span id="waveText">Wave 1/3</span><i></i><span class="left"><span class="ic" data-icon="skull"></span><b id="leftText">3</b></span></div>
+    <div class="hud-tc">
+      <div class="wave" id="waveChip"><b id="waveText">WAVE 1/3</b><span id="leftText">3 LEFT</span></div>
       <div class="bossbar hidden" id="bossBar">
-        <div class="boss-head"><span class="boss-el" id="bossEl"></span><b id="bossName">Boss</b></div>
+        <b id="bossName">BOSS</b>
         <div class="boss-track"><div class="boss-fill" id="bossFill"></div></div>
         <small id="bossTitle"></small>
       </div>
     </div>
-
-    <div class="hud-right">
-      <div class="pill gem"><span class="ic" data-icon="gem"></span><b id="hudEssence">0</b></div>
-      <button class="round-btn" id="btnPause" aria-label="Pause"><span class="ic" data-icon="pause"></span></button>
+    <div class="hud-tr">
+      <div class="stat"><span class="ic gem" data-icon="gem"></span><b id="hudEssence">0</b></div>
+      <div class="stage-tag" id="hudStage">1-1</div>
     </div>
 
     <div class="combo hidden" id="combo"><b id="comboNum">0</b><span>HITS</span></div>
-    <div class="banner hidden" id="banner"><span id="bannerText">Wave 1</span></div>
+    <div class="banner hidden" id="banner"><span id="bannerText">WAVE 1</span></div>
 
-    <div class="loadout-bar" id="loadoutBar"></div>
+    <div class="slots-hud" id="loadoutBar"></div>
     <div class="abilities" id="abilities">
-      <button class="ab ab-main" data-act="attack"><span class="ab-icon"></span><span class="cd"></span><span class="cd-num"></span><kbd>LMB</kbd></button>
-      <button class="ab ab-p1" data-act="p1"><span class="ab-icon"></span><span class="cd"></span><span class="cd-num"></span><kbd>Q</kbd></button>
-      <button class="ab ab-p2" data-act="p2"><span class="ab-icon"></span><span class="cd"></span><span class="cd-num"></span><kbd>E</kbd></button>
-      <button class="ab ab-jump" data-act="jump"><span class="ic" data-icon="up"></span><kbd>SPACE</kbd></button>
+      <button class="ab ab-p1" data-act="p1"><span class="ab-icon"></span><span class="ab-txt"><b class="ab-name"></b><small class="ab-sub"></small></span><span class="cd"></span></button>
+      <button class="ab ab-p2" data-act="p2"><span class="ab-icon"></span><span class="ab-txt"><b class="ab-name"></b><small class="ab-sub"></small></span><span class="cd"></span></button>
+      <button class="ab ab-main" data-act="attack"><span class="ab-icon"></span><span class="ab-txt"><b class="ab-name"></b><small class="ab-sub"></small></span><span class="cd"></span></button>
+      <button class="ab ab-jump" data-act="jump"><span class="ab-icon"><span class="ic" data-icon="up"></span></span><span class="ab-txt"><b class="ab-name">JUMP</b></span></button>
     </div>
+    <button class="sq-btn pause" id="btnPause" aria-label="Pause"><span class="ic" data-icon="pause"></span></button>
     <div class="joy" id="joy"><div class="joy-base"></div><div class="joy-knob" id="joyKnob"></div></div>
     <div class="coach hidden" id="coach"><p id="coachText"></p></div>
   </div>
 
   <!-- =============================== HOME =============================== -->
   <section id="home" class="screen">
-    <div class="topbar">
-      <div class="pill stars"><span class="ic" data-icon="star"></span><b id="homeStars">0</b></div>
-      <div class="topbar-right">
-        <div class="pill gem"><span class="ic" data-icon="gem"></span><b class="essence-val">0</b></div>
-        <button class="round-btn" data-open="settings" aria-label="Settings"><span class="ic" data-icon="gear"></span></button>
+    <div class="corner tl">
+      <div class="stat"><span class="ic" data-icon="skull"></span><b id="homeKills">0</b></div>
+      <div class="stat"><span class="ic star" data-icon="star"></span><b id="homeStars">0</b></div>
+    </div>
+    <div class="corner tr">
+      <div class="stat"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
+      <button class="sq-btn" data-open="settings" aria-label="Settings"><span class="ic" data-icon="gear"></span></button>
+    </div>
+    <div class="home-center">
+      <h1 class="title">ELEMENTFALL</h1>
+      <p class="subtitle">RAGDOLL ELEMENT BRAWL</p>
+      <div class="home-menu">
+        <button class="btn big" id="btnPlay"><b>PLAY</b><small id="playSub">STAGE 1-1</small></button>
+        <button class="btn dark" id="btnEndless"><b>ENDLESS</b><small id="endlessSub">BEST 0</small></button>
+        <div class="btn-row">
+          <button class="btn dark" data-open="codex"><b>ELEMENTS</b><small id="homeElems">1/9</small></button>
+          <button class="btn dark" data-open="forge"><b>UPGRADES</b><small id="homeForge">&nbsp;</small></button>
+        </div>
       </div>
     </div>
-    <div class="logo">
-      <h1><span>Element</span><span>fall</span></h1>
-      <div class="ribbon">Ragdoll Elemental Brawl</div>
-    </div>
-    <div class="home-bottom">
-      <div class="home-tiles">
-        <button class="tile" data-open="codex"><span class="ic" data-icon="book"></span><b>Elements</b><small id="homeElems">1/9</small></button>
-        <button class="tile" data-open="forge"><span class="ic" data-icon="hammer"></span><b>Upgrades</b><small id="homeForge">Forge</small></button>
-      </div>
-      <div class="home-play">
-        <button class="cbtn cbtn-gold xl" id="btnPlay"><span class="ic" data-icon="play"></span><span><b>Play</b><small id="playSub">Stage 1-1</small></span></button>
-        <button class="cbtn cbtn-violet lg" id="btnEndless"><span class="ic" data-icon="infinity"></span><span><b>Endless</b><small id="endlessSub">Best 0</small></span></button>
-      </div>
-      <button class="loadout-preview" id="homeLoadout" aria-label="Loadout"></button>
-    </div>
+    <button class="loadout-mini" id="homeLoadout" aria-label="Loadout"></button>
   </section>
 
   <!-- =============================== MAP =============================== -->
   <section id="map" class="screen hidden">
-    <header class="screen-head">
-      <button class="round-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
-      <h2 class="title-ribbon">Campaign</h2>
-      <div class="pill gem"><span class="ic" data-icon="gem"></span><b class="essence-val">0</b></div>
+    <header class="bar">
+      <button class="sq-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
+      <nav class="tabs" id="realmTabs"></nav>
+      <div class="stat"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
     </header>
-    <div class="chapters" id="chapters"></div>
-    <div class="chapter-detail" id="chapterDetail"></div>
+    <div class="realm-line" id="realmLine"></div>
+    <div class="stage-row" id="stageRow"></div>
   </section>
 
   <!-- ============================== CODEX ============================== -->
   <section id="codex" class="screen hidden">
-    <header class="screen-head">
-      <button class="round-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
-      <h2 class="title-ribbon">Elements</h2>
-      <div class="pill"><b id="codexCount">1/9</b></div>
+    <header class="bar">
+      <button class="sq-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
+      <h2>ELEMENTS</h2>
+      <div class="stat"><b id="codexCount">1/9</b></div>
     </header>
     <div class="codex">
       <div class="codex-list" id="codexList"></div>
@@ -102,31 +98,30 @@
 
   <!-- ============================== FORGE ============================== -->
   <section id="forge" class="screen hidden">
-    <header class="screen-head">
-      <button class="round-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
-      <h2 class="title-ribbon">Upgrades</h2>
-      <div class="pill gem"><span class="ic" data-icon="gem"></span><b class="essence-val">0</b></div>
+    <header class="bar">
+      <button class="sq-btn" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
+      <h2>UPGRADES</h2>
+      <div class="stat"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
     </header>
-    <div class="forge-grid" id="forgeGrid"></div>
+    <div class="forge" id="forgeList"></div>
   </section>
 
-  <!-- ============================== MODAL ============================== -->
   <div id="modal" class="modal hidden"><div class="sheet" id="sheet"></div></div>
   <div id="toasts"></div>
-  <div id="rotate" class="hidden"><div><span class="ic" data-icon="rotate"></span><p>Turn your device sideways to fight</p><button class="cbtn cbtn-gold" id="btnRotateOk"><b>Play anyway</b></button></div></div>
+  <div id="rotate" class="hidden"><div><span class="ic" data-icon="rotate"></span><p>TURN YOUR DEVICE SIDEWAYS</p><button class="btn" id="btnRotateOk"><b>PLAY ANYWAY</b></button></div></div>
 
-  <script src="js/util.js?v=2"></script>
-  <script src="js/platform.js?v=2"></script>
-  <script src="js/audio.js?v=2"></script>
-  <script src="js/elements.js?v=2"></script>
-  <script src="js/realms.js?v=2"></script>
-  <script src="js/progress.js?v=2"></script>
-  <script src="js/ragdoll.js?v=2"></script>
-  <script src="js/world.js?v=2"></script>
-  <script src="js/fx.js?v=2"></script>
-  <script src="js/game.js?v=2"></script>
-  <script src="js/icons.js?v=2"></script>
-  <script src="js/ui.js?v=2"></script>
-  <script src="js/main.js?v=2"></script>
+  <script src="js/util.js?v=4"></script>
+  <script src="js/platform.js?v=4"></script>
+  <script src="js/audio.js?v=4"></script>
+  <script src="js/elements.js?v=4"></script>
+  <script src="js/realms.js?v=4"></script>
+  <script src="js/progress.js?v=4"></script>
+  <script src="js/ragdoll.js?v=4"></script>
+  <script src="js/world.js?v=4"></script>
+  <script src="js/fx.js?v=4"></script>
+  <script src="js/game.js?v=4"></script>
+  <script src="js/icons.js?v=4"></script>
+  <script src="js/ui.js?v=4"></script>
+  <script src="js/main.js?v=4"></script>
 </body>
 </html>

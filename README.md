@@ -50,7 +50,7 @@ On touch screens, a floating joystick on the left handles movement (pull down to
 
 ```
 index.html
-css/style.css     chunky game UI: lipped buttons, ribbons, medallions, HUD
+css/style.css     flat minimal UI: charcoal panels, flat buttons, Bungee labels
 js/util.js        math, seeded RNG, glow sprite cache
 js/platform.js    CrazyGames SDK wrapper + storage
 js/audio.js       synthesized SFX + generative per-realm music
@@ -64,11 +64,11 @@ js/game.js        moves runtime, hits/knockback/ring-outs, enemy AI, waves, rend
 js/icons.js       UI and move icons
 js/ui.js          home, map, battle prep, grimoire, forge, HUD, touch controls
 js/main.js        boot, loop, keyboard/mouse
-assets/fonts/     Lilita One + Nunito (SIL Open Font License)
+assets/fonts/     Bungee + Nunito (SIL Open Font License)
 ```
 
 The CrazyGames SDK is only loaded on CrazyGames domains. Everywhere else, progress is saved to `localStorage`.
 
 ## Credits
 
-Fonts: [Lilita One](https://fonts.google.com/specimen/Lilita+One) by Juan Montoreano and [Nunito](https://fonts.google.com/specimen/Nunito) by Vernon Adams, Cyreal and Jacques Le Bailly, both under the SIL Open Font License 1.1.
+Fonts: [Bungee](https://fonts.google.com/specimen/Bungee) by David Jonathan Ross and [Nunito](https://fonts.google.com/specimen/Nunito) by Vernon Adams, Cyreal and Jacques Le Bailly, both under the SIL Open Font License 1.1.
