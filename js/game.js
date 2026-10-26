@@ -670,7 +670,7 @@ const Game = (() => {
     if (t.invuln > 0) return;
     const enemyTarget = t.team === 'enemy';
     let dmg = o.dmg;
-    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * 0.8 : 1;
+    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * 0.64 : 1;   // enemy hits: 0.8 base, then -20%
     let mul = 1, tag = null;
     if (enemyTarget) mul = affinityMul(t.el, o.el);
     dmg *= mul;
@@ -690,8 +690,8 @@ const Game = (() => {
 
     const st = t.status;
     const bossy = t.kind === 'boss' ? 0.4 : t.kind === 'brute' ? 0.7 : 1;
-    if (mv.burn) { st.burn = Math.max(st.burn, mv.burn.dur); st.burnDps = mv.burn.dps * (att && att.isPlayer ? pStats.dmgMul : 0.7); }
-    if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.7); }
+    if (mv.burn) { st.burn = Math.max(st.burn, mv.burn.dur); st.burnDps = mv.burn.dps * (att && att.isPlayer ? pStats.dmgMul : 0.56); }
+    if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.56); }
     if (mv.chill) st.chill = Math.max(st.chill, mv.chill);
     if (mv.soak) st.soak = Math.max(st.soak, mv.soak);
     if (mv.root) st.root = Math.max(st.root, mv.root * bossy);
