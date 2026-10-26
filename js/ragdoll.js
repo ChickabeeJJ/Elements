@@ -481,12 +481,16 @@ class Fighter {
     // back limbs in the shade tone
     seg(2, 9, 13, shade); seg(9, 10, 11, shade);
     seg(1, 5, 11, shade); seg(5, 6, 9.5, shade);
+    // elemental wrist cuffs: the back one sits behind the torso, the front one on top
+    const cuff = (e, h, col) => {
+      if (this.el === 'none') return;
+      const E = pts[e], Hh = pts[h];
+      ctx.strokeStyle = col; ctx.lineWidth = 10.5 * s;
+      ctx.beginPath(); ctx.moveTo(lerp(E.x, Hh.x, 0.62), lerp(E.y, Hh.y, 0.62)); ctx.lineTo(lerp(E.x, Hh.x, 0.78), lerp(E.y, Hh.y, 0.78)); ctx.stroke();
+    };
+    cuff(P.BELB, P.BHAND, mixHex(this.accent, '#000000', 0.2));
     // torso: thick capsule with a slightly narrower waist
     seg(1, 2, 22, body);
-    const n = pts[P.NECK], pv = pts[P.PELVIS];
-    // element sash across the waist
-    ctx.strokeStyle = this.accent; ctx.lineWidth = 6 * s;
-    ctx.beginPath(); ctx.moveTo(lerp(n.x, pv.x, 0.78), lerp(n.y, pv.y, 0.78)); ctx.lineTo(lerp(n.x, pv.x, 0.86), lerp(n.y, pv.y, 0.86)); ctx.stroke();
     // front leg
     seg(2, 7, 13.5, body); seg(7, 8, 11.5, body);
     // head: rounded block
@@ -497,57 +501,159 @@ class Fighter {
     this.drawHeadgear(ctx, hd, time);
     // front arm on top
     seg(1, 3, 11, body); seg(3, 4, 9.5, body);
-    // elemental wrist cuffs
-    if (this.el !== 'none') {
-      for (const [e, h] of [[P.FELB, P.FHAND], [P.BELB, P.BHAND]]) {
-        const E = pts[e], Hh = pts[h];
-        ctx.strokeStyle = this.accent; ctx.lineWidth = 10.5 * s;
-        ctx.beginPath(); ctx.moveTo(lerp(E.x, Hh.x, 0.62), lerp(E.y, Hh.y, 0.62)); ctx.lineTo(lerp(E.x, Hh.x, 0.78), lerp(E.y, Hh.y, 0.78)); ctx.stroke();
-      }
-    }
+    cuff(P.FELB, P.FHAND, this.accent);
     if (this.isPlayer && this.alive && this.el !== 'none') {
       ctx.globalCompositeOperation = 'lighter';
       Glow.draw(ctx, AURA[this.el], pts[P.FHAND].x, pts[P.FHAND].y, 16 * s, 0.55);
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    if (st.freeze > 0) {
-      ctx.globalAlpha = fade * clamp(st.freeze * 2, 0, 0.7);
-      for (const [a, b] of SEGS) seg(a, b, 20, '#bfe9f7');
-      ctx.fillStyle = '#d4f2fb';
-      ctx.beginPath(); ctx.roundRect(hd.x - hr - 4 * s, hd.y - hr - 5 * s, hr * 2 + 8 * s, hr * 2.1 + 9 * s, hr); ctx.fill();
+    this.drawStatus(ctx, time, fade, seg, hd, hr);
+    ctx.globalAlpha = 1;
+  }
+
+  /* status visuals: each effect reads at a glance and differs in shape, not just colour */
+  drawStatus(ctx, time, fade, seg, hd, hr) {
+    const s = this.s, pts = this.pts, st = this.status;
+    const c = this.center();
+    // poison: sickly tint on the limbs
+    if (st.poison > 0) {
+      ctx.globalAlpha = fade * 0.35 * Math.min(1, st.poison * 2);
+      for (const [a, b] of SEGS) seg(a, b, 9, '#9be04a');
       ctx.globalAlpha = fade;
     }
+    // soak: water sheen on the limbs and drips from the hands
+    if (st.soak > 0) {
+      ctx.globalAlpha = fade * 0.3 * Math.min(1, st.soak * 2);
+      for (const [a, b] of SEGS) seg(a, b, 7, '#9fd8ff');
+      ctx.globalAlpha = fade * 0.85;
+      ctx.fillStyle = '#7cc8ff';
+      for (const h of [P.FHAND, P.BHAND, P.HEAD]) {
+        const q = pts[h], ph = (time * 1.6 + h * 0.37) % 1;
+        const y = q.y + 6 * s + ph * 22 * s, r = 3.2 * s * (1 - ph * 0.5);
+        ctx.beginPath(); ctx.moveTo(q.x, y - r * 2); ctx.quadraticCurveTo(q.x + r, y, q.x, y + r); ctx.quadraticCurveTo(q.x - r, y, q.x, y - r * 2); ctx.fill();
+      }
+      ctx.globalAlpha = fade;
+    }
+    // chill: frost rim on the limbs and slow drifting sparkles
+    if (st.chill > 0 && st.freeze <= 0) {
+      ctx.globalAlpha = fade * 0.45 * Math.min(1, st.chill * 2);
+      for (const [a, b] of SEGS) seg(a, b, 5, '#e6f8ff');
+      ctx.globalAlpha = fade;
+      ctx.strokeStyle = '#e6f8ff'; ctx.lineWidth = 1.8;
+      for (let i = 0; i < 3; i++) {
+        const a = time * 1.3 + i * 2.1, x = c.x + Math.cos(a) * 26 * s, y = c.y + Math.sin(a * 1.4) * 40 * s, r = 4 * s;
+        ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.stroke();
+      }
+    }
+    // freeze: faceted ice shell around the whole body
+    if (st.freeze > 0) {
+      const a = fade * clamp(st.freeze * 2, 0, 1);
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const q of pts) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
+      x0 -= 16 * s; x1 += 16 * s; y0 -= 22 * s; y1 += 8 * s;
+      const mx = (x0 + x1) / 2, ch = (x1 - x0) * 0.22;
+      const poly = [[x0 + ch, y0], [mx + ch * 0.4, y0 - 8 * s], [x1, y0 + ch], [x1 - 4 * s, y1 - ch], [x1 - ch, y1], [x0 + ch * 0.6, y1], [x0, y1 - ch * 1.2], [x0 + 3 * s, y0 + ch * 1.4]];
+      ctx.globalAlpha = a * 0.45; ctx.fillStyle = '#bfeaff';
+      ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = a * 0.9; ctx.strokeStyle = '#f2fbff'; ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.globalAlpha = a * 0.55; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); ctx.lineTo(mx, (y0 + y1) / 2); ctx.lineTo(poly[4][0], poly[4][1]);
+      ctx.moveTo(mx, (y0 + y1) / 2); ctx.lineTo(poly[2][0], poly[2][1]); ctx.stroke();
+      ctx.globalAlpha = a * 0.8; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x0 + 8 * s, y0 + ch * 1.6); ctx.lineTo(x0 + 8 * s, y0 + ch * 2.6); ctx.stroke();
+      ctx.globalAlpha = fade;
+    }
+    // root: thorny vines coiling up the legs
     if (st.root > 0) {
-      ctx.strokeStyle = '#5f9e46'; ctx.lineWidth = 3.5 * s;
+      ctx.globalAlpha = fade * Math.min(1, st.root * 3);
       for (const [a, b] of [[P.FKNEE, P.FFOOT], [P.BKNEE, P.BFOOT]]) {
         const A = pts[a], B = pts[b];
+        ctx.strokeStyle = '#3f7a2e'; ctx.lineWidth = 4 * s;
         ctx.beginPath();
-        for (let i = 0; i <= 10; i++) {
-          const u = i / 10, w = Math.sin(u * 14 + time * 3) * 7 * s;
-          const x = lerp(A.x, B.x, u) + w, y = lerp(A.y, B.y, u);
+        for (let i = 0; i <= 12; i++) {
+          const u = i / 12, w = Math.sin(u * 13 + time * 2) * 7 * s;
+          const x = lerp(B.x, A.x, u) + w, y = lerp(B.y + 4 * s, A.y, u);
           i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         }
         ctx.stroke();
+        ctx.fillStyle = '#7cc95a';
+        for (let i = 1; i < 4; i++) {
+          const u = i / 4, w = Math.sin(u * 13 + time * 2) * 7 * s, x = lerp(B.x, A.x, u) + w, y = lerp(B.y, A.y, u), d = i % 2 ? 1 : -1;
+          ctx.beginPath(); ctx.ellipse(x + d * 5 * s, y, 5 * s, 2.4 * s, d * 0.6, 0, TAU); ctx.fill();
+        }
       }
-    }
-    if (st.burn > 0) {
-      ctx.fillStyle = '#ff8a3d';
-      ctx.globalAlpha = fade * 0.25;
-      const c = this.center();
-      ctx.beginPath(); ctx.ellipse(c.x, c.y, 26 * s, 50 * s, 0, 0, TAU); ctx.fill();
       ctx.globalAlpha = fade;
     }
-    if (this.shield > 0) {
-      const c = this.center();
-      ctx.globalAlpha = fade * 0.22;
-      ctx.fillStyle = '#7cc8ff';
-      ctx.beginPath(); ctx.arc(c.x, c.y - 10 * s, 74 * s, 0, TAU); ctx.fill();
-      ctx.globalAlpha = fade * 0.85;
-      ctx.strokeStyle = '#bfe3ff'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(c.x, c.y - 10 * s, 74 * s, 0, TAU); ctx.stroke();
+    // burn: flickering flame tongues rising off the body
+    if (st.burn > 0) {
+      const k = Math.min(1, st.burn * 2);
+      const anchors = [P.HEAD, P.NECK, P.PELVIS, P.FELB, P.BELB, P.FKNEE, P.BKNEE];
+      ctx.globalCompositeOperation = 'lighter';
+      Glow.draw(ctx, '#ff7a2a', c.x, c.y, 46 * s, 0.35 * k * fade);
+      ctx.globalCompositeOperation = 'source-over';
+      anchors.forEach((ai, i) => {
+        const q = pts[ai];
+        const fl = 0.75 + Math.sin(time * 13 + i * 1.9) * 0.15 + Math.sin(time * 21 + i) * 0.1;
+        const h = (ai === P.HEAD ? 30 : 22) * s * fl * k, w = (ai === P.HEAD ? 10 : 8) * s * k;
+        const sway = Math.sin(time * 7 + i * 2.3) * 4 * s;
+        const flame = (hh, ww, col) => {
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.moveTo(q.x - ww, q.y);
+          ctx.quadraticCurveTo(q.x - ww, q.y - hh * 0.55, q.x + sway, q.y - hh);
+          ctx.quadraticCurveTo(q.x + ww, q.y - hh * 0.55, q.x + ww, q.y);
+          ctx.arc(q.x, q.y, ww, 0, Math.PI);
+          ctx.fill();
+        };
+        ctx.globalAlpha = fade * 0.9; flame(h, w, '#ff6a2a');
+        ctx.globalAlpha = fade; flame(h * 0.6, w * 0.55, '#ffd76a');
+      });
+      ctx.globalAlpha = fade;
     }
-    ctx.globalAlpha = 1;
+    // shock: crackling arcs between joints
+    if (st.shock > 0) {
+      ctx.globalAlpha = fade * 0.9; ctx.strokeStyle = '#fff27a'; ctx.lineWidth = 2;
+      const seed = Math.floor(time * 18);
+      for (let i = 0; i < 2; i++) {
+        const A = pts[(seed + i * 5) % 11], B = pts[(seed * 3 + i * 7 + 4) % 11];
+        ctx.beginPath(); ctx.moveTo(A.x, A.y);
+        for (let j = 1; j < 5; j++) { const u = j / 5; ctx.lineTo(lerp(A.x, B.x, u) + Math.sin(seed * 7.1 + j * 3.3 + i) * 9 * s, lerp(A.y, B.y, u) + Math.cos(seed * 5.3 + j * 2.1) * 9 * s); }
+        ctx.lineTo(B.x, B.y); ctx.stroke();
+      }
+      ctx.globalAlpha = fade;
+    }
+    // shields: a water bubble (Tide) or orbiting iron plates (Steel)
+    if (this.shield > 0) {
+      const cy = c.y - 10 * s, R = 72 * s;
+      if (this.shieldEl === 'steel') {
+        const n = 6;
+        for (let i = 0; i < n; i++) {
+          const a = time * 1.2 + i * TAU / n, x = c.x + Math.cos(a) * R * 0.78, y = cy + Math.sin(a) * R * 0.95;
+          ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2);
+          ctx.globalAlpha = fade * 0.95; ctx.fillStyle = '#c9d2df';
+          ctx.beginPath();
+          for (let j = 0; j < 6; j++) { const b = j * TAU / 6; ctx.lineTo(Math.cos(b) * 13 * s, Math.sin(b) * 13 * s); }
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#eef2f8'; ctx.beginPath(); ctx.arc(-3 * s, -3 * s, 4 * s, 0, TAU); ctx.fill();
+          ctx.restore();
+        }
+        ctx.globalAlpha = fade * 0.12; ctx.fillStyle = '#dfe5ee';
+        ctx.beginPath(); ctx.arc(c.x, cy, R * 0.9, 0, TAU); ctx.fill();
+      } else {
+        const wob = Math.sin(time * 3) * 2 * s;
+        const g = ctx.createRadialGradient(c.x, cy, R * 0.55, c.x, cy, R);
+        g.addColorStop(0, 'rgba(124,200,255,0)'); g.addColorStop(0.8, 'rgba(124,200,255,0.18)'); g.addColorStop(1, 'rgba(170,225,255,0.45)');
+        ctx.globalAlpha = fade; ctx.fillStyle = g;
+        ctx.beginPath(); ctx.ellipse(c.x, cy, R + wob, R - wob, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(220,242,255,0.9)'; ctx.lineWidth = 2.2; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(c.x, cy, R * 0.8, Math.PI * 1.1, Math.PI * 1.35); ctx.stroke();
+        ctx.beginPath(); ctx.arc(c.x - R * 0.42, cy - R * 0.5, 3 * s, 0, TAU); ctx.fillStyle = '#ffffff'; ctx.fill();
+      }
+      ctx.globalAlpha = fade;
+    }
   }
 
   drawHeadgear(ctx, hd, time) {

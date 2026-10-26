@@ -341,10 +341,10 @@ const Game = (() => {
         else { f.slam = true; f.root.vy = 1500; }
         break;
       case 'shield':
-        f.shield = mv.absorb; f.shieldT = mv.dur;
+        f.shield = mv.absorb; f.shieldT = mv.dur; f.shieldEl = el;
         heal(f, mv.heal);
         Sfx.shield();
-        fx.ring(f.center().x, f.center().y, '#7cc8ff', 90, 0.4);
+        fx.ring(f.center().x, f.center().y, el === 'steel' ? '#dfe5ee' : '#7cc8ff', 90, 0.4);
         break;
       case 'heal': {
         f.regen = (f.maxHp * mv.heal) / mv.dur; f.regenT = mv.dur;
@@ -399,6 +399,12 @@ const Game = (() => {
     const tx = h.x + dx / l * ext, ty = h.y + dy / l * ext;
     act.tip = { x: tx, y: ty, nx: n.x, ny: n.y };
     act.trail = act.trail || [];
+    if (!act.gust && act.el === 'wind') {
+      act.gust = true;
+      const ang = Math.atan2(dy, dx);
+      for (let i = 0; i < 3; i++) fx.add({ kind: 'crescent', x: n.x, y: n.y, vx: Math.cos(ang) * (260 + i * 120), vy: Math.sin(ang) * (260 + i * 120), ang, size: 34 + i * 16, color: '#e6fff7', life: 0.28 + i * 0.05, drag: 3, add: true });
+      for (let i = 0; i < 6; i++) { const b = ang + rand(-0.35, 0.35), v = rand(500, 900); fx.add({ kind: 'spark', x: h.x, y: h.y, vx: Math.cos(b) * v, vy: Math.sin(b) * v, color: '#dffcf2', size: rand(4, 7), life: rand(0.18, 0.3), drag: 4, add: true }); }
+    }
     act.trail.push({ x: tx, y: ty, ix: lerp(n.x, tx, 0.45), iy: lerp(n.y, ty, 0.45) });
     if (act.trail.length > 10) act.trail.shift();
     const r = mv.radius * f.s;
@@ -453,7 +459,8 @@ const Game = (() => {
   function nova(f, x, y, mv, el) {
     const col = ELEMENT_BY_ID[el] ? ELEMENT_BY_ID[el].color : '#ffffff';
     fx.ring(x, y, col, mv.radius, 0.45, 12);
-    fx.burst(x, y, col, 30, mv.radius * 2.2);
+    fx.burst(x, y, col, 16, mv.radius * 2.2);
+    novaShapes(x, y, mv.radius, el, col);
     if (el === 'fire') { for (let i = 0; i < 10; i++) fx.add({ kind: 'smoke', x: x + rand(-50, 50), y: y + rand(-30, 30), vy: -rand(30, 80), color: '#3a2a2a', size: rand(16, 28), life: rand(0.7, 1.2), add: false }); Sfx.boom(0.8); }
     else if (el === 'frost') Sfx.freeze();
     else if (el === 'lightning') { for (let i = 0; i < 5; i++) { const a = rand(0, TAU); fx.arc(x, y, x + Math.cos(a) * mv.radius, y + Math.sin(a) * mv.radius, '#a77bff', 0.2); } Sfx.zap(); }
@@ -466,6 +473,20 @@ const Game = (() => {
       if (dist(x, y, c.x, c.y) > mv.radius + 30 * t.s) continue;
       const dx = c.x - x;
       applyHit(f, t, { mv, el, dmg: mv.dmg || 0, knock: mv.knock, lift: mv.lift, dirX: Math.sign(dx) || f.facing, dirY: 0, idx: P.PELVIS, px: c.x, py: c.y });
+    }
+  }
+
+  // element-shaped debris for bursts so each nova reads differently
+  function novaShapes(x, y, radius, el, col) {
+    const n = 18, sp = radius * 3.2;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * TAU + rand(-0.12, 0.12), v = sp * rand(0.75, 1.1);
+      const base = { x: x + Math.cos(a) * 14, y: y + Math.sin(a) * 14, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: 4.5, life: rand(0.35, 0.5) };
+      if (el === 'fire') fx.add(Object.assign(base, { kind: 'flame', color: pick(['#ff6a2a', '#ff8a3d', '#ffb347']), size: rand(8, 12), add: true }));
+      else if (el === 'frost') fx.add(Object.assign(base, { kind: 'shard', color: pick(['#bfeaff', '#9fe6ff', '#e6f8ff']), size: rand(7, 10), add: true }));
+      else if (el === 'arcane' || el === 'light') fx.add(Object.assign(base, { kind: 'star', color: el === 'light' ? '#fff3b0' : pick(['#ff8ad8', '#ffd6f2']), size: rand(7, 11), vr: rand(-8, 8), add: true }));
+      else if (el === 'wind') fx.add(Object.assign(base, { kind: 'spark', color: '#e6fff7', size: rand(5, 8), add: true }));
+      else fx.add(Object.assign(base, { kind: 'spark', color: col, size: rand(5, 8), add: true }));
     }
   }
 
@@ -768,7 +789,7 @@ const Game = (() => {
       case 'bolt': if (r < 0.6) fx.add({ kind: 'spark', x: p.x, y: p.y, vx: rand(-300, 300), vy: rand(-300, 300), color: '#fff27a', size: 4, life: 0.15 }); break;
       case 'cyclone': if (r < 0.9) { const a = rand(0, TAU); fx.add({ x: p.x + Math.cos(a) * 40, y: p.y + rand(-60, 50), vx: -Math.sin(a) * 200, vy: -rand(80, 200), color: '#e6fff7', size: rand(3, 6), life: 0.35 }); } break;
       case 'spit': if (r < 0.5) fx.add({ kind: 'drop', x: p.x, y: p.y, vx: rand(-30, 30), vy: rand(-20, 20), g: 900, color: pick(['#a6e35b', '#6fbf2e']), size: rand(2, 4), life: 0.45, add: false }); break;
-      case 'star': if (r < 0.7) fx.add({ x: p.x, y: p.y, vx: rand(-25, 25), vy: rand(-25, 25), color: pick(['#ff8ad8', '#ffd6f2', '#b0369a']), size: rand(3, 6), life: 0.35 }); break;
+      case 'star': if (r < 0.6) fx.add({ kind: 'star', x: p.x, y: p.y, vx: rand(-30, 30), vy: rand(-30, 30), color: pick(['#ff8ad8', '#ffd6f2']), size: rand(4, 7), vr: rand(-6, 6), life: 0.4, add: true }); break;
       case 'saw': if (r < 0.4) fx.add({ kind: 'spark', x: p.x, y: p.y + 14, vx: rand(-260, 260), vy: -rand(60, 260), color: '#ffe3a6', size: 3, life: 0.2 }); break;
       case 'seed': if (r < 0.2) fx.add({ kind: 'leaf', x: p.x, y: p.y, vx: rand(-40, 40), vy: rand(-40, 10), g: 200, vr: rand(-8, 8), color: '#9ae66e', size: 4, life: 0.7, add: false }); break;
       case 'boulder': case 'rock': if (r < 0.25) fx.add({ kind: 'smoke', x: p.x, y: p.y, vy: -10, color: '#b08a66', size: 7, life: 0.4, add: false }); break;
@@ -1436,7 +1457,7 @@ const Game = (() => {
         c.rotate(time * 8);
         c.fillStyle = '#ffe6f7';
         c.beginPath();
-        for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, rr = i % 2 ? 4 : 11; i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+        for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, rr = i % 2 ? 6.5 : 16; i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
         c.closePath(); c.fill();
         break;
       case 'seed':
@@ -1653,6 +1674,7 @@ const Game = (() => {
     player: () => player,
     use: (slot, x, y) => tryMove(player, ELEMENT_BY_ID[player.el].moves[slot], x, y),
     islands: () => islands,
+    setEl: id => { setPlayerElement(player, id, true); for (const k in player.cds) player.cds[k] = 0; },
   };
 
   return {

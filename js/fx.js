@@ -103,10 +103,45 @@ class FX {
       if (!p.add) continue;
       const a = clamp(p.life / p.max, 0, 1);
       if (p.kind === 'ring') {
+        // shockwave: soft filled disc, a wide haze band and a crisp leading edge
         const r = p.size * (1 - a * a) + 4;
-        ctx.globalAlpha = a;
-        ctx.strokeStyle = p.color; ctx.lineWidth = p.width * a + 1;
+        const g = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r);
+        g.addColorStop(0, rgba(p.color, 0)); g.addColorStop(0.75, rgba(p.color, 0.1 * a)); g.addColorStop(1, rgba(p.color, 0.32 * a));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+        ctx.globalAlpha = a * 0.35; ctx.strokeStyle = p.color; ctx.lineWidth = p.width * 2.4 * a + 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r - p.width * 0.6, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = a; ctx.lineWidth = p.width * 0.7 * a + 1.5; ctx.strokeStyle = mixHex(p.color, '#ffffff', 0.45);
         ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (p.kind === 'flame' || p.kind === 'shard') {
+        // oriented along velocity: flame tongues and ice shards
+        const ang = Math.atan2(p.vy, p.vx), L = p.size * (p.kind === 'flame' ? 2.6 : 3.2) * (0.5 + a * 0.5), Wd = p.size * (p.kind === 'flame' ? 0.9 : 0.55);
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        if (p.kind === 'flame') { ctx.moveTo(L, 0); ctx.quadraticCurveTo(0, -Wd * 1.4, -Wd, 0); ctx.quadraticCurveTo(0, Wd * 1.4, L, 0); }
+        else { ctx.moveTo(L, 0); ctx.lineTo(0, -Wd); ctx.lineTo(-L * 0.35, 0); ctx.lineTo(0, Wd); ctx.closePath(); }
+        ctx.fill();
+        ctx.fillStyle = p.kind === 'flame' ? '#ffe08a' : '#ffffff';
+        ctx.beginPath(); ctx.moveTo(L * 0.7, 0); ctx.lineTo(0, -Wd * 0.4); ctx.lineTo(-Wd * 0.3, 0); ctx.lineTo(0, Wd * 0.4); ctx.closePath(); ctx.fill();
+        ctx.restore(); ctx.globalAlpha = 1;
+      } else if (p.kind === 'star') {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.globalAlpha = a; ctx.fillStyle = p.color;
+        const R = p.size * (0.6 + a * 0.4);
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) { const b = i / 10 * TAU - Math.PI / 2, rr = i % 2 ? R * 0.42 : R; ctx.lineTo(Math.cos(b) * rr, Math.sin(b) * rr); }
+        ctx.closePath(); ctx.fill();
+        ctx.restore(); ctx.globalAlpha = 1;
+      } else if (p.kind === 'crescent') {
+        // wind gust: a curved air blade sweeping outward along p.ang
+        const r = p.size * (1.2 - a * 0.6);
+        ctx.globalAlpha = a * 0.9; ctx.strokeStyle = p.color; ctx.lineCap = 'round';
+        ctx.lineWidth = 2 + a * 7;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, p.ang - 0.75, p.ang + 0.75); ctx.stroke();
+        ctx.globalAlpha = a * 0.5; ctx.lineWidth = 1.5 + a * 3;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.72, p.ang - 0.55, p.ang + 0.55); ctx.stroke();
         ctx.globalAlpha = 1;
       } else if (p.kind === 'beam') {
         const w = p.size * (0.4 + a * 0.6);
