@@ -1021,7 +1021,7 @@ const Game = (() => {
     }
     ai.thinkT -= dt;
     if (ai.thinkT > 0) return;
-    ai.thinkT = ai.stats.think * rand(0.7, 1.3);
+    ai.thinkT = ai.stats.think * rand(0.45, 0.8);
 
     const pr = player.mode === 'active' ? player.root : { x: player.pelvis.x, y: player.pelvis.y + 50 };
     const dx = pr.x - me.x, dy = pr.y - me.y, adx = Math.abs(dx);
@@ -1035,7 +1035,7 @@ const Game = (() => {
 
     if (kit.melee && ready(kit.melee) && dd < (kit.melee.reach + 34) * e.s && Math.abs(dy) < 110) { tryMove(e, kit.melee, pc.x, pc.y); return; }
     for (const pw of kit.powers) {
-      if (!ready(pw) || Math.random() > 0.55) continue;
+      if (!ready(pw) || Math.random() > 0.8) continue;
       const k = pw.kind;
       const ok = (k === 'nova' || k === 'updraft') ? dd < (pw.radius || 140) * 0.9
         : k === 'heal' ? e.hp < e.maxHp * 0.5
@@ -1057,26 +1057,70 @@ const Game = (() => {
       return;
     }
 
-    const prefer = !kit.melee ? 420 : 40;
+    // ---- navigation: chase the hero across islands
+    const prefer = !kit.melee ? 300 : 30;
+    const myIsl = me.grounded ? me.plat : null;
+    const goal = (player.root.grounded && player.root.plat) || platformBelow(pr.x, pr.y - 5, 900) || nearestIsland(pr.x);
     let dir = 0;
-    if (adx > prefer + 30) dir = Math.sign(dx);
-    else if (prefer > 100 && adx < prefer - 160) dir = -Math.sign(dx);
-    if (me.grounded) {
-      if (dy < -110 && adx < 300 && ai.jumpCd <= 0) { e.jump(); ai.jumpCd = 0.9; dir = Math.sign(dx) || dir; }
-      else if (dy > 110 && adx < 340 && platformBelow(me.x, me.y, 600, me.plat) && Math.random() < 0.6) e.drop();
-      if (dir !== 0) {
-        const ax = me.x + dir * 46;
-        if (!groundAt(ax, me.y, 10)) {
-          const across = islands.find(i => i !== me.plat && (dir > 0 ? i.left > me.x && i.left - me.x < 330 : i.right < me.x && me.x - i.right < 330) && i.top > me.y - 190 && i.top < me.y + 260);
-          const wants = Math.sign(dx) === dir;
-          if (wants && across && ai.jumpCd <= 0) { e.jump(); ai.jumpCd = 0.8; }
-          else if (!(wants && dy > 40 && platformBelow(ax, me.y, 520))) dir = 0;
-        }
+    if (myIsl && goal && myIsl !== goal) {
+      const hop = nextHop(myIsl, goal);
+      ai.nav = hop;
+      const over = me.x > hop.left + 12 && me.x < hop.right - 12;
+      if (hop.top < me.y - 30 && over) {
+        // directly beneath: jump straight up through it
+        if (ai.jumpCd <= 0) { e.jump(); ai.jumpCd = 0.5; }
+        dir = Math.sign(hop.x - me.x) * 0.4;
+      } else if (hop.top > me.y + 30 && over) {
+        if (ai.jumpCd <= 0) { e.drop(); ai.jumpCd = 0.6; }
+      } else {
+        const edgeX = hop.x > me.x ? hop.left : hop.right;
+        dir = Math.sign(edgeX - me.x);
+        const gap = Math.abs(edgeX - me.x);
+        const noGround = !groundAt(me.x + dir * 44, me.y, 10);
+        const rise = me.y - hop.top;
+        if (ai.jumpCd <= 0 && (noGround || (rise > 60 && gap < 260) || (rise > -40 && gap < 140))) { e.jump(); ai.jumpCd = 0.5; }
       }
-    } else if (!platformBelow(me.x + dir * 30, me.y - 5, 900)) {
-      dir = Math.sign(nearestIsland(me.x).x - me.x);
+    } else if (!me.grounded && ai.nav) {
+      dir = 0;   // mid-jump: aiAir steers onto the target island
+    } else {
+      ai.nav = null;
+      if (adx > prefer + 20) dir = Math.sign(dx);
+      else if (prefer > 100 && adx < prefer - 140) dir = -Math.sign(dx);
+      if (me.grounded && dir !== 0 && !groundAt(me.x + dir * 50, me.y, 10)) dir = 0;   // never back off an edge
+      // hop at a hero standing on the same island but airborne above
+      if (me.grounded && dy < -120 && adx < 160 && ai.jumpCd <= 0) { e.jump(); ai.jumpCd = 0.7; }
     }
+    if (!me.grounded && !ai.nav && !platformBelow(me.x + dir * 30, me.y - 5, 900)) dir = Math.sign(nearestIsland(me.x).x - me.x);
     e.input.x = dir;
+  }
+
+  // islands reachable in one jump (with double jump) from a
+  function canHop(a, b) {
+    const gap = Math.max(0, b.left - a.right, a.left - b.right);
+    return gap < 380 && b.top > a.top - 280;
+  }
+  // breadth-first search over islands; returns the first island to head for
+  function nextHop(from, goal) {
+    if (canHop(from, goal)) return goal;
+    const prev = new Map([[from, null]]), q = [from];
+    while (q.length) {
+      const c = q.shift();
+      if (c === goal) break;
+      for (const n of islands) if (!prev.has(n) && canHop(c, n)) { prev.set(n, c); q.push(n); }
+    }
+    if (!prev.has(goal)) return nearestIsland(goal.x);
+    let n = goal;
+    while (prev.get(n) !== from) n = prev.get(n);
+    return n;
+  }
+
+  // per-frame air control: steer onto the island being jumped to, double jump if short
+  function aiAir(e) {
+    const ai = e.ai, me = e.root, t = ai && ai.nav;
+    if (!t || me.grounded || e.mode !== 'active' || e.action) return;
+    const tx = clamp(me.x, t.left + 40, t.right - 40);
+    e.input.x = Math.abs(tx - me.x) > 8 ? Math.sign(tx - me.x) : 0;
+    if (me.vy > -120 && me.y > t.top - 30 && me.jumps < e.maxJumps) e.jump();
   }
 
   /* ---------------------------------------------------------- input */
@@ -1195,7 +1239,7 @@ const Game = (() => {
   function step(dt) {
     for (const isl of islands) isl.update(dt);
     playerControl(dt);
-    for (const e of enemies) if (e.ai) updateAI(e, dt);
+    for (const e of enemies) if (e.ai) { updateAI(e, dt); aiAir(e); }
     const fighters = player ? enemies.concat([player]) : enemies;
     for (const f of fighters) {
       if (f.gone) continue;

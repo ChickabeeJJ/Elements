@@ -92,7 +92,7 @@ function enemyStats(type, d) {
   return {
     hp: Math.round(42 * (1 + d * 2.4) * t.hp),
     dmgMul: (1 + d * 1.1) * t.dmg,
-    cdMul: lerp(1.9, 1.05, Math.min(d, 1.2)) * t.cd,
+    cdMul: lerp(1.5, 0.9, Math.min(d, 1.2)) * t.cd,
     think: lerp(0.32, 0.12, Math.min(d, 1.2)),
     aimErr: lerp(0.14, 0.04, Math.min(d, 1.1)),
     windupMul: lerp(2.2, 1.5, Math.min(d, 1)),
