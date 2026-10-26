@@ -21,6 +21,8 @@ const Save = (() => {
     endlessBest: 0,
     settings: { sfx: true, music: true, shake: true, numbers: true },
     loadout: ['wind'],
+    owned: ['wind'],
+    tutorialDone: false,
     seenHelp: false,
     stats: { kills: 0, ringouts: 0, bosses: 0 },
   });
@@ -35,6 +37,7 @@ const Save = (() => {
         data.upgrades = Object.assign(fresh().upgrades, d.upgrades || {});
         data.settings = Object.assign(fresh().settings, d.settings || {});
         data.stats = Object.assign(fresh().stats, d.stats || {});
+        if (!Array.isArray(data.owned)) data.owned = ['wind'];
       }
     } catch (e) { data = fresh(); }
   }
@@ -48,9 +51,18 @@ const Save = (() => {
     return cleared(r, s - 1);
   }
   function realmOpen(r) { return stageOpen(r, 0); }
+  // elements are bought with gems (essence); Gale is free
   function elementOpen(id) {
     const e = ELEMENT_BY_ID[id];
-    return !e.unlock || cleared(e.unlock[0], e.unlock[1]);
+    return !!e && (e.price === 0 || (data.owned || []).includes(id));
+  }
+  function buyElement(id) {
+    const e = ELEMENT_BY_ID[id];
+    if (!e || elementOpen(id) || data.essence < e.price) return false;
+    data.essence -= e.price;
+    data.owned = (data.owned || []).concat(id);
+    save();
+    return true;
   }
   function unlockedElements() { return ELEMENTS.filter(e => elementOpen(e.id)); }
   function loadout() {
@@ -102,7 +114,7 @@ const Save = (() => {
   }
 
   return {
-    load, save, reset, stageOpen, realmOpen, elementOpen, unlockedElements, loadout, setLoadout, totalStars, nextStage,
+    load, save, reset, stageOpen, realmOpen, elementOpen, buyElement, unlockedElements, loadout, setLoadout, totalStars, nextStage,
     upgradeCost, buy, playerStats, recordClear, cleared,
     get data() { return data; },
   };

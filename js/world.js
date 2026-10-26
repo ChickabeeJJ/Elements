@@ -8,44 +8,17 @@ class Island {
   constructor(x, y, w, opts = {}) {
     this.x = x; this.y = y; this.w = w;
     this.baseX = x; this.baseY = y;
-    this.depth = opts.depth || Math.min(320, w * 0.6 + 60);
+    this.depth = opts.depth || Math.min(240, w * 0.42 + 70);
     this.seed = opts.seed || Math.floor(Math.random() * 1e6);
     this.motion = opts.motion || null;    // {ax, ay, speed, phase}
     this.t = 0;
     this.dx = 0; this.dy = 0;
     this.prevTop = y;
-    this.shape = this.buildShape();
   }
 
   get top() { return this.y; }
   get left() { return this.x - this.w / 2; }
   get right() { return this.x + this.w / 2; }
-
-  buildShape() {
-    const rng = mulberry32(this.seed);
-    const hw = this.w / 2, pts = [];
-    const n = Math.max(7, Math.floor(this.w / 50));
-    for (let i = 0; i <= n; i++) {
-      const u = i / n;
-      const x = lerp(hw, -hw, u);
-      const taper = Math.sin(u * Math.PI);
-      const y = 14 + taper * this.depth * (0.55 + rng() * 0.45) + (rng() - 0.5) * 10;
-      pts.push([x * (1 - taper * 0.18) + (rng() - 0.5) * 8, y]);
-    }
-    const tufts = [];
-    for (let i = 0; i < Math.floor(this.w / 16); i++) tufts.push([(rng() - 0.5) * this.w * 0.95, 4 + rng() * 7, rng()]);
-    const drips = [];
-    for (let i = 0; i < Math.floor(this.w / 40); i++) drips.push([(rng() - 0.5) * this.w * 0.85, 10 + rng() * 22]);
-    drips.sort((a, b) => b[0] - a[0]);
-    const cracks = [];
-    for (let i = 0; i < Math.max(2, Math.floor(this.w / 120)); i++) {
-      const sx = (rng() - 0.5) * this.w * 0.6;
-      const c = [[sx, 16]];
-      for (let k = 1; k < 4; k++) c.push([sx + (rng() - 0.5) * 30, 16 + k * this.depth * 0.14]);
-      cracks.push(c);
-    }
-    return { pts, tufts, drips, cracks };
-  }
 
   update(dt) {
     this.t += dt;
@@ -61,53 +34,31 @@ class Island {
     this.dx = x - px; this.dy = y - py;
   }
 
-  draw(ctx, realm, time) {
-    const { pts, tufts, drips, cracks } = this.shape;
-    const hw = this.w / 2;
+  // minimalist island: one smooth tapered body in two flat tones and a rounded cap
+  draw(ctx, realm) {
+    const hw = this.w / 2, d = this.depth;
     ctx.save();
     ctx.translate(this.x, this.y);
-    const grd = ctx.createLinearGradient(0, 0, 0, this.depth);
-    grd.addColorStop(0, realm.rock);
-    grd.addColorStop(1, realm.rockDark);
-    ctx.fillStyle = grd;
+    ctx.fillStyle = realm.rock;
     ctx.beginPath();
     ctx.moveTo(-hw, 6);
     ctx.lineTo(hw, 6);
-    for (const [px, py] of pts) ctx.lineTo(px, py);
+    ctx.bezierCurveTo(hw * 0.9, d * 0.55, hw * 0.25, d, 0, d);
+    ctx.bezierCurveTo(-hw * 0.25, d, -hw * 0.9, d * 0.55, -hw, 6);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    // flat shadow on the right half for a hint of volume
+    ctx.fillStyle = realm.rockDark;
     ctx.beginPath();
-    ctx.moveTo(hw * 0.15, 14);
-    ctx.lineTo(hw, 8);
-    for (let i = 0; i < pts.length / 2; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.moveTo(hw * 0.12, 6);
+    ctx.lineTo(hw, 6);
+    ctx.bezierCurveTo(hw * 0.9, d * 0.55, hw * 0.25, d, 0, d);
+    ctx.bezierCurveTo(hw * 0.12, d * 0.7, hw * 0.2, d * 0.3, hw * 0.12, 6);
     ctx.closePath(); ctx.fill();
-    if (realm.glowTop) {
-      ctx.strokeStyle = realm.topDark; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.6 + Math.sin(time * 2 + this.seed) * 0.25;
-      for (const c of cracks) { ctx.beginPath(); c.forEach(([cx, cy], i) => (i ? ctx.lineTo(cx, cy) : ctx.moveTo(cx, cy))); ctx.stroke(); }
-      ctx.globalAlpha = 1;
-    }
+    // cap
     ctx.fillStyle = realm.topDark;
-    ctx.beginPath();
-    ctx.moveTo(-hw - 4, 0);
-    ctx.lineTo(hw + 4, 0);
-    ctx.lineTo(hw + 1, 14);
-    for (const [dx, dl] of drips) { ctx.lineTo(dx + 7, 13); ctx.quadraticCurveTo(dx, 13 + dl, dx - 7, 13); }
-    ctx.lineTo(-hw - 1, 14);
-    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-hw - 4, 2, this.w + 8, 14, 7); ctx.fill();
     ctx.fillStyle = realm.top;
-    ctx.beginPath(); ctx.roundRect(-hw - 5, -3, this.w + 10, 10, 5); ctx.fill();
-    for (const [tx, th, r] of tufts) {
-      ctx.beginPath();
-      ctx.moveTo(tx - 4, -1);
-      ctx.lineTo(tx - 1 + Math.sin(time * 1.5 + r * 6) * 1.5, -th - 3);
-      ctx.lineTo(tx + 3, -1);
-      ctx.fill();
-    }
-    if (realm.glowTop) {
-      ctx.globalCompositeOperation = 'lighter';
-      Glow.draw(ctx, realm.topDark, 0, 4, hw * 1.1, 0.16);
-      ctx.globalCompositeOperation = 'source-over';
-    }
+    ctx.beginPath(); ctx.roundRect(-hw - 4, -3, this.w + 8, 12, 6); ctx.fill();
     ctx.restore();
   }
 }
@@ -214,7 +165,7 @@ class Ambience {
       c.x += c.v * dt;
       if (c.x - 260 * c.s > view.x0 + view.w) c.x = view.x0 - 260 * c.s;
     }
-    const want = { leaf: 26, ember: 60, snow: 110, rain: 150, mote: 70 }[r.ambient] || 0;
+    const want = { leaf: 26, ember: 60, snow: 110, rain: 150, mote: 70, bubble: 45, spore: 55 }[r.ambient] || 0;
     while (this.parts.length < want) this.parts.push(this.spawn(view, true));
     for (const p of this.parts) {
       p.t += dt;
@@ -292,7 +243,7 @@ class Ambience {
       }
     } else {
       ctx.globalCompositeOperation = 'lighter';
-      const col = kind === 'ember' ? '#ff9a4a' : '#b58cff';
+      const col = { ember: '#ff9a4a', bubble: '#cfefff', spore: '#c8ef6a' }[kind] || '#b58cff';
       for (const p of this.parts) Glow.draw(ctx, col, p.x, p.y, 7 * p.s, 0.5 + Math.sin(p.t * 3 + p.ph) * 0.3);
       ctx.globalCompositeOperation = 'source-over';
     }

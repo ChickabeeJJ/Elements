@@ -56,7 +56,7 @@ class Fighter {
     this.input = { x: 0 };
     this.action = null;
     this.cds = {};
-    this.status = { burn: 0, burnDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0 };
+    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0 };
     this.shield = 0; this.shieldT = 0;
     this.regen = 0; this.regenT = 0;
     this.invuln = 0;
@@ -159,7 +159,7 @@ class Fighter {
   /* ------------------------------------------------------------ update */
   update(dt, plats, forces) {
     const st = this.status;
-    for (const k of ['burn', 'chill', 'soak', 'root', 'shock']) st[k] = Math.max(0, st[k] - dt);
+    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock']) st[k] = Math.max(0, st[k] - dt);
     if (st.freeze > 0) st.freeze = Math.max(0, st.freeze - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.flash = Math.max(0, this.flash - dt * 4);
@@ -222,7 +222,8 @@ class Fighter {
       for (const pl of plats) {
         if (r.dropT > 0 && pl === r.dropPlat) continue;
         if (r.x < pl.left - 4 || r.x > pl.right + 4) continue;
-        if (prevY <= pl.prevTop + 2 && r.y >= pl.top) {
+        // solid landing band: anything that was at most a few px inside still lands
+        if (prevY <= pl.prevTop + 10 && r.y >= pl.top && r.y <= pl.top + 60) {
           const impact = r.vy;
           r.y = pl.top; r.vy = 0; r.grounded = true; r.plat = pl; r.jumps = 0;
           if (!wasGrounded && impact > 900) this.landT = Math.min(1, impact / 2000);
@@ -596,12 +597,14 @@ class Fighter {
   }
 }
 
-/* one-way platform contact for a single verlet point */
+/* one-way platform contact for a single verlet point. The band below the
+   top surface is treated as solid so points nudged slightly into the
+   platform by the solver are pushed back up instead of falling through. */
 function landPoint(p, pl) {
   if (p.x < pl.left || p.x > pl.right) return;
-  if (p.y > pl.top && p.py <= pl.prevTop + 1.5) {
+  if (p.y > pl.top && p.y < pl.top + 30 && p.py <= pl.prevTop + 14) {
     p.y = pl.top;
     p.px = lerp(p.px, p.x, 0.5);           // friction
-    p.py = p.y + (p.py - p.y) * 0.15;
+    p.py = p.y + Math.min(0, p.py - p.y) * 0.15;
   }
 }

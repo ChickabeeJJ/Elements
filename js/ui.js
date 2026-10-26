@@ -29,7 +29,7 @@ const UI = (() => {
     'Frozen foes shatter under Stone and Ice Lance.',
     'Soak foes with Tide, then hit them with Storm.',
     'Swap elements mid-fight with 1, 2 and 3 to chain powers.',
-    'Upgrades are permanent. Spend essence between stages.',
+    'Upgrades are permanent. Spend gems between stages.',
   ];
 
   /* ----------------------------------------------------------- screens */
@@ -54,6 +54,17 @@ const UI = (() => {
     $('homeForge').classList.toggle('hidden', !(cheapest <= Save.data.essence));
     $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS</span><div class="row">${Save.loadout().map(id => hex(id)).join('')}</div><button class="btn small" id="homeChange"><b>CHANGE</b></button>`;
     $('homeChange').onclick = () => { Sfx.ensure(); Sfx.click(); openLoadout(); };
+    refreshUser();
+    setTimeout(() => { if (current === 'home') Platform.showBanner('cgBanner'); }, 300);
+  }
+
+  function refreshUser() {
+    const chip = $('userChip');
+    if (!Platform.accountsAvailable) { chip.classList.add('hidden'); return; }
+    chip.classList.remove('hidden');
+    const user = Platform.user;
+    chip.innerHTML = user ? `${user.profilePictureUrl ? `<img src="${user.profilePictureUrl}" alt="">` : ''}<b>${String(user.username || 'PLAYER').toUpperCase().slice(0, 16)}</b>` : '<b>LOG IN TO SAVE</b>';
+    chip.onclick = user ? null : async () => { Sfx.click(); await Platform.login(); };
   }
 
   /* --------------------------------------------------------------- map */
@@ -122,13 +133,13 @@ const UI = (() => {
         <p class="hint">Pick up to three. You can swap between them in battle with 1, 2 and 3.</p>
         <div class="picker">${ELEMENTS.map(e => {
           const open = Save.elementOpen(e.id);
-          return `<button class="pick${sel.includes(e.id) ? ' on' : ''}${open ? '' : ' locked'}" data-el="${e.id}" style="--c:${e.color}">${hex(e.id, open ? '' : 'locked')}<span>${open ? e.name.toUpperCase() : 'LOCKED'}</span></button>`;
+          return `<button class="pick${sel.includes(e.id) ? ' on' : ''}${open ? '' : ' locked'}" data-el="${e.id}" style="--c:${e.color}">${hex(e.id, open ? '' : 'locked')}<span>${e.name.toUpperCase()}</span>${open ? '' : `<span class="price">${e.price}</span>`}</button>`;
         }).join('')}</div>
         <div class="actions"><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
         sh.classList.add('wide');
         sh.querySelectorAll('.pick').forEach(b => b.onclick = () => {
           const id = b.dataset.el;
-          if (!Save.elementOpen(id)) { Sfx.denied(); const e = ELEMENT_BY_ID[id]; toast(`UNLOCKS AT STAGE ${stageLabel(e.unlock[0], e.unlock[1])}`); return; }
+          if (!Save.elementOpen(id)) { Sfx.click(); closeModal(); codexSel = id; openCodex(); return; }
           Sfx.click();
           if (sel.includes(id)) { if (sel.length > 1) sel = sel.filter(x => x !== id); }
           else if (sel.length < 3) sel.push(id);
@@ -155,10 +166,11 @@ const UI = (() => {
       const b = document.createElement('button');
       b.className = 'el-pill' + (e.id === codexSel ? ' active' : '');
       b.style.setProperty('--c', e.color);
-      b.innerHTML = `${hex(e.id, open ? '' : 'locked')}<span>${open ? e.name.toUpperCase() : 'LOCKED'}</span>`;
+      b.innerHTML = `${hex(e.id, open ? '' : 'locked')}<span>${e.name.toUpperCase()}</span>${open ? '' : `<span class="price"><span class="ic gem" data-icon="gem"></span>${e.price}</span>`}`;
       b.onclick = () => { Sfx.click(); codexSel = e.id; renderCodex(); };
       list.appendChild(b);
     }
+    Icons.hydrate(list);
     $('codexCount').textContent = Save.unlockedElements().length + '/' + ELEMENTS.length;
     const e = ELEMENT_BY_ID[codexSel];
     const open = Save.elementOpen(e.id);
@@ -166,7 +178,8 @@ const UI = (() => {
     const det = $('codexDetail');
     det.style.setProperty('--c', e.color);
     det.innerHTML = `
-      <div class="cd-head">${hex(e.id, open ? '' : 'locked')}<div><h3>${open ? e.name.toUpperCase() : 'LOCKED'}</h3><p>${open ? e.blurb : 'Clear stage ' + stageLabel(e.unlock[0], e.unlock[1]) + ' to unlock.'}</p></div></div>
+      <div class="cd-head">${hex(e.id, open ? '' : 'locked')}<div><h3>${e.name.toUpperCase()}</h3><p>${e.blurb}</p></div></div>
+      ${open ? '' : `<div class="buy-row"><p>Unlock ${e.name} with gems from battles, pickups and stage clears.</p><button class="btn${Save.data.essence >= e.price ? ' primary' : ''}" id="buyEl"><span class="ic" data-icon="gem"></span><b>UNLOCK · ${e.price}</b></button></div>`}
       <div class="moves">${e.moves.map((mv, i) => `
         <div class="move"${open ? '' : ' style="opacity:.5"'}>
           <div class="move-top"><span class="move-ic" style="--c:${e.color}"><span class="ic" data-icon="${mv.icon}"></span></span>
@@ -175,6 +188,15 @@ const UI = (() => {
           <div class="meta">${mv.dmg ? `<span>${mv.dmg}${mv.count ? '×' + mv.count : ''} DMG</span>` : ''}<span>${mv.cd}S</span><kbd>${KEYS[i]}</kbd></div>
         </div>`).join('')}</div>`;
     Icons.hydrate(det);
+    const buy = det.querySelector('#buyEl');
+    if (buy) buy.onclick = () => {
+      if (Save.buyElement(e.id)) {
+        Sfx.unlock(); Platform.happytime();
+        const l = Save.loadout(); if (l.length < 3 && !l.includes(e.id)) Save.setLoadout(l.concat(e.id));
+        toast(`${e.name.toUpperCase()} UNLOCKED!`);
+        show('codex'); renderCodex();
+      } else { Sfx.denied(); toast(`NEED ${e.price - Save.data.essence} MORE GEMS`); }
+    };
   }
 
   /* -------------------------------------------------------------- forge */
@@ -226,13 +248,13 @@ const UI = (() => {
     modal(`
       <h2>SETTINGS</h2>
       <div class="toggles">${rows.map(([k, label]) => `<button class="toggle${st[k] ? ' on' : ''}" data-k="${k}">${label}<span class="sw"></span></button>`).join('')}</div>
-      <div class="keys">
+      ${document.body.classList.contains('touch') ? '' : `<div class="keys">
         <span><kbd>A</kbd><kbd>D</kbd></span><span>Move, <kbd>S</kbd> to drop through</span>
         <span><kbd>W</kbd><kbd>SPACE</kbd></span><span>Jump, again in the air</span>
         <span><kbd>CLICK</kbd></span><span>Main attack toward the cursor</span>
         <span><kbd>Q</kbd><kbd>E</kbd></span><span>Element powers</span>
         <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span><span>Swap element</span>
-      </div>
+      </div>`}
       <div class="actions"><button class="btn primary" id="setBack"><b>${fromPause ? 'BACK' : 'DONE'}</b></button><button class="btn danger" id="setReset"><b>RESET</b></button></div>`, s => {
       s.querySelectorAll('.toggle').forEach(t => t.onclick = () => {
         const k = t.dataset.k;
@@ -246,7 +268,7 @@ const UI = (() => {
   }
 
   function confirmReset(fromPause) {
-    modal(`<h2 class="lose">RESET PROGRESS?</h2><p class="tip">Stars, essence, upgrades and elements will be erased.</p>
+    modal(`<h2 class="lose">RESET PROGRESS?</h2><p class="tip">Stars, gems, upgrades and elements will be erased.</p>
       <div class="actions"><button class="btn" id="rsNo"><b>CANCEL</b></button><button class="btn danger" id="rsYes"><b>ERASE</b></button></div>`, s => {
       s.querySelector('#rsNo').onclick = () => openSettings(fromPause);
       s.querySelector('#rsYes').onclick = () => { Save.reset(); applySettings(); closeModal(); Game.idleScene(0); show('home'); toast('PROGRESS RESET'); };
@@ -259,16 +281,16 @@ const UI = (() => {
     if (Game.state !== 'play') return;
     Game.paused = true;
     Platform.gameplayStop();
-    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : 'ENDLESS';
+    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : 'ENDLESS';
     modal(`
       <h2>PAUSED</h2>
       <p class="sub">${label}</p>
-      <div class="actions"><button class="btn primary big" id="pResume"><b>RESUME</b></button></div>
-      <div class="actions">
+      <div class="pause-stack">
+        <button class="btn primary" id="pResume"><b>RESUME</b></button>
         <button class="btn" id="pRestart"><b>RESTART</b></button>
-        <button class="btn" id="pLoadout"><b>ELEMENTS</b></button>
+        <button class="btn" id="pLoadout"><b>CHANGE ELEMENTS</b></button>
         <button class="btn" id="pSettings"><b>SETTINGS</b></button>
-        <button class="btn" id="pQuit"><b>QUIT</b></button>
+        <button class="btn danger" id="pQuit"><b>QUIT TO MENU</b></button>
       </div>`, s => {
       s.querySelector('#pResume').onclick = resume;
       s.querySelector('#pRestart').onclick = () => { Sfx.click(); closeModal(); Game.quit(); relaunch(); };
@@ -280,7 +302,7 @@ const UI = (() => {
         Game.quit();
         m === 'stage' ? openMap(lastStart.r) : (Game.idleScene(0), show('home'));
       };
-    });
+    }, 'pause');
   }
   function resume() {
     Sfx.click(); closeModal();
@@ -292,13 +314,27 @@ const UI = (() => {
   function showResult(res) {
     $('bossBar').classList.add('hidden');
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
-    const reward = `<div class="payout"><span class="ic" data-icon="gem"></span>+${res.essence}${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
+    const reward = `<div class="payout"><span class="ic" data-icon="gem"></span><span id="payoutNum">+${res.essence}</span>${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
+    const adRow = `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
+    const bindAds = sh => {
+      const d = sh.querySelector('#rDouble');
+      if (d) d.onclick = () => { Sfx.click(); d.disabled = true; Platform.rewarded(ok => {
+        if (ok) { Save.data.essence += res.essence; Save.save(); sh.querySelector('#payoutNum').textContent = '+' + res.essence * 2; toast('GEMS DOUBLED!'); d.remove(); }
+        else { d.disabled = false; toast('AD UNAVAILABLE'); }
+      }); };
+      const rv = sh.querySelector('#rRevive');
+      if (rv) rv.onclick = () => { Sfx.click(); rv.disabled = true; Platform.rewarded(ok => {
+        if (ok && Game.revive()) { closeModal(); banner('REVIVED!'); }
+        else { rv.disabled = false; toast('AD UNAVAILABLE'); }
+      }); };
+    };
     if (res.mode === 'endless') {
       modal(`
         <h2 class="${res.best ? 'win' : ''}">${res.best ? 'NEW RECORD!' : 'RUN OVER'}</h2>
         <p class="sub">${res.kills} DEFEATED · BEST ${res.bestKills}</p>
-        ${tiles}${reward}
+        ${tiles}${reward}${adRow}
         <div class="actions"><button class="btn" id="rMenu"><b>HOME</b></button><button class="btn primary" id="rAgain"><b>AGAIN</b></button></div>`, s => {
+        bindAds(s);
         s.querySelector('#rMenu').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(0); show('home'); };
         s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless()); };
       }, 'result');
@@ -315,7 +351,7 @@ const UI = (() => {
         <h2 class="win">${boss ? 'REALM CONQUERED!' : 'VICTORY!'}</h2>
         <div class="big-stars">${[1, 2, 3].map(k => `<span class="ic${k <= res.stars ? ' on' : ''}" data-icon="star"></span>`).join('')}</div>
         <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
-        ${tiles}${reward}
+        ${tiles}${reward}${adRow}
         ${u ? `<div class="unlock" style="--c:${u.color}">${hex(u.id)}<div><small>NEW ELEMENT UNLOCKED</small><b>${u.name.toUpperCase()}</b><p>${u.blurb}</p></div></div>` : ''}
         ${boss && res.firstClear && hasNext ? `<p class="sub">${REALMS[nextR].name.toUpperCase()} IS NOW OPEN</p>` : ''}
         <div class="actions">
@@ -323,7 +359,7 @@ const UI = (() => {
           <button class="btn" id="rRetry"><b>RETRY</b></button>
           ${hasNext ? '<button class="btn primary" id="rNext"><b>NEXT</b></button>' : ''}
         </div>`, sh => {
-        if (u) { Sfx.unlock(); Platform.happytime(); const l = Save.loadout(); if (l.length < 3 && !l.includes(u.id)) { Save.setLoadout(l.concat(u.id)); toast(`${u.name.toUpperCase()} ADDED TO YOUR ELEMENTS`); } }
+        bindAds(sh);
         sh.querySelector('#rMap').onclick = () => { Sfx.click(); closeModal(); openMap(hasNext && boss ? nextR : r); };
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
         const nb = sh.querySelector('#rNext');
@@ -333,13 +369,14 @@ const UI = (() => {
       modal(`
         <h2 class="lose">DEFEATED</h2>
         <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
-        ${tiles}${reward}
+        ${tiles}${reward}${adRow}
         <p class="tip">${pick(TIPS)}</p>
         <div class="actions">
           <button class="btn" id="rMap"><b>MAP</b></button>
           <button class="btn" id="rForge"><b>UPGRADES</b></button>
           <button class="btn primary" id="rRetry"><b>RETRY</b></button>
         </div>`, sh => {
+        bindAds(sh);
         sh.querySelector('#rMap').onclick = () => { Sfx.click(); closeModal(); openMap(r); };
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
@@ -357,7 +394,6 @@ const UI = (() => {
     const realm = REALMS[r];
     setChip(realm.element, `${realm.name.toUpperCase()} ${stageLabel(r, s)}`);
     banner(s === STAGES_PER_REALM - 1 ? 'BOSS STAGE' : `STAGE ${stageLabel(r, s)}`, s === STAGES_PER_REALM - 1 ? 'boss' : '');
-    maybeCoach();
   }
   function startEndless() {
     lastStart = { mode: 'endless' };
@@ -367,9 +403,56 @@ const UI = (() => {
     buildHud();
     setChip('none', 'ENDLESS');
     banner('ENDLESS');
-    maybeCoach();
   }
-  function relaunch() { if (lastStart) lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : startEndless(); }
+  /* ----------------------------------------------------------- tutorial */
+  const TUT = [
+    { text: 'MOVE LEFT AND RIGHT', touch: 'DRAG ON THE LEFT TO MOVE', done: t => t.moved > 260 },
+    { text: 'JUMP · PRESS SPACE TWICE TO DOUBLE JUMP', touch: 'TAP THE ARROW TO JUMP', done: t => t.jumped >= 2 },
+    { text: 'CLICK TO ATTACK THE DUMMY', touch: 'TAP THE BIG ORB TO ATTACK', done: t => t.hits >= 3 },
+    { text: 'USE A POWER WITH Q OR E', touch: 'TAP A SMALL ORB FOR A POWER', done: t => t.powers >= 1 },
+    { text: 'KNOCK FOES OFF THE ISLANDS · NEVER FALL YOURSELF', touch: 'KNOCK FOES OFF THE ISLANDS · NEVER FALL YOURSELF', done: (t, dt) => (t.last = (t.last || 0) + dt) > 3.2 },
+  ];
+  let tutIdx = 0, tutLast = 0;
+  function startTutorial() {
+    lastStart = { mode: 'tutorial' };
+    closeModal(); show(null);
+    Game.start({ mode: 'tutorial' });
+    hudCache = {};
+    buildHud();
+    setChip('wind', 'TRAINING');
+    $('waveDots').innerHTML = ''; $('chipSub').textContent = 'LEARN THE BASICS';
+    tutIdx = 0; tutLast = performance.now();
+    $('tut').classList.remove('hidden', 'done');
+    $('tutSkip').onclick = () => { Sfx.click(); endTutorial(); };
+    renderTut();
+  }
+  function renderTut() {
+    const touch = document.body.classList.contains('touch');
+    const step = TUT[Math.min(tutIdx, TUT.length - 1)];
+    $('tutNum').textContent = `${Math.min(tutIdx + 1, TUT.length)}/${TUT.length}`;
+    $('tutText').textContent = touch ? step.touch : step.text;
+    $('tutFill').style.width = (tutIdx / TUT.length * 100) + '%';
+  }
+  function tutTick() {
+    const run = Game.run;
+    if (!run || !run.tut) return;
+    const now = performance.now(), dt = (now - tutLast) / 1000; tutLast = now;
+    if (tutIdx < TUT.length && TUT[tutIdx].done(run.tut, dt)) {
+      tutIdx++; Sfx.pickup();
+      if (tutIdx >= TUT.length) { $('tut').classList.add('done'); $('tutText').textContent = 'READY! FIRST BATTLE INCOMING'; $('tutFill').style.width = '100%'; setTimeout(endTutorial, 1400); return; }
+      renderTut();
+    }
+  }
+  function endTutorial() {
+    if (lastStart && lastStart.mode !== 'tutorial') return;
+    $('tut').classList.add('hidden');
+    Save.data.tutorialDone = true; Save.data.seenHelp = true; Save.save();
+    Game.quit();
+    const [r, s] = Save.nextStage();
+    startStage(r, s);
+  }
+
+  function relaunch() { if (!lastStart) return; lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : lastStart.mode === 'tutorial' ? startTutorial() : startEndless(); }
 
   function setChip(el, title) {
     const e = $('chipEmblem');
@@ -406,6 +489,8 @@ const UI = (() => {
     if (current !== null) return;
     const h = Game.hud();
     if (!h) return;
+    if (Game.mode === 'tutorial') tutTick();
+    else if (!$('tut').classList.contains('hidden')) $('tut').classList.add('hidden');
     const set = (k, v, fn) => { if (hudCache[k] !== v) { hudCache[k] = v; fn(v); } };
     set('el', h.el + h.elIdx, () => refreshAbilities(h));
     set('ess', h.essence, v => { $('hudEssence').textContent = fmt(v); });
@@ -426,7 +511,7 @@ const UI = (() => {
         $('waveDots').innerHTML = Array.from({ length: h.waves }, (_, i) => `<i class="${i < h.wave || (i === h.wave && h.left === 0) ? 'done' : i === h.wave ? 'now' : ''}"></i>`).join('');
         $('chipSub').textContent = `${h.left} FOE${h.left === 1 ? '' : 'S'} REMAIN`;
       });
-    } else {
+    } else if (Game.mode === 'endless') {
       set('endless', h.kills, k => { $('waveDots').innerHTML = ''; $('chipSub').textContent = `${k} DEFEATED · BEST ${Save.data.endlessBest}`; });
     }
     const bb = $('bossBar');
@@ -508,7 +593,8 @@ const UI = (() => {
       if (l > max) { dx = dx / l * max; dy = dy / l * max; }
       knob.style.left = (ox - r.left + dx) + 'px'; knob.style.top = (oy - r.top + dy) + 'px';
       Game.setJoy(Math.abs(dx) > 10 ? clamp(dx / 42, -1, 1) : 0);
-      if (dy > 40 && !dropped) { dropped = true; Game.press('drop'); }
+      // drop-through needs a deliberate, mostly vertical pull
+      if (dy > 48 && Math.abs(dx) < 24 && !dropped) { dropped = true; Game.press('drop'); }
       if (dy < 20) dropped = false;
     });
     const end = e => { if (e.pointerId !== jp) return; jp = null; joy.classList.remove('on'); Game.setJoy(0); };
@@ -545,14 +631,15 @@ const UI = (() => {
   /* -------------------------------------------------------------- init */
   function init() {
     Icons.hydrate();
-    if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
-    $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); openMap(); };
+    if (matchMedia('(pointer: coarse)').matches || /mobile|tablet/.test(Platform.device())) document.body.classList.add('touch');
+    $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); startStage(r, s); };
     $('btnEndless').onclick = () => { Sfx.ensure(); Sfx.click(); startEndless(); };
     document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
       Sfx.ensure(); Sfx.click();
       const k = b.dataset.open;
       if (k === 'settings') openSettings(false);
       else if (k === 'loadout') openLoadout();
+      else if (k === 'stages') openMap();
       else if (k === 'codex') { codexSel = Save.loadout()[0]; openCodex(); }
       else if (k === 'forge') { returnTo = 'home'; openForge(); }
     });
@@ -574,9 +661,12 @@ const UI = (() => {
     Game.hooks.onWave = (i, n, boss) => { if (!boss && Game.mode === 'stage' && i > 0) banner(i === n - 1 ? 'FINAL WAVE' : `WAVE ${i + 1}`); };
     Game.hooks.onKill = (e, ringout) => { if (ringout) toast('RING OUT! +2'); };
 
+    Platform.onAuth(() => { Save.load(); applySettings(); if (current === 'home') refreshHome(); });
+
     applySettings();
     Game.idleScene(0);
     show('home');
+    if (!Save.data.tutorialDone) startTutorial();
     checkRotate();
   }
 

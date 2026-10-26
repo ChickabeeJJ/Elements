@@ -6,7 +6,7 @@
 
 const Sfx = (() => {
   let ac = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null;
-  let sfxOn = true, musicOn = true, adMuted = false;
+  let sfxOn = true, musicOn = true, adMuted = false, platMuted = false;
   let musicTimer = null, musicRealm = 0, step = 0;
 
   function ensure() {
@@ -65,6 +65,9 @@ const Sfx = (() => {
     nature: () => { tone(420, 0.16, 'triangle', 0.1, 1.6); noise(0.18, 0.12, 1800, 'bandpass', 2); },
     void: () => { tone(150, 0.45, 'sine', 0.22, 0.3); tone(230, 0.4, 'sawtooth', 0.035, 0.4); },
     light: () => { tone(880, 0.3, 'sine', 0.1, 1.5); tone(1320, 0.3, 'sine', 0.07, 1.5, 0.05); },
+    steel: () => { tone(1200, 0.18, 'triangle', 0.08, 0.6); noise(0.15, 0.2, 3500, 'bandpass', 3); },
+    venom: () => { noise(0.25, 0.2, 900, 'bandpass', 2, 0, 0.5); tone(220, 0.15, 'sine', 0.06, 1.4); },
+    arcane: () => { tone(1046, 0.25, 'sine', 0.08, 1.5); tone(1568, 0.2, 'sine', 0.05, 1.3, 0.05); },
     none: () => noise(0.12, 0.2, 1500, 'bandpass', 2),
   };
   const voice = el => (elemTone[el] || elemTone.none)();
@@ -170,17 +173,18 @@ const Sfx = (() => {
   function applyGains() {
     if (!ac) return;
     const t = ac.currentTime;
-    sfxBus.gain.setTargetAtTime(sfxOn && !adMuted ? 0.9 : 0, t, 0.05);
-    musicBus.gain.setTargetAtTime(musicOn && !adMuted ? 0.32 : 0, t, 0.2);
+    sfxBus.gain.setTargetAtTime(sfxOn && !adMuted && !platMuted ? 0.9 : 0, t, 0.05);
+    musicBus.gain.setTargetAtTime(musicOn && !adMuted && !platMuted ? 0.32 : 0, t, 0.2);
   }
   function setSfx(on) { sfxOn = on; applyGains(); }
   function setMusic(on) { musicOn = on; applyGains(); }
   function setAdMuted(m) { adMuted = m; applyGains(); }
+  function setPlatformMute(m) { platMuted = m; applyGains(); }
   function suspend(s) { if (!ac) return; s ? ac.suspend() : ac.resume(); }
 
   return {
     ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
     telegraph, portal, ringout, swap, thud, zap, boom, hurt, kill, jump, pickup, beam, thunder, click,
-    win, lose, unlock, denied, setRealm, setSfx, setMusic, setAdMuted, suspend,
+    win, lose, unlock, denied, setRealm, setSfx, setMusic, setAdMuted, setPlatformMute, suspend,
   };
 })();

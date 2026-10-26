@@ -22,6 +22,14 @@ const REALMS = [
     boss: { name: 'Cinder Tyrant', title: 'Lord of Ash' },
   },
   {
+    id: 'reef', name: 'Tidal Reef', element: 'water',
+    sky: ['#0f4c6e', '#3f95b8', '#a8e2ea'], sun: '#e8fbff', sunPos: [0.72, 0.18],
+    hills: ['#5fb3c4', '#2f8399', '#1d5a70'], fog: '#c9f1f5',
+    top: '#f2d9a6', topDark: '#d4b47c', rock: '#2f7d8c', rockDark: '#1f5a67',
+    ambient: 'bubble', tint: '#7cc8ff',
+    boss: { name: 'Tidecaller', title: 'Voice of the Deep' },
+  },
+  {
     id: 'frost', name: 'Frostpeak', element: 'frost',
     sky: ['#2b4f8a', '#7fa9d6', '#e3f1fa'], sun: '#ffffff', sunPos: [0.7, 0.16],
     hills: ['#c0d8ec', '#8fb2d4', '#5f84ad'], fog: '#eef7ff',
@@ -38,6 +46,14 @@ const REALMS = [
     boss: { name: 'Storm Herald', title: 'Voice of the Tempest' },
   },
   {
+    id: 'mire', name: 'Toxic Mire', element: 'venom',
+    sky: ['#1d2a17', '#4a5e2b', '#a3b85a'], sun: '#e9ff9e', sunPos: [0.3, 0.22],
+    hills: ['#5b7333', '#3d5122', '#263515'], fog: '#c6dd84',
+    top: '#9fcf4a', topDark: '#6c9a2a', rock: '#4a4434', rockDark: '#2f2b20',
+    ambient: 'spore', tint: '#a6e35b',
+    boss: { name: 'Plaguebinder', title: 'Heart of the Rot' },
+  },
+  {
     id: 'void', name: 'The Void Rift', element: 'void',
     sky: ['#05030c', '#1f0f38', '#4d2370'], sun: '#e0b8ff', sunPos: [0.62, 0.28],
     hills: ['#2e1b4d', '#1e1236', '#120a22'], fog: '#5b2b8a',
@@ -46,7 +62,7 @@ const REALMS = [
     boss: { name: 'The Hollow King', title: 'End of All Light' },
   },
 ];
-const STAGES_PER_REALM = 6;
+const STAGES_PER_REALM = 8;
 const TOTAL_STAGES = REALMS.length * STAGES_PER_REALM;
 
 /* arena layouts: [x, top y, width, motion?]. The first island is where the hero spawns. */
@@ -98,15 +114,15 @@ function buildStage(r, s) {
   const g = r * STAGES_PER_REALM + s;
   const d = g / (TOTAL_STAGES - 1);
   const rng = mulberry32(9137 + g * 7919);
-  const mix = r === 4 ? 0.3 : 0;
+  const mix = r === REALMS.length - 1 ? 0.3 : 0;
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: 10 + r * 2.5 }]);
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: 10 + r * 1.8 }]);
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
-  const total = 3 + s + Math.floor(r * 0.8);
+  const total = 3 + Math.floor(s * 0.75) + Math.floor(r * 0.5);
   const conc = s < 1 && r === 0 ? 1 : s < 3 ? 2 : 3;
   let left = total;
   while (left > 0) {
@@ -137,6 +153,5 @@ function endlessWave(kills, waveNo) {
 function stageKey(r, s) { return r + '-' + s; }
 function stageLabel(r, s) { return (r + 1) + '-' + (s + 1); }
 
-function elementUnlockedBy(r, s) {
-  return ELEMENTS.find(e => e.unlock && e.unlock[0] === r && e.unlock[1] === s) || null;
-}
+// elements are bought with gems now; stages no longer award them
+function elementUnlockedBy() { return null; }

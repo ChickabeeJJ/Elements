@@ -7,7 +7,7 @@
 
 const ELEMENTS = [
   {
-    id: 'wind', name: 'Gale', color: '#bdf3e4', deep: '#2fb58f', unlock: null,
+    id: 'wind', name: 'Gale', color: '#bdf3e4', deep: '#2fb58f', price: 0,
     blurb: 'Fast palms and wild air currents that toss foes off the islands.',
     moves: [
       { slot: 'main', id: 'gust_palm', name: 'Gust Palm', type: 'melee', icon: 'palm', kind: 'melee', pose: 'punch',
@@ -23,7 +23,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'fire', name: 'Ember', color: '#ffb347', deep: '#ff5a1f', unlock: [0, 1],
+    id: 'fire', name: 'Ember', color: '#ffb347', deep: '#ff5a1f', price: 60,
     blurb: 'Fireballs, blazing dashes and eruptions that leave foes burning.',
     moves: [
       { slot: 'main', id: 'fireball', name: 'Fireball', type: 'ranged', icon: 'fireball', kind: 'projectile', pose: 'cast',
@@ -39,7 +39,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'water', name: 'Tide', color: '#7cc8ff', deep: '#2f7fe0', unlock: [0, 5],
+    id: 'water', name: 'Tide', color: '#7cc8ff', deep: '#2f7fe0', price: 90,
     blurb: 'Long-reaching whips and waves that wash foes over the edge.',
     moves: [
       { slot: 'main', id: 'water_whip', name: 'Water Whip', type: 'melee', icon: 'whip', kind: 'melee', pose: 'swing',
@@ -54,7 +54,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'earth', name: 'Stone', color: '#e0b98f', deep: '#8a5a33', unlock: [1, 2],
+    id: 'earth', name: 'Stone', color: '#e0b98f', deep: '#8a5a33', price: 130,
     blurb: 'Slow, crushing fists, hurled boulders and quakes that floor everyone.',
     moves: [
       { slot: 'main', id: 'stone_fist', name: 'Stone Fist', type: 'melee', icon: 'fist', kind: 'melee', pose: 'heavy',
@@ -69,7 +69,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'frost', name: 'Rime', color: '#c9f2ff', deep: '#4fb6e0', unlock: [1, 5],
+    id: 'frost', name: 'Rime', color: '#c9f2ff', deep: '#4fb6e0', price: 170,
     blurb: 'Shards that chill, a freezing nova and lances that shatter ice.',
     moves: [
       { slot: 'main', id: 'ice_shards', name: 'Ice Shards', type: 'ranged', icon: 'shards', kind: 'projectile', pose: 'cast',
@@ -84,7 +84,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'lightning', name: 'Storm', color: '#fff27a', deep: '#a77bff', unlock: [2, 2],
+    id: 'lightning', name: 'Storm', color: '#fff27a', deep: '#a77bff', price: 220,
     blurb: 'Instant bolts, teleport strikes and a sky full of thunder.',
     moves: [
       { slot: 'main', id: 'shock_bolt', name: 'Shock Bolt', type: 'ranged', icon: 'bolt', kind: 'projectile', pose: 'cast',
@@ -99,7 +99,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'nature', name: 'Thorn', color: '#9ae66e', deep: '#3f9b3a', unlock: [2, 5],
+    id: 'nature', name: 'Thorn', color: '#9ae66e', deep: '#3f9b3a', price: 270,
     blurb: 'Vines that root and drain, snares of thorns and healing blooms.',
     moves: [
       { slot: 'main', id: 'vine_lash', name: 'Vine Lash', type: 'melee', icon: 'vine', kind: 'melee', pose: 'swing',
@@ -115,7 +115,52 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'void', name: 'Void', color: '#c08bff', deep: '#6a35d0', unlock: [3, 2],
+    id: 'steel', name: 'Steel', color: '#cfd6e0', deep: '#6d7a8c', price: 320,
+    blurb: 'Wide blade arcs, an iron skin and saw discs that shred through crowds.',
+    moves: [
+      { slot: 'main', id: 'blade_arc', name: 'Blade Arc', type: 'melee', icon: 'blade', kind: 'melee', pose: 'swing',
+        desc: 'A wide, heavy sweep that cuts everything in front of you.', cd: 0.55, windup: 0.1, active: 0.14, recover: 0.18,
+        reach: 110, radius: 26, dmg: 15, knock: 540, lift: 0.3, style: 'steel' },
+      { slot: 'p1', id: 'iron_skin', name: 'Iron Skin', type: 'power', icon: 'shield', kind: 'shield', pose: 'raise',
+        desc: 'Harden into steel and absorb 70 damage for 4 seconds.', cd: 11, windup: 0.08, active: 0.1, recover: 0.1,
+        absorb: 70, dur: 4, heal: 0 },
+      { slot: 'p2', id: 'saw_disc', name: 'Saw Disc', type: 'power', icon: 'saw', kind: 'projectile', pose: 'cast',
+        desc: 'Throw a spinning disc that grinds through every foe it passes.', cd: 6, windup: 0.12, active: 0.05, recover: 0.18,
+        speed: 900, grav: 0, radius: 22, dmg: 7, tick: 0.12, pierce: true, life: 1.1, knock: 220, lift: 0.2, style: 'saw' },
+    ],
+  },
+  {
+    id: 'venom', name: 'Venom', color: '#a6e35b', deep: '#4f8a23', price: 380,
+    blurb: 'Poison that eats away at foes, choking clouds and a striking lunge.',
+    moves: [
+      { slot: 'main', id: 'venom_spit', name: 'Venom Spit', type: 'ranged', icon: 'spit', kind: 'projectile', pose: 'cast',
+        desc: 'Spit a glob of venom that poisons whoever it hits.', cd: 0.5, windup: 0.07, active: 0.05, recover: 0.16,
+        speed: 880, grav: 900, radius: 12, dmg: 8, knock: 220, lift: 0.2, poison: { dps: 6, dur: 3.5 }, style: 'spit' },
+      { slot: 'p1', id: 'toxic_cloud', name: 'Toxic Cloud', type: 'power', icon: 'cloud', kind: 'zone', pose: 'raise',
+        desc: 'Release a cloud of poison at your aim that lingers.', cd: 8, windup: 0.18, active: 0.1, recover: 0.2,
+        range: 600, zone: { r: 150, dur: 3.6, dps: 14, style: 'toxic' } },
+      { slot: 'p2', id: 'viper_lunge', name: 'Viper Lunge', type: 'power', icon: 'dash', kind: 'dash', pose: 'dash',
+        desc: 'Lunge forward fangs-first, poisoning everything you strike.', cd: 4.5, windup: 0.04, active: 0.22, recover: 0.12,
+        speed: 1500, dmg: 14, knock: 480, lift: 0.4, poison: { dps: 7, dur: 3 }, style: 'venom' },
+    ],
+  },
+  {
+    id: 'arcane', name: 'Arcane', color: '#ff8ad8', deep: '#b0369a', price: 520,
+    blurb: 'Seeking star bolts, a starburst blast and meteors called from the sky.',
+    moves: [
+      { slot: 'main', id: 'star_bolt', name: 'Star Bolts', type: 'ranged', icon: 'star', kind: 'projectile', pose: 'cast',
+        desc: 'Two quick star bolts that curve toward the nearest foe.', cd: 0.5, windup: 0.06, active: 0.05, recover: 0.15,
+        speed: 1250, grav: 0, radius: 10, dmg: 7, count: 2, spread: 0.1, homing: 1.8, life: 1.4, knock: 240, lift: 0.2, style: 'star' },
+      { slot: 'p1', id: 'starburst', name: 'Starburst', type: 'power', icon: 'burst', kind: 'nova', pose: 'nova',
+        desc: 'Explode in a ring of starlight that launches foes away.', cd: 8, windup: 0.18, active: 0.1, recover: 0.22,
+        radius: 190, dmg: 18, knock: 820, lift: 0.9, style: 'arcane' },
+      { slot: 'p2', id: 'meteor', name: 'Meteor Fall', type: 'power', icon: 'meteor', kind: 'strike', pose: 'raise',
+        desc: 'Mark up to three foes and crush them with falling meteors.', cd: 11, windup: 0.3, active: 0.1, recover: 0.25,
+        targets: 3, delay: 0.22, dmg: 28, knock: 700, lift: 0.7, style: 'meteor' },
+    ],
+  },
+  {
+    id: 'void', name: 'Void', color: '#c08bff', deep: '#6a35d0', price: 450,
     blurb: 'Seeking orbs, rifts that swallow the battlefield and shadow steps.',
     moves: [
       { slot: 'main', id: 'void_orb', name: 'Void Orb', type: 'ranged', icon: 'orb', kind: 'projectile', pose: 'cast',
@@ -130,7 +175,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'light', name: 'Radiance', color: '#fff3b0', deep: '#f2b41c', unlock: [3, 5],
+    id: 'light', name: 'Radiance', color: '#fff3b0', deep: '#f2b41c', price: 600,
     blurb: 'Blinding blade combos, a searing beam and judgment from the sky.',
     moves: [
       { slot: 'main', id: 'radiant_blade', name: 'Radiant Blade', type: 'melee', icon: 'blade', kind: 'melee', pose: 'swing',
@@ -165,7 +210,9 @@ const AFFINITY = {
   fire:      { weak: ['water', 'earth'], resist: ['fire', 'nature', 'wind'] },
   frost:     { weak: ['fire', 'earth'], resist: ['frost', 'water'] },
   lightning: { weak: ['earth', 'nature'], resist: ['lightning', 'water', 'wind'] },
-  void:      { weak: ['light'], resist: ['void', 'wind', 'frost'] },
+  void:      { weak: ['light', 'arcane'], resist: ['void', 'wind', 'frost'] },
+  water:     { weak: ['lightning', 'nature'], resist: ['water', 'fire', 'frost'] },
+  venom:     { weak: ['fire', 'arcane'], resist: ['venom', 'nature', 'water'] },
 };
 const WEAK_MUL = 1.6;
 const RESIST_MUL = 0.55;
@@ -178,7 +225,7 @@ function affinityMul(enemyEl, atkEl) {
 }
 
 const AURA = {
-  none: '#e6e1d6', wind: '#bdf3e4', fire: '#ff8a3d', water: '#7cc8ff', earth: '#e0b98f',
+  none: '#e6e1d6', steel: '#cfd6e0', venom: '#a6e35b', arcane: '#ff8ad8', wind: '#bdf3e4', fire: '#ff8a3d', water: '#7cc8ff', earth: '#e0b98f',
   frost: '#9fe6ff', lightning: '#fff27a', nature: '#9ae66e', void: '#c08bff', light: '#fff3b0',
 };
 
@@ -195,6 +242,9 @@ const ICON_PATHS = {
   nature: '<path d="M20.5 3.5C10.8 3.4 4.2 8.3 4.2 15.6c0 1.5.3 2.9.9 4.1 1.4-5.2 5.1-8.9 10.4-11.2-4.4 3.1-7.2 6.9-8.4 11.6 8.5.6 13.6-5.6 13.4-16.6z" fill="currentColor"/>',
   void: '<path d="M12 12.2m-2 0a2 2 0 1 1 4 0a4 4 0 1 1-8 0a6 6 0 1 1 12 0a8 8 0 1 1-16 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>',
   light: '<circle cx="12" cy="12" r="4.3" fill="currentColor"/><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 2.2v2.6M12 19.2v2.6M2.2 12h2.6M19.2 12h2.6M5 5l1.9 1.9M17.1 17.1 19 19M5 19l1.9-1.9M17.1 6.9 19 5"/></g>',
+  steel: '<path d="M12 2.5 19 6v6c0 4.6-3 8-7 9.5C8 20 5 16.6 5 12V6z" fill="currentColor"/><path d="M12 6v12M8.5 9.5h7" stroke="rgba(0,0,0,.35)" stroke-width="1.8"/>',
+  venom: '<path d="M12 2.5C9 7 6.5 10.3 6.5 14a5.5 5.5 0 0 0 11 0c0-3.7-2.5-7-5.5-11.5z" fill="currentColor"/><circle cx="10" cy="14.5" r="1.6" fill="rgba(0,0,0,.35)"/><circle cx="13.6" cy="16.6" r="1.1" fill="rgba(0,0,0,.35)"/>',
+  arcane: '<path d="m12 2 2.3 7.7L22 12l-7.7 2.3L12 22l-2.3-7.7L2 12l7.7-2.3z" fill="currentColor"/>',
   none: '<path d="M7 10.5V7a1.5 1.5 0 0 1 3 0v3M10 10V5.5a1.5 1.5 0 0 1 3 0V10M13 10V6.5a1.5 1.5 0 0 1 3 0v5M7 10.5a1.5 1.5 0 0 0-3 0V13a7 7 0 0 0 7 7h1a6 6 0 0 0 6-6v-2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 };
 

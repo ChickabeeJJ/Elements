@@ -121,6 +121,11 @@ const Game = (() => {
       setRealm(opts.r);
       buildArena(stageDef.arena);
       waveIdx = -1;
+    } else if (mode === 'tutorial') {
+      stageDef = null;
+      setRealm(0);
+      buildArena(ARENAS[0]);
+      run.tut = { moved: 0, jumped: 0, attacks: 0, powers: 0, hits: 0 };
     } else {
       stageDef = null;
       setRealm(0);
@@ -130,6 +135,11 @@ const Game = (() => {
     clearField();
     player = makePlayer();
     player.invuln = 1;
+    if (mode === 'tutorial') {
+      const sp = islands[0];
+      const dummy = spawnEnemyAt({ type: 'grunt', element: 'nature', d: 0 }, sp.x + 200, sp.top, true);
+      dummy.decor = true; dummy.facing = -1;
+    }
     waveTimer = 1.0;
     pickupTimer = rand(9, 13);
     state = 'play';
@@ -188,6 +198,8 @@ const Game = (() => {
   }
 
   const aliveEnemies = () => enemies.filter(e => e.alive && !e.decor);
+  // the sparring dummy (menu demo / training) can be hit; elsewhere decor fighters are ignored
+  const blocked = t => t.decor && !(mode === 'tutorial' || state === 'idle');
   const opponents = f => (f.team === 'player' ? enemies : player ? [player] : []);
 
   /* ----------------------------------------------------------- moves */
@@ -304,7 +316,7 @@ const Game = (() => {
         break;
       case 'heal': {
         f.regen = (f.maxHp * mv.heal) / mv.dur; f.regenT = mv.dur;
-        const st = f.status; st.burn = st.chill = st.soak = st.root = st.shock = 0;
+        const st = f.status; st.burn = st.poison = st.chill = st.soak = st.root = st.shock = 0;
         nova(f, f.center().x, f.center().y, mv, el);
         for (let i = 0; i < 16; i++) fx.add({ kind: 'leaf', x: f.center().x + rand(-40, 40), y: f.center().y + rand(-40, 40), vx: rand(-80, 80), vy: -rand(60, 200), g: 200, vr: rand(-6, 6), color: pick(['#9ae66e', '#c3f08e', '#ffd6e8']), size: rand(4, 7), life: rand(0.8, 1.4), add: false });
         Sfx.heal();
@@ -326,7 +338,7 @@ const Game = (() => {
         break;
       }
       case 'strike': {
-        const targets = opponents(f).filter(t => t.alive && !t.decor).sort((a, b) => dist(a.root.x, a.root.y, act.tx, act.ty) - dist(b.root.x, b.root.y, act.tx, act.ty)).slice(0, mv.targets);
+        const targets = opponents(f).filter(t => t.alive && !blocked(t)).sort((a, b) => dist(a.root.x, a.root.y, act.tx, act.ty) - dist(b.root.x, b.root.y, act.tx, act.ty)).slice(0, mv.targets);
         targets.forEach((t, i) => strikes.push({ owner: f, mv, el, target: t, t: 0.25 + i * mv.delay, x: t.center().x }));
         if (!targets.length) strikes.push({ owner: f, mv, el, target: null, t: 0.25, x: act.tx, y: act.ty });
         Sfx.charge();
@@ -354,14 +366,18 @@ const Game = (() => {
     const ext = Math.max(0, mv.reach * f.s - 46 * f.s);
     const tx = h.x + dx / l * ext, ty = h.y + dy / l * ext;
     act.tip = { x: tx, y: ty, nx: n.x, ny: n.y };
+    act.trail = act.trail || [];
+    act.trail.push({ x: tx, y: ty, ix: lerp(n.x, tx, 0.45), iy: lerp(n.y, ty, 0.45) });
+    if (act.trail.length > 10) act.trail.shift();
     const r = mv.radius * f.s;
     let mul = 1, kmul = 1;
     if (mv.combo && act.comboStep === mv.combo.n - 1) { mul = mv.combo.dmg; kmul = mv.combo.knock; }
     for (const t of opponents(f)) {
-      if (act.hitSet.has(t) || t.decor) continue;
+      if (act.hitSet.has(t) || blocked(t)) continue;
       const hit = t.hitCapsule(n.x, n.y, tx, ty, r);
       if (!hit) continue;
       act.hitSet.add(t);
+      fx.ring(hit.px, hit.py, (ELEMENT_BY_ID[act.el] || NEUTRAL).color, 46, 0.25, 5);
       applyHit(f, t, { mv, el: act.el, dmg: mv.dmg * mul, knock: mv.knock * kmul, lift: mv.lift, dirX: f.facing, dirY: Math.sin(f.aim) * 0.6, idx: hit.idx, head: hit.head, px: hit.px, py: hit.py });
     }
     if (f.isPlayer) for (const p of pickups) if (!p.dead && segPointDist(n.x, n.y, tx, ty, p.x, p.y).d < r + 24) collectPickup(p);
@@ -371,7 +387,7 @@ const Game = (() => {
     const mv = act.move;
     const n = f.pts[P.NECK], pv = f.pelvis;
     for (const t of opponents(f)) {
-      if (act.hitSet.has(t) || t.decor) continue;
+      if (act.hitSet.has(t) || blocked(t)) continue;
       const hit = t.hitCapsule(n.x, n.y, pv.x, pv.y, 30 * f.s);
       if (!hit) continue;
       act.hitSet.add(t);
@@ -393,7 +409,7 @@ const Game = (() => {
     const tick = act.tickT <= 0;
     if (tick) act.tickT = 0.12;
     for (const t of opponents(f)) {
-      if (!t.alive || t.decor) continue;
+      if (!t.alive || blocked(t)) continue;
       const hit = t.hitCapsule(h.x, h.y, ex, ey, mv.width);
       if (!hit) continue;
       if (t.mode === 'active') { t.root.vx += ax * mv.push * dt * 2 / t.weight; t.root.vy += ay * mv.push * dt / t.weight - 400 * dt; }
@@ -413,7 +429,7 @@ const Game = (() => {
     else Sfx.whoosh();
     shake = Math.max(shake, 8);
     for (const t of opponents(f)) {
-      if (t.decor) continue;
+      if (blocked(t)) continue;
       const c = t.center();
       if (dist(x, y, c.x, c.y) > mv.radius + 30 * t.s) continue;
       const dx = c.x - x;
@@ -467,7 +483,8 @@ const Game = (() => {
   /* ------------------------------------------------------------- hits */
   function applyHit(att, t, o) {
     if (t.decor) {
-      // the menu dummy reacts but never dies
+      // the menu / training dummy reacts but never dies
+      if (run && run.tut && att && att.isPlayer) run.tut.hits++;
       t.flash = 1;
       t.knock(o.dirX * o.knock * 0.6, -o.lift * o.knock * 0.6, o.idx, o.knock > 600 ? 0.6 : 0);
       fx.burst(o.px, o.py, (ELEMENT_BY_ID[o.el] || NEUTRAL).color, 10, 240);
@@ -498,6 +515,7 @@ const Game = (() => {
     const st = t.status;
     const bossy = t.kind === 'boss' ? 0.4 : t.kind === 'brute' ? 0.7 : 1;
     if (mv.burn) { st.burn = Math.max(st.burn, mv.burn.dur); st.burnDps = mv.burn.dps * (att && att.isPlayer ? pStats.dmgMul : 0.7); }
+    if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.7); }
     if (mv.chill) st.chill = Math.max(st.chill, mv.chill);
     if (mv.soak) st.soak = Math.max(st.soak, mv.soak);
     if (mv.root) st.root = Math.max(st.root, mv.root * bossy);
@@ -579,6 +597,13 @@ const Game = (() => {
   }
 
   function ringOut(f) {
+    if (f.isPlayer && mode === 'tutorial') {
+      const sp = spawnPoint();
+      teleport(f, sp.x, sp.y - 300);
+      f.mode = 'active'; f.m = 1; f.stunT = 0; f.action = null;
+      hooks.onToast && hooks.onToast('Careful! In battle, falling ends the run');
+      return;
+    }
     if (f.isPlayer) {
       f.gone = true;
       if (f.mode === 'dead' || state !== 'play') return;
@@ -611,7 +636,7 @@ const Game = (() => {
       p.rot += dt * 8;
       if (mv.homing) {
         let best = null, bd = 700;
-        for (const t of opponents(p.owner)) { if (!t.alive || t.decor) continue; const c = t.chest(); const d = dist(p.x, p.y, c.x, c.y); if (d < bd) { bd = d; best = c; } }
+        for (const t of opponents(p.owner)) { if (!t.alive || blocked(t)) continue; const c = t.chest(); const d = dist(p.x, p.y, c.x, c.y); if (d < bd) { bd = d; best = c; } }
         if (best) {
           const sp = Math.hypot(p.vx, p.vy);
           const want = Math.atan2(best.y - p.y, best.x - p.x), cur = Math.atan2(p.vy, p.vx);
@@ -630,7 +655,7 @@ const Game = (() => {
       emitTrail(p);
 
       for (const t of opponents(p.owner)) {
-        if (t.decor || t.gone || (!t.alive && t.deadT > 2)) continue;
+        if (blocked(t) || t.gone || (!t.alive && t.deadT > 2)) continue;
         if (mv.pierce) {
           if (mv.tick ? time - (p.tickT.get(t) || -9) < mv.tick : p.hitSet.has(t)) continue;
         }
@@ -689,7 +714,7 @@ const Game = (() => {
       const fc = from.center();
       let best = null, bd = mv.chain.r;
       for (const t of opponents(p.owner)) {
-        if (hit.has(t) || !t.alive || t.decor) continue;
+        if (hit.has(t) || !t.alive || blocked(t)) continue;
         const c = t.center(), d = dist(fc.x, fc.y, c.x, c.y);
         if (d < bd) { bd = d; best = t; }
       }
@@ -710,6 +735,9 @@ const Game = (() => {
       case 'voidorb': if (r < 0.7) fx.add({ x: p.x, y: p.y, vx: rand(-40, 40), vy: rand(-40, 40), color: pick(['#c08bff', '#6a35d0']), size: rand(5, 10), life: 0.45 }); break;
       case 'bolt': if (r < 0.6) fx.add({ kind: 'spark', x: p.x, y: p.y, vx: rand(-300, 300), vy: rand(-300, 300), color: '#fff27a', size: 4, life: 0.15 }); break;
       case 'cyclone': if (r < 0.9) { const a = rand(0, TAU); fx.add({ x: p.x + Math.cos(a) * 40, y: p.y + rand(-60, 50), vx: -Math.sin(a) * 200, vy: -rand(80, 200), color: '#e6fff7', size: rand(3, 6), life: 0.35 }); } break;
+      case 'spit': if (r < 0.5) fx.add({ kind: 'drop', x: p.x, y: p.y, vx: rand(-30, 30), vy: rand(-20, 20), g: 900, color: pick(['#a6e35b', '#6fbf2e']), size: rand(2, 4), life: 0.45, add: false }); break;
+      case 'star': if (r < 0.7) fx.add({ x: p.x, y: p.y, vx: rand(-25, 25), vy: rand(-25, 25), color: pick(['#ff8ad8', '#ffd6f2', '#b0369a']), size: rand(3, 6), life: 0.35 }); break;
+      case 'saw': if (r < 0.4) fx.add({ kind: 'spark', x: p.x, y: p.y + 14, vx: rand(-260, 260), vy: -rand(60, 260), color: '#ffe3a6', size: 3, life: 0.2 }); break;
       case 'seed': if (r < 0.2) fx.add({ kind: 'leaf', x: p.x, y: p.y, vx: rand(-40, 40), vy: rand(-40, 10), g: 200, vr: rand(-8, 8), color: '#9ae66e', size: 4, life: 0.7, add: false }); break;
       case 'boulder': case 'rock': if (r < 0.25) fx.add({ kind: 'smoke', x: p.x, y: p.y, vy: -10, color: '#b08a66', size: 7, life: 0.4, add: false }); break;
       default: break;
@@ -722,7 +750,7 @@ const Game = (() => {
       w.life -= dt;
       w.x += w.dir * w.mv.speed * dt;
       for (const t of opponents(w.owner)) {
-        if (w.hitSet.has(t) || t.decor || !t.alive) continue;
+        if (w.hitSet.has(t) || blocked(t) || !t.alive) continue;
         const c = t.center();
         if (Math.abs(c.x - w.x) < 40 && t.root.y > w.y - w.h - 40 && t.root.y < w.y + 30) {
           w.hitSet.add(t);
@@ -756,12 +784,13 @@ const Game = (() => {
       const tick = z.tickT <= 0;
       if (tick) z.tickT = 0.25;
       for (const t of opponents(z.owner)) {
-        if (!t.alive || t.decor) continue;
+        if (!t.alive || blocked(t)) continue;
         const c = t.center();
         const inside = z.style === 'thorns' ? Math.abs(t.root.x - z.x) < z.r && Math.abs(t.root.y - z.y) < 40 : dist(c.x, c.y, z.x, z.y) < z.r;
         if (!inside) continue;
         if (tick) applyHit(z.owner, t, { mv: null, el: z.el, dmg: z.dps * 0.25, knock: z.style === 'rift' ? 0 : 60, lift: 0, dirX: 0, dirY: 1, idx: P.PELVIS, px: c.x, py: c.y, quiet: true, zoneRoot: z.root });
       }
+      if (z.style === 'toxic' && Math.random() < 0.5) fx.add({ x: z.x + rand(-z.r, z.r) * 0.7, y: z.y + rand(-z.r, z.r) * 0.4, vy: -rand(20, 60), color: pick(['#a6e35b', '#6fbf2e']), size: rand(4, 8), life: 0.6 });
       if (z.style === 'rift') {
         if (Math.random() < 0.9) {
           const a = rand(0, TAU), r = rand(z.r * 0.4, z.r);
@@ -783,11 +812,12 @@ const Game = (() => {
       const tx = t ? t.center().x + (s.owner.isPlayer ? 0 : rand(-30, 30)) : s.x;
       const ty = t ? t.center().y : s.y;
       if (s.mv.style === 'sun') { fx.add({ kind: 'beam', x: tx, y: ty + 70, color: '#ffe48a', size: 34, life: 0.5 }); Sfx.beam(); }
+      else if (s.mv.style === 'meteor') { fx.chunks(tx, ty, '#7a4a6e', 18, 520, 10); fx.ring(tx, ty, '#ff8ad8', 120, 0.45, 12); fx.burst(tx, ty, '#ffb36b', 24, 360); Sfx.boom(1); }
       else { fx.arc(tx + rand(-60, 60), -80, tx, ty, '#a77bff', 0.35); fx.arc(tx + rand(-40, 40), -80, tx, ty, '#fff27a', 0.25); Sfx.zap(); }
       fx.burst(tx, ty, s.mv.style === 'sun' ? '#fff3b0' : '#fff27a', 22, 320);
       shake = Math.max(shake, 7);
       for (const o of opponents(s.owner)) {
-        if (!o.alive || o.decor) continue;
+        if (!o.alive || blocked(o)) continue;
         const c = o.center();
         if (Math.abs(c.x - tx) < 48 * o.s && c.y < ty + 120) applyHit(s.owner, o, { mv: s.mv, el: s.el, dmg: s.mv.dmg, knock: s.mv.knock, lift: s.mv.lift, dirX: Math.sign(c.x - tx) || 1, dirY: 0.5, idx: P.HEAD, px: c.x, py: c.y });
       }
@@ -823,6 +853,7 @@ const Game = (() => {
   }
 
   function nextWave() {
+    if (mode === 'tutorial') return;
     if (mode === 'stage') {
       waveIdx++;
       for (const spec of stageDef.waves[waveIdx]) queueSpawn(spec);
@@ -865,7 +896,7 @@ const Game = (() => {
     Platform.gameplayStop();
     const hpRatio = Math.max(0, player.hp) / player.maxHp;
     const res = {
-      mode, won, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
+      mode, won, canRevive: !won && !run.revived, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
       essence: run.essence, stars: 0, unlocked: null, firstClear: false, best: false,
     };
     if (mode === 'stage' && res.won) {
@@ -884,6 +915,22 @@ const Game = (() => {
     Save.data.essence += res.essence;
     Save.save();
     hooks.onEnd && hooks.onEnd(res);
+  }
+
+  // rewarded-ad revive: once per run, back on the main island at half health
+  function revive() {
+    if (!run || run.revived || state !== 'done' || !player) return false;
+    run.revived = true;
+    run.falls++;
+    const f = player, sp = spawnPoint();
+    f.gone = false;
+    teleport(f, sp.x, sp.y - 300);
+    f.mode = 'active'; f.m = 1; f.stunT = 0; f.action = null; f.dash = null; f.slam = false;
+    f.hp = f.maxHp * 0.5; f.invuln = 2.5;
+    for (const k in f.status) f.status[k] = 0;
+    state = 'play'; slowmo = 0; timeScale = 1;
+    Platform.gameplayStart();
+    return true;
   }
 
   function quit() {
@@ -1010,7 +1057,8 @@ const Game = (() => {
     const mx = input.joyX || (input.right ? 1 : 0) - (input.left ? 1 : 0);
     f.input.x = mx;
     const q = input.queued;
-    if (q.jump) { if (f.jump()) { Sfx.jump(); fx.burst(f.root.x, f.root.y, '#ffffff', 8, 140, { life: 0.3 }); } q.jump = false; }
+    if (run && run.tut) run.tut.moved += Math.abs(f.root.vx) * dt;
+    if (q.jump) { if (f.jump()) { if (run && run.tut) run.tut.jumped++; Sfx.jump(); fx.burst(f.root.x, f.root.y, '#ffffff', 8, 140, { life: 0.3 }); } q.jump = false; }
     if (q.drop) { f.drop(); q.drop = false; }
     const a = playerAim();
     const o = aimFrom(f);
@@ -1020,9 +1068,14 @@ const Game = (() => {
       else if (input.mouse) f.facing = a.x >= f.root.x ? 1 : -1;
     }
     const kit = ELEMENT_BY_ID[f.el].moves;
-    if (q.p1) { if (!tryMove(f, kit[1], a.x, a.y) && (f.cds[kit[1].id] || 0) > 0.15) Sfx.denied(); q.p1 = false; }
-    if (q.p2) { if (!tryMove(f, kit[2], a.x, a.y) && (f.cds[kit[2].id] || 0) > 0.15) Sfx.denied(); q.p2 = false; }
-    if (input.attack || q.attack) { tryMove(f, kit[0], a.x, a.y); q.attack = false; }
+    const count = mv => { if (run && run.tut) { if (mv === kit[0]) run.tut.attacks++; else run.tut.powers++; } };
+    for (const [key, mv] of [['p1', kit[1]], ['p2', kit[2]]]) {
+      if (!q[key]) continue;
+      q[key] = false;
+      if (tryMove(f, mv, a.x, a.y)) count(mv);
+      else if ((f.cds[mv.id] || 0) > 0.15) Sfx.denied();
+    }
+    if (input.attack || q.attack) { if (tryMove(f, kit[0], a.x, a.y)) count(kit[0]); q.attack = false; }
   }
 
   function press(action) {
@@ -1096,6 +1149,11 @@ const Game = (() => {
       if (f.status.burn > 0 && f.alive && !f.decor) {
         f.hp -= f.status.burnDps * dt * (f.isPlayer ? pStats.armor : 1);
         if (Math.random() < dt * 20) { const c = f.center(); fx.add({ x: c.x + rand(-12, 12), y: c.y + rand(-30, 20), vy: -rand(60, 140), color: pick(['#ffb347', '#ff6a2a', '#ffd76a']), size: rand(5, 10), life: rand(0.3, 0.6) }); }
+        if (f.hp <= 0) kill(f, null, 0, -200, P.PELVIS);
+      }
+      if (f.status.poison > 0 && f.alive && !f.decor) {
+        f.hp -= f.status.poisonDps * dt * (f.isPlayer ? pStats.armor : 1);
+        if (Math.random() < dt * 14) { const c = f.center(); fx.add({ x: c.x + rand(-14, 14), y: c.y + rand(-30, 20), vy: -rand(30, 80), color: pick(['#a6e35b', '#6fbf2e']), size: rand(4, 7), life: rand(0.4, 0.7) }); }
         if (f.hp <= 0) kill(f, null, 0, -200, P.PELVIS);
       }
       f.update(dt, islands, zoneForce);
@@ -1183,7 +1241,9 @@ const Game = (() => {
       if (a && a.beam && a.move.kind === 'beam' && a.t < a.move.windup + a.move.active) drawBeam(c, a.beam);
     }
 
+    drawStrikeMarkers(c);
     fx.draw(c);
+    if (dev.cinematic) { amb.drawFront(c, view, time); c.setTransform(dpr, 0, 0, dpr, 0, 0); return; }
     for (const e of enemies) if (e.alive && !e.decor && e.kind !== 'boss') drawEnemyBar(c, e);
     if (player && player.alive && state !== 'idle') drawPlayerMarker(c);
     for (const e of enemies) if (e.alive && e.action && !e.action.fired && !e.decor) drawTelegraph(c, e);
@@ -1195,30 +1255,56 @@ const Game = (() => {
     drawVignettes(c);
   }
 
+  // melee slash: a tapered crescent ribbon swept through the recent tip positions
   function drawSwipe(c, f) {
     const act = f.action;
-    if (!act || act.move.kind !== 'melee' || !act.tip) return;
+    if (!act || act.move.kind !== 'melee' || !act.trail || act.trail.length < 2) return;
     const mv = act.move;
     const u = (act.t - mv.windup) / mv.active;
-    if (u < 0 || u > 1.6) return;
+    if (u < 0 || u > 1.8) return;
     const el = ELEMENT_BY_ID[act.el] || NEUTRAL;
+    const tr = act.trail;
+    const fade = clamp(1.8 - u, 0, 1);
+    c.save();
+    c.globalAlpha = 0.85 * fade;
+    c.fillStyle = el.color;
+    c.beginPath();
+    c.moveTo(tr[0].x, tr[0].y);
+    for (let i = 1; i < tr.length; i++) c.lineTo(tr[i].x, tr[i].y);
+    for (let i = tr.length - 1; i >= 0; i--) {
+      const k = i / (tr.length - 1);
+      c.lineTo(lerp(tr[i].x, tr[i].ix, 0.25 + k * 0.55), lerp(tr[i].y, tr[i].iy, 0.25 + k * 0.55));
+    }
+    c.closePath(); c.fill();
+    c.globalAlpha = fade;
+    c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(tr[0].x, tr[0].y);
+    for (let i = 1; i < tr.length; i++) c.lineTo(tr[i].x, tr[i].y);
+    c.stroke();
+    c.restore();
     if (act.el === 'water' || act.el === 'nature') {
       c.strokeStyle = act.el === 'water' ? '#7cc8ff' : '#5fae4c';
       c.lineWidth = 6 * f.s; c.lineCap = 'round';
-      const h = f.hand();
-      c.beginPath();
-      c.moveTo(h.x, h.y);
-      c.quadraticCurveTo((h.x + act.tip.x) / 2 + Math.sin(time * 30) * 10, (h.y + act.tip.y) / 2 + 14, act.tip.x, act.tip.y);
+      const h = f.hand(), t = tr[tr.length - 1];
+      c.beginPath(); c.moveTo(h.x, h.y);
+      c.quadraticCurveTo((h.x + t.x) / 2, (h.y + t.y) / 2 + 12, t.x, t.y);
       c.stroke();
     }
-    c.globalCompositeOperation = 'lighter';
-    c.globalAlpha = clamp(1.4 - u, 0, 1);
-    c.strokeStyle = el.color; c.lineCap = 'round';
-    c.lineWidth = mv.radius * f.s * 0.9;
-    c.beginPath(); c.moveTo(lerp(act.tip.nx, act.tip.x, 0.55), lerp(act.tip.ny, act.tip.y, 0.55)); c.lineTo(act.tip.x, act.tip.y); c.stroke();
-    Glow.draw(c, el.deep, act.tip.x, act.tip.y, mv.radius * 2.2 * f.s, 0.8);
-    c.globalAlpha = 1;
-    c.globalCompositeOperation = 'source-over';
+  }
+
+  function drawStrikeMarkers(c) {
+    for (const s of strikes) {
+      const t = s.target;
+      const x = s.x, y = t && t.alive ? t.root.y : (s.y || 0);
+      const col = s.mv.style === 'sun' ? '#ffe48a' : s.mv.style === 'meteor' ? '#ff8ad8' : '#fff27a';
+      const k = clamp(1 - s.t / 0.6, 0, 1);
+      c.strokeStyle = col; c.lineWidth = 3;
+      c.globalAlpha = 0.5 + k * 0.5;
+      c.beginPath(); c.ellipse(x, y, 34 - k * 10, 9 - k * 3, 0, 0, TAU); c.stroke();
+      c.globalAlpha = 0.25 * k;
+      c.fillStyle = col; c.fillRect(x - 2, y - 600, 4, 600);
+      c.globalAlpha = 1;
+    }
   }
 
   function drawProjectile(c, p) {
@@ -1269,6 +1355,29 @@ const Game = (() => {
         c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.arc(R * 0.25, R * 0.2, R * 0.45, 0, TAU); c.fill();
         break;
       }
+      case 'saw': {
+        c.rotate(time * 22);
+        c.fillStyle = '#cfd6e0';
+        c.beginPath();
+        for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, rr = i % 2 ? p.r : p.r * 0.78; i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+        c.closePath(); c.fill();
+        c.fillStyle = '#6d7a8c'; c.beginPath(); c.arc(0, 0, p.r * 0.32, 0, TAU); c.fill();
+        break;
+      }
+      case 'spit':
+        c.rotate(ang);
+        c.fillStyle = '#a6e35b';
+        c.beginPath(); c.ellipse(0, 0, p.r * 1.25, p.r * 0.85, 0, 0, TAU); c.fill();
+        c.fillStyle = '#d9ff9c'; c.beginPath(); c.arc(p.r * 0.35, -p.r * 0.3, p.r * 0.3, 0, TAU); c.fill();
+        break;
+      case 'star':
+        c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#ff8ad8', 0, 0, 26, 0.9); c.globalCompositeOperation = 'source-over';
+        c.rotate(time * 8);
+        c.fillStyle = '#ffe6f7';
+        c.beginPath();
+        for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, rr = i % 2 ? 4 : 11; i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+        c.closePath(); c.fill();
+        break;
       case 'seed':
         c.fillStyle = '#6b4a2b'; c.beginPath(); c.arc(0, 0, p.r * 0.8, 0, TAU); c.fill();
         c.fillStyle = '#9ae66e'; c.beginPath(); c.ellipse(4, -8, 7, 3.5, -0.6, 0, TAU); c.fill(); break;
@@ -1334,6 +1443,17 @@ const Game = (() => {
       c.beginPath(); c.arc(z.x, z.y, 34 * grow, 0, TAU); c.fill();
       c.strokeStyle = '#c08bff'; c.lineWidth = 3;
       for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(z.x, z.y, (40 + i * 18) * grow, time * (4 - i) + i, time * (4 - i) + i + 2.2); c.stroke(); }
+    } else if (z.style === 'toxic') {
+      if (back) return;
+      c.fillStyle = '#8fd14a';
+      for (let i = 0; i < 7; i++) {
+        const a = i / 7 * TAU + time * 0.4, rr = z.r * 0.55;
+        c.globalAlpha = 0.22 * grow;
+        c.beginPath(); c.arc(z.x + Math.cos(a) * rr * 0.6, z.y + Math.sin(a) * rr * 0.35, z.r * 0.48, 0, TAU); c.fill();
+      }
+      c.globalAlpha = 0.3 * grow;
+      c.beginPath(); c.arc(z.x, z.y, z.r * 0.55, 0, TAU); c.fill();
+      c.globalAlpha = 1;
     } else if (z.style === 'thorns') {
       if (back) return;
       c.fillStyle = '#3f7a2e';
@@ -1466,6 +1586,8 @@ const Game = (() => {
 
   /* test hook used by automated playtests */
   const dev = {
+    cinematic: false,            // capture mode for store art: no bars, markers or combat text
+    toScreen: (x, y) => ({ x: x * view.scale + view.ox, y: y * view.scale + view.oy }),
     enemies: () => aliveEnemies(),
     player: () => player,
     use: (slot, x, y) => tryMove(player, ELEMENT_BY_ID[player.el].moves[slot], x, y),
@@ -1473,7 +1595,7 @@ const Game = (() => {
   };
 
   return {
-    dev, init, resize, update, render, start, quit, idleScene, hud, hooks,
+    dev, init, resize, update, render, start, quit, revive, idleScene, hud, hooks,
     press, release, setKey, setJoy, setDirAim, setMouse, selectSlot, cycleSlot,
     setPreviewElement(id) { if (player && state === 'idle') { player.loadout = [id]; setPlayerElement(player, id, true); idleDemo.t = 0.3; } },
     get state() { return state; }, get mode() { return mode; }, get realmIdx() { return realmIdx; },

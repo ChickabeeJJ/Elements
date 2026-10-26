@@ -68,6 +68,10 @@ const Icons = (() => {
     blade: `<path d="M20 3 9 14l1.5 1.5L21.5 4.5z" ${F}/><path d="M7 13l4 4M5.5 18.5 9 15M3 21l2.5-2.5" ${S} stroke-width="2.4"/>`,
     beam: `<circle cx="5" cy="12" r="3" ${F}/><path d="M8 9.5h14v5H8z" ${F} opacity=".85"/><path d="M8 12h14" stroke="#fff" stroke-width="1.6"/>`,
     sun: ICON_PATHS.light,
+    saw: `<path d="M12 2l2 3 3.5-1 .5 3.6 3.4 1.3-1.8 3.1 1.8 3.1-3.4 1.3-.5 3.6-3.5-1-2 3-2-3-3.5 1-.5-3.6L2.6 15l1.8-3.1L2.6 8.9 6 7.6l.5-3.6L10 5z" ${F}/><circle cx="12" cy="12" r="3" fill="rgba(0,0,0,.35)"/>`,
+    spit: `<path d="M5 19c3-1 5-4 6-8" ${S}/><path d="M15 4c-2 3-3.5 5-3.5 7a3.5 3.5 0 0 0 7 0c0-2-1.5-4-3.5-7z" ${F}/>`,
+    cloud: `<path d="M7 18a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 8.5 4.75 4.75 0 0 1 17.5 18z" ${F}/><circle cx="10" cy="14" r="1.3" fill="rgba(0,0,0,.35)"/><circle cx="14" cy="13" r="1" fill="rgba(0,0,0,.35)"/>`,
+    meteor: `<circle cx="15" cy="15" r="5" ${F}/><path d="M11 11 4 4M13 9.5 8 3M9.5 13 3 8" ${S}/>`,
   };
   function svg(name) { return `<svg viewBox="0 0 24 24" aria-hidden="true">${P[name] || ICON_PATHS[name] || ''}</svg>`; }
   function hydrate(root = document) {

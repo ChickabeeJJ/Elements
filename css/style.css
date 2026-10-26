@@ -380,3 +380,57 @@ body.touch .dock-slot .hex { width: 40px; height: 35px; }
   .loadout-card { display: none; }
 }
 .subtitle { padding: 5px 14px; border-radius: 999px; background: var(--glass); text-shadow: none; }
+
+/* stage select sits centred under Elements / Upgrades at the same width */
+.btn-row.center { justify-content: center; }
+.btn-row.center .btn { flex: 0 0 calc(50% - 5px); }
+.pill.user { cursor: pointer; font-size: 13px; }
+.pill.user img { width: 24px; height: 24px; border-radius: 50%; }
+.cg-banner { position: absolute; right: calc(16px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); width: 300px; height: 250px; display: none; }
+@media (min-width: 1180px) and (min-height: 700px) { body:not(.touch) .cg-banner { display: block; } }
+.tut { position: absolute; top: calc(70px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 20px; background: var(--glass); border: 2px solid rgba(255, 255, 255, 0.08); width: min(460px, 92vw); pointer-events: auto; }
+.tut-step { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: clamp(12px, 1.6vw, 15px); text-align: center; }
+.tut-num { padding: 3px 9px; border-radius: 999px; background: var(--teal); color: #06251f; font-size: 11px; flex: none; }
+.tut-bar { width: 100%; height: 6px; border-radius: 999px; background: var(--navy-3); overflow: hidden; }
+.tut-bar i { display: block; height: 100%; width: 0; background: var(--teal); transition: width 0.25s; }
+.tut.done .tut-step b { color: var(--teal-hi); }
+/* neat pause menu: one column of equal buttons */
+.pause-stack { display: flex; flex-direction: column; gap: 8px; width: min(300px, 100%); margin: 0 auto; }
+.pause-stack .btn { width: 100%; }
+.sheet.pause { width: min(380px, 100%); }
+/* element shop */
+.buy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); }
+.buy-row p { color: var(--muted); font-size: 14px; }
+.buy-row .btn { flex-direction: row; gap: 8px; min-height: 42px; }
+.buy-row .btn .ic { width: 16px; height: 16px; }
+.el-pill .price { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+.el-pill .price .ic { width: 12px; height: 12px; }
+.pick .price { margin-left: auto; font-size: 10px; color: var(--muted); }
+.revive-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.revive-row .btn { flex: 1 1 160px; max-width: 260px; flex-direction: row; gap: 8px; }
+.btn.ad { background: #3b2f63; }
+.btn.ad:hover { background: #4a3c7a; }
+.btn.ad .ic { width: 18px; height: 18px; }
+/* 12 elements and 8 stages per realm */
+.stage-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); max-width: 1100px; }
+.codex-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.codex-list .el-pill { font-size: 11px; padding: 4px 8px 4px 4px; gap: 6px; }
+.codex-list .el-pill .hex { width: 30px; height: 26px; }
+.codex-list .el-pill .price { font-size: 10px; }
+.codex { grid-template-columns: minmax(250px, 290px) 1fr; }
+.sheet.wide .picker { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .codex { grid-template-columns: 1fr; }
+  .codex-list { display: flex; flex-direction: row; overflow-x: auto; }
+}
+@media (max-height: 560px) {
+  .stage-card .n { font-size: 20px; }
+  .stage-card small { display: none; }
+  .lo-slots { gap: 10px; }
+  .sheet.wide .hint { display: none; }
+}
+@media (max-width: 600px) {
+  .sheet.wide .picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.codex-list .el-pill { position: relative; }
+.codex-list .el-pill .price { position: absolute; top: -6px; right: 6px; padding: 1px 6px; border-radius: 999px; background: var(--navy); border: 1px solid rgba(255, 255, 255, 0.12); }
