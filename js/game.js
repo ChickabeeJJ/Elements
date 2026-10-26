@@ -672,7 +672,7 @@ const Game = (() => {
     if (t.invuln > 0) return;
     const enemyTarget = t.team === 'enemy';
     let dmg = o.dmg;
-    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * 0.64 : 1;   // enemy hits: 0.8 base, then -20%
+    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * 0.72 : 1;   // enemy hit scaling (tuned)
     let mul = 1, tag = null;
     if (enemyTarget) mul = affinityMul(t.el, o.el);
     dmg *= mul;
@@ -692,8 +692,8 @@ const Game = (() => {
 
     const st = t.status;
     const bossy = t.kind === 'boss' ? 0.4 : t.kind === 'brute' ? 0.7 : 1;
-    if (mv.burn) { st.burn = Math.max(st.burn, mv.burn.dur); st.burnDps = mv.burn.dps * (att && att.isPlayer ? pStats.dmgMul : 0.56); }
-    if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.56); }
+    if (mv.burn) { st.burn = Math.max(st.burn, mv.burn.dur); st.burnDps = mv.burn.dps * (att && att.isPlayer ? pStats.dmgMul : 0.62); }
+    if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.62); }
     if (mv.chill) st.chill = Math.max(st.chill, mv.chill);
     if (mv.soak) st.soak = Math.max(st.soak, mv.soak);
     if (mv.root) st.root = Math.max(st.root, mv.root * bossy);
@@ -1983,14 +1983,51 @@ const Game = (() => {
       c.globalAlpha = 1;
     } else if (z.style === 'thorns') {
       if (back) return;
-      c.fillStyle = '#3f7a2e';
-      const n = Math.floor(z.r / 12);
-      for (let i = -n; i <= n; i++) {
-        const x = z.x + i * 12, hh = (18 + (((i * 53) % 13) + 13) % 13) * grow;
-        c.beginPath(); c.moveTo(x - 5, z.y + 2); c.lineTo(x + Math.sin(time * 3 + i) * 3, z.y - hh); c.lineTo(x + 5, z.y + 2); c.closePath(); c.fill();
+      // curved thorn stalks that burst up from the centre outward, with side thorns, leaves and buds
+      if (!z.spikes) {
+        const rng = mulberry32(Math.floor(z.x * 7 + z.y * 3));
+        const n = Math.floor(z.r / 17);
+        z.spikes = [];
+        for (let i = -n; i <= n; i++) {
+          const e = Math.abs(i) / (n + 1);
+          z.spikes.push({ dx: i * 17 + (rng() - 0.5) * 8, h: (30 + rng() * 22) * (1 - e * 0.45), lean: i / (n + 1) * 0.55 + (rng() - 0.5) * 0.25, d: e * 0.22, w: 5.5 + rng() * 2.5, leaf: rng() < 0.35, bud: rng() < 0.22 });
+        }
       }
-      c.fillStyle = '#ff7aa8';
-      for (let i = -n; i <= n; i += 4) { c.beginPath(); c.arc(z.x + i * 12, z.y - 16 * grow, 3.5, 0, TAU); c.fill(); }
+      const fade = k > 0.85 ? (1 - k) / 0.15 : 1;
+      c.globalAlpha = 0.45 * fade; c.fillStyle = '#1f3d1a';
+      c.beginPath(); c.ellipse(z.x, z.y + 2, z.r * 0.95, 6, 0, 0, TAU); c.fill();
+      c.globalAlpha = fade;
+      for (const sp of z.spikes) {
+        const u = clamp((z.t - sp.d) * 7, 0, 1), g = 1 - Math.pow(1 - u, 3);
+        if (g <= 0) continue;
+        const h = sp.h * g, x = z.x + sp.dx, y = z.y + 2;
+        const lean = sp.lean + Math.sin(time * 2 + sp.dx) * 0.04;
+        const tx = x + Math.sin(lean) * h, ty = y - Math.cos(lean) * h;
+        const mx = (x + tx) / 2 + Math.cos(lean) * sp.w * 0.6, my = (y + ty) / 2;
+        // stalk: dark body with a lit left edge
+        c.fillStyle = '#2f6b2a';
+        c.beginPath(); c.moveTo(x - sp.w, y); c.quadraticCurveTo(mx - sp.w * 0.5, my, tx, ty); c.quadraticCurveTo(mx + sp.w * 0.5, my, x + sp.w, y); c.closePath(); c.fill();
+        c.fillStyle = '#5fa84a';
+        c.beginPath(); c.moveTo(x - sp.w, y); c.quadraticCurveTo(mx - sp.w * 0.5, my, tx, ty); c.quadraticCurveTo(mx - sp.w * 0.1, my, x - sp.w * 0.2, y); c.closePath(); c.fill();
+        // side thorns
+        c.fillStyle = '#2f6b2a';
+        for (const [t, side] of [[0.38, -1], [0.62, 1]]) {
+          const px = lerp(x, tx, t), py = lerp(y, ty, t), w = sp.w * (1 - t) + 1.5;
+          const ox = Math.cos(lean) * side, oy = Math.sin(lean) * side;
+          c.beginPath(); c.moveTo(px - Math.sin(lean) * 3, py + Math.cos(lean) * 3); c.lineTo(px + ox * (w + 7) - Math.sin(lean) * 4, py + oy * (w + 7) - Math.cos(lean) * 4); c.lineTo(px + Math.sin(lean) * 3, py - Math.cos(lean) * 3); c.closePath(); c.fill();
+        }
+        if (sp.leaf && g > 0.6) {
+          c.fillStyle = '#7cc95a';
+          c.beginPath(); c.ellipse(lerp(x, tx, 0.5) - Math.cos(lean) * 8, lerp(y, ty, 0.5), 7, 3.2, lean - 0.9, 0, TAU); c.fill();
+        }
+        if (sp.bud && g > 0.85) {
+          c.fillStyle = '#ff7aa8';
+          c.beginPath(); c.arc(tx, ty + 1, 4, 0, TAU); c.fill();
+          c.fillStyle = '#ffd1e3';
+          c.beginPath(); c.arc(tx - 1.2, ty - 0.3, 1.6, 0, TAU); c.fill();
+        }
+      }
+      c.globalAlpha = 1;
     }
   }
 

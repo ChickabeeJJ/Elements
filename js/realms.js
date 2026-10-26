@@ -90,7 +90,7 @@ const ENEMY_TYPES = {
 function enemyStats(type, d) {
   const t = ENEMY_TYPES[type];
   return {
-    hp: Math.round(36 * (1 + d * 2.6) * t.hp),
+    hp: Math.round(40 * (1 + d * 2.6) * t.hp),
     dmgMul: (0.75 + d * 1.3) * t.dmg,
     cdMul: lerp(1.3, 0.8, Math.min(d, 1.2)) * t.cd,
     think: lerp(0.32, 0.12, Math.min(d, 1.2)),
@@ -127,8 +127,9 @@ function buildStage(r, s) {
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
   // at most three waves; early stages are short and gentle
-  const total = 3 + Math.floor(s * 0.7) + Math.floor(r * 0.8);
-  const nW = total <= 3 ? 1 : total <= 5 ? 2 : 3;
+  // at most three waves of at most three foes; individual foes carry the difficulty
+  const total = Math.min(9, 2 + Math.floor(s * 0.7) + Math.floor(r * 0.8));
+  const nW = Math.min(3, Math.ceil(total / 3));
   for (let w = 0; w < nW; w++) {
     const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);
     const wave = [];
