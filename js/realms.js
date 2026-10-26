@@ -7,7 +7,7 @@
 const REALMS = [
   {
     id: 'verdant', name: 'Verdant Vale', element: 'nature',
-    sky: ['#86cfe0', '#d9efd9', '#ffe7b8'], sun: '#fff6cf', sunPos: [0.78, 0.2],
+    sky: ['#86cfe0', '#d9efd9', '#ffe7b8'], sun: '#fff6cf', sunPos: [0.78, 0.2], showSun: true, clouds: true,
     hills: ['#a7d3b8', '#73b08f', '#4d8a6d'], fog: '#e9f6e6',
     top: '#8fd46b', topDark: '#5fae4c', rock: '#6b5848', rockDark: '#4a3b31',
     ambient: 'leaf', tint: '#9ae66e',
@@ -31,7 +31,7 @@ const REALMS = [
   },
   {
     id: 'frost', name: 'Frostpeak', element: 'frost',
-    sky: ['#2b4f8a', '#7fa9d6', '#e3f1fa'], sun: '#ffffff', sunPos: [0.7, 0.16],
+    sky: ['#2b4f8a', '#7fa9d6', '#e3f1fa'], sun: '#ffffff', sunPos: [0.7, 0.16], clouds: true,
     hills: ['#c0d8ec', '#8fb2d4', '#5f84ad'], fog: '#eef7ff',
     top: '#f3fbff', topDark: '#bfe0f2', rock: '#5c6f88', rockDark: '#3e4d63',
     ambient: 'snow', tint: '#9fe6ff',

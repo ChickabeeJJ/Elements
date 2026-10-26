@@ -5,6 +5,7 @@
    ========================================================================= */
 
 class Island {
+  static PAD = 4;
   constructor(x, y, w, opts = {}) {
     this.x = x; this.y = y; this.w = w;
     this.baseX = x; this.baseY = y;
@@ -67,37 +68,49 @@ class Island {
     return false;
   }
 
-  // flat tiles with no outlines: checker tone, depth darkening, a lit left side,
-  // shaded right side and underside, and a grass/crust cap with a soft shadow below it
+  // soft rounded tiles with no outlines: checker tone, depth darkening, a lit left side,
+  // shaded right side and undersides, and a grass/crust cap. Islands never change shape,
+  // so each one is drawn once into a sprite per realm.
   draw(ctx, realm) {
-    const { n, t, rows } = this.cells;
-    const x0 = this.x - this.w / 2, y0 = this.y;
-    const pal = this.pal && this.pal.id === realm.id ? this.pal : (this.pal = Island.palette(realm));
-    const half = n / 2;
+    if (!this.sprite || this.spriteRealm !== realm.id) this.renderSprite(realm);
+    const P = Island.PAD;
+    ctx.drawImage(this.sprite, this.x - this.w / 2 - P, this.y - P, this.w + P * 2, this.cells.rows.length * this.cells.t + P * 2);
+  }
+
+  renderSprite(realm) {
+    const { n, t, rows } = this.cells, SS = 2, P = Island.PAD;
+    const cv = this.sprite || document.createElement('canvas');
+    cv.width = Math.ceil((this.w + P * 2) * SS); cv.height = Math.ceil((rows.length * t + P * 2) * SS);
+    const g = cv.getContext('2d');
+    g.setTransform(SS, 0, 0, SS, P * SS, P * SS);
+    const pal = Island.palette(realm), half = n / 2;
+    const R = t * 0.22, rt = t * 0.16, capH = t * 0.36;
     rows.forEach(([a, b], r) => {
       const next = rows[r + 1];
+      g.save();
+      g.beginPath(); g.roundRect(a * t, r * t, (b - a) * t, t, [r ? 0 : R, r ? 0 : R, R, R]); g.clip();
+      // a slightly deeper tone shows through only where rounded tile corners meet
+      g.fillStyle = pal.tone(r * 0.11 + 0.2); g.fillRect(a * t, r * t, (b - a) * t, t);
+      if (r === 0) { g.fillStyle = mixHex(realm.top, '#000000', 0.18); g.fillRect(a * t, 0, (b - a) * t, capH); }
       for (let i = a; i < b; i++) {
-        const side = (i + 0.5 - half) / half;           // -1 left … 1 right
-        let k = r * 0.11 + (side > 0.35 ? 0.2 : 0) + ((i + r) % 2) * 0.05 - (side < -0.35 ? 0.06 : 0);
-        ctx.fillStyle = pal.tone(k);
-        const x = x0 + i * t, y = y0 + r * t;
-        ctx.fillRect(x - 0.3, y - 0.3, t + 0.6, t + 0.6);
-        // underside of tiles that overhang the row below
-        if (!next || i < next[0] || i >= next[1]) {
-          ctx.fillStyle = pal.under;
-          ctx.fillRect(x - 0.3, y + t * 0.8, t + 0.6, t * 0.2 + 0.3);
+        const side = (i + 0.5 - half) / half;   // -1 left … 1 right
+        const k = r * 0.11 + (side > 0.35 ? 0.2 : 0) + ((i + r) % 2) * 0.05 - (side < -0.35 ? 0.06 : 0);
+        const x = i * t, y = r * t;
+        g.save();
+        g.beginPath(); g.roundRect(x, y, t, t, rt); g.clip();
+        g.fillStyle = pal.tone(k); g.fillRect(x, y, t, t);
+        if (!next || i < next[0] || i >= next[1]) { g.fillStyle = pal.under; g.fillRect(x, y + t * 0.8, t, t * 0.2); }
+        if (r === 0) {
+          g.fillStyle = (i % 2) ? pal.top2 : realm.top; g.fillRect(x, y, t, capH);
+          g.fillStyle = pal.hi; g.fillRect(x, y, t, 2.5);
+          g.fillStyle = realm.topDark; g.fillRect(x, y + capH, t, t * 0.1);
+          g.fillStyle = pal.ao; g.fillRect(x, y + capH + t * 0.1, t, t * 0.14);
         }
+        g.restore();
       }
+      g.restore();
     });
-    // cap
-    const capH = t * 0.36;
-    for (let i = 0; i < n; i++) {
-      ctx.fillStyle = (i % 2) ? pal.top2 : realm.top;
-      ctx.fillRect(x0 + i * t - 0.3, y0 - 2, t + 0.6, capH + 2);
-    }
-    ctx.fillStyle = pal.hi; ctx.fillRect(x0, y0 - 2, this.w, 3);
-    ctx.fillStyle = realm.topDark; ctx.fillRect(x0, y0 + capH, this.w, t * 0.1);
-    ctx.fillStyle = pal.ao; ctx.fillRect(x0, y0 + capH + t * 0.1, this.w, t * 0.14);
+    this.sprite = cv; this.spriteRealm = realm.id;
   }
 
   static palette(realm) {
@@ -143,7 +156,7 @@ const Backdrop = (() => {
 
     // stars in dark realms
     const rng = mulberry32(realm.id.length * 977);
-    if (realm.id === 'void' || realm.id === 'storm' || realm.id === 'ember') {
+    if (realm.id === 'void' || realm.id === 'storm') {
       for (let i = 0; i < 160; i++) {
         const sx = lerp(x0, x1, rng()), sy = lerp(y0, H * 0.6, rng());
         g.globalAlpha = 0.2 + rng() * 0.6;
@@ -153,19 +166,17 @@ const Backdrop = (() => {
       g.globalAlpha = 1;
     }
 
-    // sun / moon
-    const sx = W * realm.sunPos[0], sy = H * realm.sunPos[1];
-    const sun = g.createRadialGradient(sx, sy, 0, sx, sy, 380);
-    sun.addColorStop(0, rgba(realm.sun, 0.9));
-    sun.addColorStop(0.12, rgba(realm.sun, 0.55));
-    sun.addColorStop(0.4, rgba(realm.sun, 0.12));
-    sun.addColorStop(1, rgba(realm.sun, 0));
-    g.fillStyle = sun; g.fillRect(x0, y0, view.w, view.h);
-    g.fillStyle = realm.sun;
-    g.beginPath(); g.arc(sx, sy, 46, 0, TAU); g.fill();
-    if (realm.id === 'void') {
-      g.fillStyle = realm.sky[1];
-      g.beginPath(); g.arc(sx + 18, sy - 10, 42, 0, TAU); g.fill();
+    // sun (only realms that ask for one; night realms stay clean)
+    if (realm.showSun) {
+      const sx = W * realm.sunPos[0], sy = H * realm.sunPos[1];
+      const sun = g.createRadialGradient(sx, sy, 0, sx, sy, 380);
+      sun.addColorStop(0, rgba(realm.sun, 0.9));
+      sun.addColorStop(0.12, rgba(realm.sun, 0.55));
+      sun.addColorStop(0.4, rgba(realm.sun, 0.12));
+      sun.addColorStop(1, rgba(realm.sun, 0));
+      g.fillStyle = sun; g.fillRect(x0, y0, view.w, view.h);
+      g.fillStyle = realm.sun;
+      g.beginPath(); g.arc(sx, sy, 46, 0, TAU); g.fill();
     }
 
     // layered ridges
@@ -212,7 +223,7 @@ class Ambience {
     this.realm = realm;
     this.parts.length = 0;
     this.clouds = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < (realm.clouds ? 7 : 0); i++) {
       this.clouds.push({ x: rand(view.x0, view.x0 + view.w), y: rand(60, 420), s: rand(0.6, 1.4), v: rand(6, 18) });
     }
   }
