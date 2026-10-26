@@ -1479,7 +1479,11 @@ const Game = (() => {
     const q = input.queued;
     if (run && run.tut) run.tut.moved += Math.abs(f.root.vx) * dt;
     if (q.jump) { if (f.jump()) { if (run && run.tut) run.tut.jumped++; Sfx.jump(); fx.burst(f.root.x, f.root.y, '#ffffff', 8, 140, { life: 0.3 }); } q.jump = false; }
-    if (q.drop) { f.drop(); q.drop = false; }
+    if (q.drop) {
+      // only drop through when there is an island below to land on, never into the void
+      if (f.root.grounded && platformBelow(f.root.x, f.root.y, 900, f.root.plat)) f.drop();
+      q.drop = false;
+    }
     const a = playerAim();
     const o = aimFrom(f);
     if (!f.action) {
