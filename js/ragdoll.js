@@ -221,6 +221,7 @@ class Fighter {
     if (r.vy >= 0) {
       for (const pl of plats) {
         if (r.dropT > 0 && pl === r.dropPlat) continue;
+        if (r.ghostTo && pl !== r.ghostTo) continue;   // spawning: fall straight to the marked island
         if (r.x < pl.left - 4 || r.x > pl.right + 4) continue;
         // solid landing band: anything that was at most a few px inside still lands
         if (prevY <= pl.prevTop + 10 && r.y >= pl.top && r.y <= pl.top + 60) {
@@ -234,7 +235,7 @@ class Fighter {
     // island bodies are solid: rising through them is allowed, but a fighter that ends up
     // inside one climbs onto the top if near it, otherwise gets pushed out of the side
     for (const pl of plats) {
-      if (pl === r.plat || (r.dropT > 0 && pl === r.dropPlat) || !pl.solids) continue;
+      if (pl === r.plat || (r.dropT > 0 && pl === r.dropPlat) || !pl.solids || (r.ghostTo && pl !== r.ghostTo)) continue;
       if (r.x <= pl.left || r.x >= pl.right) continue;
       for (const q of pl.solids) {
         if (r.x <= q.l || r.x >= q.r || r.y <= q.t || r.y >= q.b) continue;
@@ -253,6 +254,7 @@ class Fighter {
         break;
       }
     }
+    if (r.grounded) r.ghostTo = null;
     if (!r.grounded) { r.plat = null; if (wasGrounded && r.jumps === 0) r.jumps = 1; }
     if (r.grounded && Math.abs(r.vx) > 20) this.walkPh += Math.abs(r.vx) * dt * 0.05 / this.s;
     if (this.landT) this.landT = Math.max(0, this.landT - dt * 3);
@@ -391,9 +393,9 @@ class Fighter {
         solve(pts[ia], pts[ib], INV_MASS[ia], INV_MASS[ib], L, L, 1);
       }
       for (const [ia, ib, lo, hi] of JOINT_LIMITS) solve(pts[ia], pts[ib], INV_MASS[ia], INV_MASS[ib], lo * s, hi * s, 0.6);
-      if (collide && this.mode !== 'active') for (const p of pts) for (const pl of plats) { landPoint(p, pl); solidPoint(p, pl); }
+      if (collide && this.mode !== 'active') for (const p of pts) for (const pl of plats) { if (this.root.ghostTo && pl !== this.root.ghostTo) continue; landPoint(p, pl); solidPoint(p, pl); }
     }
-    if (collide && this.mode === 'active') for (const i of [P.FFOOT, P.BFOOT, P.FKNEE, P.BKNEE]) for (const pl of plats) landPoint(pts[i], pl);
+    if (collide && this.mode === 'active') for (const i of [P.FFOOT, P.BFOOT, P.FKNEE, P.BKNEE]) for (const pl of plats) { if (this.root.ghostTo && pl !== this.root.ghostTo) continue; landPoint(pts[i], pl); }
   }
 
   followBody(dt, plats) {
@@ -518,7 +520,7 @@ class Fighter {
     const c = this.center();
     // poison: sickly tint on the limbs
     if (st.poison > 0) {
-      ctx.globalAlpha = fade * 0.35 * Math.min(1, st.poison * 2);
+      ctx.globalAlpha = fade * 0.2 * Math.min(1, st.poison * 2);
       for (const [a, b] of SEGS) seg(a, b, 9, '#9be04a');
       ctx.globalAlpha = fade;
     }
@@ -586,31 +588,11 @@ class Fighter {
       }
       ctx.globalAlpha = fade;
     }
-    // burn: flickering flame tongues rising off the body
+    // burn: a soft warm glow; the flames themselves are translucent particles (game.js)
     if (st.burn > 0) {
-      const k = Math.min(1, st.burn * 2);
-      const anchors = [P.HEAD, P.NECK, P.PELVIS, P.FELB, P.BELB, P.FKNEE, P.BKNEE];
       ctx.globalCompositeOperation = 'lighter';
-      Glow.draw(ctx, '#ff7a2a', c.x, c.y, 46 * s, 0.35 * k * fade);
+      Glow.draw(ctx, '#ff7a2a', c.x, c.y, 44 * s, 0.3 * Math.min(1, st.burn * 2) * fade);
       ctx.globalCompositeOperation = 'source-over';
-      anchors.forEach((ai, i) => {
-        const q = pts[ai];
-        const fl = 0.75 + Math.sin(time * 13 + i * 1.9) * 0.15 + Math.sin(time * 21 + i) * 0.1;
-        const h = (ai === P.HEAD ? 30 : 22) * s * fl * k, w = (ai === P.HEAD ? 10 : 8) * s * k;
-        const sway = Math.sin(time * 7 + i * 2.3) * 4 * s;
-        const flame = (hh, ww, col) => {
-          ctx.fillStyle = col;
-          ctx.beginPath();
-          ctx.moveTo(q.x - ww, q.y);
-          ctx.quadraticCurveTo(q.x - ww, q.y - hh * 0.55, q.x + sway, q.y - hh);
-          ctx.quadraticCurveTo(q.x + ww, q.y - hh * 0.55, q.x + ww, q.y);
-          ctx.arc(q.x, q.y, ww, 0, Math.PI);
-          ctx.fill();
-        };
-        ctx.globalAlpha = fade * 0.9; flame(h, w, '#ff6a2a');
-        ctx.globalAlpha = fade; flame(h * 0.6, w * 0.55, '#ffd76a');
-      });
-      ctx.globalAlpha = fade;
     }
     // shock: crackling arcs between joints
     if (st.shock > 0) {

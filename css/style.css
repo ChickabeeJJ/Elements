@@ -230,7 +230,7 @@ kbd { display: inline-block; font-family: var(--display); font-size: 10px; line-
 .coach p { padding: 10px 20px; border-radius: 999px; background: var(--glass); font-family: var(--display); font-size: 12px; text-align: center; line-height: 1.5; }
 
 /* touch layout: thumb arc around a big attack button, all sized from the viewport */
-body.touch { --ob: clamp(54px, 13.5vh, 76px); --om: clamp(80px, 21vh, 116px); --og: clamp(8px, 2.2vh, 14px); --hx: clamp(40px, 10.5vh, 56px); }
+body.touch { --ob: clamp(54px, 13.5vh, 76px); --om: clamp(80px, 21vh, 116px); --og: clamp(8px, 2.2vh, 14px); --hx: clamp(30px, 7.6vh, 42px); }
 body.touch .orb-jump { display: grid; }
 body.touch kbd { display: none; }
 body.touch .joy { display: block; }
@@ -242,7 +242,7 @@ body.touch .orb-p1 { right: calc(var(--om) * 0.8 + var(--og)); bottom: calc(var(
 body.touch .orb-p2 { right: calc((var(--om) - var(--ob)) / 2); bottom: calc(var(--om) + var(--og)); }
 body.touch .orb-icon { width: 46%; height: 46%; }
 body.touch .orb .cd-num { font-size: calc(var(--ob) * 0.34); }
-body.touch .dock { left: auto; bottom: auto; right: calc(14px + var(--safe-r)); top: calc(62px + var(--safe-t)); padding: 6px 8px; gap: 6px; }
+body.touch .dock { left: auto; bottom: auto; right: calc(14px + var(--safe-r)); top: calc(58px + var(--safe-t)); padding: 4px 7px; gap: 5px; }
 body.touch .dock-slot .hex { width: var(--hx); height: calc(var(--hx) * 0.88); }
 /* resting joystick so players can see where to drag */
 body.touch .joy:not(.on) .joy-base, body.touch .joy:not(.on) .joy-knob { display: block; left: calc(30px + var(--joy) / 2 + var(--safe-l)); top: calc(100% - 26px - var(--joy) / 2 - var(--safe-b)); opacity: 0.45; }
@@ -500,5 +500,12 @@ body.touch .skillbar { display: none; }
 .modal .sheet { max-height: calc((100dvh - 20px - var(--safe-t) - var(--safe-b)) / var(--ui)); }
 
 /* touch dock: the active element is highlighted in place instead of lifting out of the bar */
-body.touch .dock-slot.on { transform: none; }
-body.touch .dock-slot.on { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 7px rgba(255, 255, 255, 0.45)); }
+/* active element is highlighted in place (all devices) */
+.dock-slot.on { transform: none; }
+.dock-slot.on { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 7px rgba(255, 255, 255, 0.45)); }
+
+/* stage 0 (tutorial / testing) in Verdant Vale */
+.stage-grid.nine { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+.stage-card.zero { background: color-mix(in srgb, var(--c) 14%, var(--navy-2)); }
+.stage-card.zero .zero-ic { width: 18px; height: 18px; color: var(--c); }
+@media (max-width: 600px) { .stage-grid.nine { grid-template-columns: repeat(5, minmax(0, 1fr)); } }

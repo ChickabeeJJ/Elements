@@ -117,7 +117,7 @@ class FX {
         // oriented along velocity: flame tongues and ice shards
         const ang = Math.atan2(p.vy, p.vx), L = p.size * (p.kind === 'flame' ? 2.6 : 3.2) * (0.5 + a * 0.5), Wd = p.size * (p.kind === 'flame' ? 0.9 : 0.55);
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang);
-        ctx.globalAlpha = a;
+        ctx.globalAlpha = a * (p.kind === 'flame' ? 0.65 : 1);
         ctx.fillStyle = p.color;
         ctx.beginPath();
         if (p.kind === 'flame') { ctx.moveTo(L, 0); ctx.quadraticCurveTo(0, -Wd * 1.4, -Wd, 0); ctx.quadraticCurveTo(0, Wd * 1.4, L, 0); }
@@ -126,6 +126,15 @@ class FX {
         ctx.fillStyle = p.kind === 'flame' ? '#ffe08a' : '#ffffff';
         ctx.beginPath(); ctx.moveTo(L * 0.7, 0); ctx.lineTo(0, -Wd * 0.4); ctx.lineTo(-Wd * 0.3, 0); ctx.lineTo(0, Wd * 0.4); ctx.closePath(); ctx.fill();
         ctx.restore(); ctx.globalAlpha = 1;
+      } else if (p.kind === 'ember') {
+        // soft translucent flame wisp that shrinks and cools as it rises
+        const r = p.size * (0.35 + a * 0.65);
+        ctx.globalAlpha = a * 0.55;
+        ctx.fillStyle = a > 0.55 ? p.color : '#ff5a2a';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, r * 0.7, r * 1.25, 0, 0, TAU); ctx.fill();
+        ctx.globalAlpha = a * 0.45; ctx.fillStyle = '#ffe08a';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 0.25, r * 0.3, r * 0.55, 0, 0, TAU); ctx.fill();
+        ctx.globalAlpha = 1;
       } else if (p.kind === 'star') {
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
         ctx.globalAlpha = a; ctx.fillStyle = p.color;

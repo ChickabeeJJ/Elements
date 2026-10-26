@@ -114,6 +114,17 @@ const UI = (() => {
     const [nr, ns] = Save.nextStage();
     const grid = $('stageGrid');
     grid.innerHTML = '';
+    grid.classList.toggle('nine', mapRealm === 0);
+    if (mapRealm === 0) {
+      // stage 0: the tutorial the first time, afterwards a sandbox to try elements on a dummy
+      const done = Save.data.tutorialDone;
+      const z = document.createElement('button');
+      z.className = 'stage-card zero';
+      z.style.setProperty('--c', realm.tint);
+      z.innerHTML = `<span class="n">0</span><span class="ic zero-ic" data-icon="${done ? 'target' : 'book'}"></span><small>${done ? 'TESTING' : 'TUTORIAL'}</small>`;
+      z.onclick = () => { Sfx.click(); done ? startTesting() : startTutorial(); };
+      grid.appendChild(z);
+    }
     for (let s = 0; s < STAGES_PER_REALM; s++) {
       const open = Save.stageOpen(mapRealm, s);
       const st = Save.data.stars[stageKey(mapRealm, s)] || 0;
@@ -138,8 +149,9 @@ const UI = (() => {
 
   /* ---------------------------------------------------- loadout editor */
   function openLoadout(after) {
-    let sel = Save.loadout().slice();
+    let sel = Save.loadout().slice(), drawn = false;
     const draw = () => {
+      const keep = drawn; drawn = true;
       modal(`
         <h2>YOUR ELEMENTS</h2>
         <div class="lo-slots">${[0, 1, 2].map(i => `<div class="lo-slot">${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small></div>`).join('')}</div>
@@ -149,7 +161,6 @@ const UI = (() => {
           return `<button class="pick${sel.includes(e.id) ? ' on' : ''}${open ? '' : ' locked'}" data-el="${e.id}" style="--c:${e.color}">${hex(e.id, open ? '' : 'locked')}<span>${e.name.toUpperCase()}</span>${open ? '' : `<span class="price">${e.price}</span>`}</button>`;
         }).join('')}</div>
         <div class="actions"><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
-        sh.classList.add('wide');
         sh.querySelectorAll('.pick').forEach(b => b.onclick = () => {
           const id = b.dataset.el;
           if (!Save.elementOpen(id)) { Sfx.click(); closeModal(); codexSel = id; openCodex(); return; }
@@ -164,7 +175,7 @@ const UI = (() => {
           if (current === 'home') refreshHome();
           after ? after() : closeModal();
         };
-      });
+      }, 'wide', keep);
     };
     draw();
   }
@@ -242,14 +253,16 @@ const UI = (() => {
   }
 
   /* -------------------------------------------------------------- modal */
-  function modal(html, onOpen, cls = '') {
+  // keep: re-render the open sheet in place (no pop animation, scroll kept)
+  function modal(html, onOpen, cls = '', keep = false) {
     const m = $('modal'), s = $('sheet');
+    const top = s.scrollTop;
     s.className = 'sheet ' + cls;
     s.innerHTML = html;
     Icons.hydrate(s);
     m.classList.remove('hidden');
-    s.scrollTop = 0;
-    s.style.animation = 'none'; void s.offsetWidth; s.style.animation = '';
+    if (keep) s.scrollTop = top;
+    else { s.scrollTop = 0; s.style.animation = 'none'; void s.offsetWidth; s.style.animation = ''; }
     onOpen && onOpen(s);
   }
   function closeModal() { $('modal').classList.add('hidden'); }
@@ -295,7 +308,7 @@ const UI = (() => {
     if (Game.state !== 'play') return;
     Game.paused = true;
     Platform.gameplayStop();
-    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : 'ENDLESS';
+    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : 'ENDLESS';
     modal(`
       <h2>PAUSED</h2>
       <p class="sub">${label}</p>
@@ -369,12 +382,12 @@ const UI = (() => {
         ${u ? `<div class="unlock" style="--c:${u.color}">${hex(u.id)}<div><small>NEW ELEMENT UNLOCKED</small><b>${u.name.toUpperCase()}</b><p>${u.blurb}</p></div></div>` : ''}
         ${boss && res.firstClear && hasNext ? `<p class="sub">${REALMS[nextR].name.toUpperCase()} IS NOW OPEN</p>` : ''}
         <div class="actions">
-          <button class="btn" id="rMap"><b>MAP</b></button>
+          <button class="btn" id="rMenu"><b>MENU</b></button>
           <button class="btn" id="rRetry"><b>RETRY</b></button>
           ${hasNext ? '<button class="btn primary" id="rNext"><b>NEXT</b></button>' : ''}
         </div>`, sh => {
         bindAds(sh);
-        sh.querySelector('#rMap').onclick = () => { Sfx.click(); closeModal(); openMap(hasNext && boss ? nextR : r); };
+        sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
         const nb = sh.querySelector('#rNext');
         if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS)); };
@@ -386,12 +399,12 @@ const UI = (() => {
         ${tiles}${reward}${adRow}
         <p class="tip">${pick(TIPS)}</p>
         <div class="actions">
-          <button class="btn" id="rMap"><b>MAP</b></button>
+          <button class="btn" id="rMenu"><b>MENU</b></button>
           <button class="btn" id="rForge"><b>UPGRADES</b></button>
           <button class="btn primary" id="rRetry"><b>RETRY</b></button>
         </div>`, sh => {
         bindAds(sh);
-        sh.querySelector('#rMap').onclick = () => { Sfx.click(); closeModal(); openMap(r); };
+        sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
       }, 'result');
@@ -492,7 +505,19 @@ const UI = (() => {
     startStage(r, s);
   }
 
-  function relaunch() { if (!lastStart) return; lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : lastStart.mode === 'tutorial' ? startTutorial() : startEndless(); }
+  function relaunch() { if (!lastStart) return; lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : lastStart.mode === 'tutorial' ? startTutorial() : lastStart.mode === 'test' ? startTesting() : startEndless(); }
+
+  // Testing ground: the tutorial island with a dummy that respawns; no waves, no rewards
+  function startTesting() {
+    lastStart = { mode: 'test' };
+    closeModal(); show(null);
+    Game.start({ mode: 'test' });
+    hudCache = {};
+    buildHud();
+    setChip('wind', 'TESTING');
+    $('waveDots').innerHTML = ''; $('chipSub').textContent = 'TRY YOUR ELEMENTS';
+    $('tut').classList.add('hidden');
+  }
 
   function setChip(el, title) {
     const e = $('chipEmblem');
@@ -733,6 +758,8 @@ const UI = (() => {
     const k = clamp(Math.min(innerWidth / 1280, innerHeight / 760), 1, 1.75);
     document.documentElement.style.setProperty('--ui', k.toFixed(3));
   }
+
+  function toMenu() { Sfx.click(); closeModal(); Game.quit(); Game.idleScene(0); show('home'); }
 
   function checkRotate() {
     const portrait = window.innerHeight > window.innerWidth * 1.1 && document.body.classList.contains('touch');

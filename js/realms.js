@@ -90,12 +90,12 @@ const ENEMY_TYPES = {
 function enemyStats(type, d) {
   const t = ENEMY_TYPES[type];
   return {
-    hp: Math.round(42 * (1 + d * 2.4) * t.hp),
-    dmgMul: (1 + d * 1.1) * t.dmg,
+    hp: Math.round(36 * (1 + d * 2.6) * t.hp),
+    dmgMul: (0.75 + d * 1.3) * t.dmg,
     cdMul: lerp(1.5, 0.9, Math.min(d, 1.2)) * t.cd,
     think: lerp(0.32, 0.12, Math.min(d, 1.2)),
     aimErr: lerp(0.14, 0.04, Math.min(d, 1.1)),
-    windupMul: lerp(2.2, 1.5, Math.min(d, 1)),
+    windupMul: lerp(2.5, 1.5, Math.min(d, 1)),
   };
 }
 
@@ -126,15 +126,14 @@ function buildStage(r, s) {
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
-  const total = 3 + Math.floor(s * 0.75) + Math.floor(r * 0.5);
-  const conc = s < 1 && r === 0 ? 1 : s < 3 ? 2 : 3;
-  let left = total;
-  while (left > 0) {
-    const n = Math.min(left, 1 + Math.floor(rng() * conc));
+  // at most three waves; early stages are short and gentle
+  const total = 2 + Math.floor(s * 0.6) + Math.floor(r * 0.7);
+  const nW = total <= 2 ? 1 : total <= 4 ? 2 : 3;
+  for (let w = 0; w < nW; w++) {
+    const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);
     const wave = [];
     for (let i = 0; i < n; i++) wave.push({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d });
     waves.push(wave);
-    left -= n;
   }
   return { realm: r, stage: s, arena, waves, d, boss: false };
 }

@@ -2,7 +2,7 @@
 
 A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**, but careful: if you fall into the void yourself, the run is over.
 
-You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **12 elements**, and you unlock them with **gems** earned in battle. The campaign has **56 stages** across seven realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, plus a short, skippable tutorial on first launch.
+You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **15 elements**, and you unlock them with **gems** earned in battle. The campaign has **56 stages** across seven realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, plus a short, skippable tutorial on first launch.
 
 It's pure HTML5 and vanilla JS, with no build step and no dependencies. All art is drawn procedurally and every sound is synthesized.
 
@@ -13,25 +13,29 @@ To play, serve the folder (for example `python3 -m http.server`) and open `index
 | Element | Main attack | Power 1 | Power 2 | Gems |
 | --- | --- | --- | --- | --- |
 | Gale (wind) | Gust Palm (melee, big knockback) | Updraft: launch up and fling foes | Cyclone: travelling tornado that drags foes | free |
-| Ember (fire) | Fireball (ranged, burns) | Flame Dash | Eruption: launching blast | 60 |
+| Ember (fire) | Fireball (ranged, burns) | Flame Dash | Fire Pillars: four flame pillars march forward along the ground | 60 |
 | Tide (water) | Water Whip (long melee, soaks) | Tidal Wave: sweeps foes off edges | Bubble Shield | 90 |
 | Stone (earth) | Stone Fist (heavy melee) | Boulder | Quake: ground slam / air plunge that stuns | 130 |
 | Rime (frost) | Ice Shards (3 ranged shards, chill) | Frost Nova: freeze everything near | Ice Lance: pierces and shatters frozen foes | 170 |
 | Storm (lightning) | Shock Bolt (instant ranged, chains) | Blink Strike: teleport + discharge | Thunderstorm: lightning on 4 foes | 220 |
 | Thorn (nature) | Vine Lash (melee, roots, lifesteal) | Thorn Snare: rooting thorn patch | Bloom: heal and cleanse | 270 |
-| Steel | Blade Arc (wide melee) | Iron Skin: damage-absorbing shell | Saw Disc: piercing spinning blade | 320 |
-| Venom | Venom Spit (ranged, poisons) | Toxic Cloud: lingering poison zone | Viper Lunge: poisoning dash | 380 |
+| Steel | Blade Arc (wide melee) | Magnetize: yanks nearby foes toward you | Saw Disc: piercing spinning blade | 320 |
+| Venom | Venom Spit (ranged, poisons) | Toxic Cloud: lingering poison zone | Plague Swarm: five flies hunt separate foes | 380 |
 | Void | Void Orb (homing ranged) | Rift: black hole that pulls foes and eats projectiles | Shadow Step: untouchable dash | 450 |
-| Arcane | Star Bolts (2 homing bolts) | Starburst: blast around you | Meteor Fall: meteors on marked foes | 520 |
-| Radiance (light) | Radiant Blade (fast melee combo) | Sunbeam: channelled beam | Judgment: sunbeams on 6 foes | 600 |
+| Arcane | Star Bolts (2 homing bolts) | Orbiting Stars: three stars circle you and strike | Meteor Fall: meteors on marked foes | 520 |
+| Radiance (light) | Radiant Blade (fast melee combo) | Sunbeam: channelled beam | Halo: a ring of light that returns to you | 600 |
+| Crystal | Crystal Shot (ricochets off islands) | Prism Wall: reflects enemy shots | Geode Mines: proximity mines | 680 |
+| Gravity | Gravity Hook (reels a foe in) | Anti-Grav Field: foes float helplessly | Collapse: slams airborne foes down, stuns the rest | 760 |
+| Echo | Sonic Clap (widening wave through everything) | Resonance: tag foes, then stun them | Rewind: snap back 1.5s, even out of a fall | 840 |
 
 Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Combos between elements work too: frozen foes shatter under Stone or Ice Lance, and soaked foes take extra Storm damage.
 
 ## Campaign and progression
 
+- Verdant Vale also has **stage 0**: the tutorial the first time, then a **Testing** ground with a dummy that respawns, to try elements freely (no rewards).
 - Seven realms with eight stages each: Verdant Vale, Ember Wastes, Tidal Reef, Frostpeak, Stormspire, Toxic Mire and The Void Rift. Each realm has its own arena layouts, and some have moving islands. Stage 8 is a boss: Thornwarden, Cinder Tyrant, Tidecaller, Rimeheart, Storm Herald, Plaguebinder or The Hollow King. Bosses use their element's full kit and summon reinforcements.
 - Enemy types are Warriors, Casters (keep their distance and cast), Brutes (heavy, hard to knock away, carry a power) and Bosses. Hurt enemies fly further when hit.
-- Stars come from the health you have left (3 stars also needs no falls). Gems come from kills, ring-outs, pickups and clears. They unlock new elements and buy permanent upgrades: Vitality, Might, Ward, Focus, Swiftness and Anchor.
+- Stages have at most three waves; when a boss falls, its reinforcements fall with it. Stars come from the health you have left (3 stars also needs no falls). Gems come from kills, ring-outs, pickups and clears. They unlock new elements and buy permanent upgrades: Vitality, Might, Ward, Focus, Swiftness and Anchor.
 - Falling into the void ends a stage, but you can revive once per run by watching an ad. You can also watch one to double a stage's gems.
 - **Endless** sends waves forever. Realms and arenas rotate every 10 kills, and an elder champion appears every 8th wave.
 

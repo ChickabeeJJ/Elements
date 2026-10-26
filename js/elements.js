@@ -24,7 +24,7 @@ const ELEMENTS = [
   },
   {
     id: 'fire', name: 'Ember', color: '#ffb347', deep: '#ff5a1f', price: 60,
-    blurb: 'Fireballs, blazing dashes and eruptions that leave foes burning.',
+    blurb: 'Fireballs, blazing dashes and pillars of flame that march across the ground.',
     moves: [
       { slot: 'main', id: 'fireball', name: 'Fireball', type: 'ranged', icon: 'fireball', kind: 'projectile', pose: 'cast',
         desc: 'Throw a fireball that bursts and burns.', cd: 0.5, windup: 0.08, active: 0.05, recover: 0.16,
@@ -33,9 +33,9 @@ const ELEMENTS = [
       { slot: 'p1', id: 'flame_dash', name: 'Flame Dash', type: 'power', icon: 'dash', kind: 'dash', pose: 'dash',
         desc: 'Rocket forward in flames, scorching everything you pass.', cd: 4.5, windup: 0.04, active: 0.24, recover: 0.12,
         speed: 1350, dmg: 14, knock: 520, lift: 0.5, burn: { dps: 6, dur: 2.5 }, invuln: false, style: 'fire' },
-      { slot: 'p2', id: 'eruption', name: 'Eruption', type: 'power', icon: 'burst', kind: 'nova', pose: 'nova',
-        desc: 'Detonate around you, launching foes skyward.', cd: 9, windup: 0.22, active: 0.1, recover: 0.25,
-        radius: 175, dmg: 22, knock: 900, lift: 1, burn: { dps: 6, dur: 3 }, style: 'fire' },
+      { slot: 'p2', id: 'pillars', name: 'Fire Pillars', type: 'power', icon: 'pillars', kind: 'pillars', pose: 'heavy',
+        desc: 'Four flame pillars burst from the ground one after another, marching forward.', cd: 8, windup: 0.2, active: 0.1, recover: 0.25,
+        n: 4, gap: 120, delay: 0.13, radius: 58, dmg: 13, knock: 420, lift: 1.4, burn: { dps: 6, dur: 3 } },
     ],
   },
   {
@@ -116,14 +116,14 @@ const ELEMENTS = [
   },
   {
     id: 'steel', name: 'Steel', color: '#cfd6e0', deep: '#6d7a8c', price: 320,
-    blurb: 'Wide blade arcs, an iron skin and saw discs that shred through crowds.',
+    blurb: 'Wide blade arcs, a magnet that drags foes in and buzzing saw discs.',
     moves: [
       { slot: 'main', id: 'blade_arc', name: 'Blade Arc', type: 'melee', icon: 'blade', kind: 'melee', pose: 'swing',
         desc: 'A wide, heavy sweep that cuts everything in front of you.', cd: 0.55, windup: 0.1, active: 0.14, recover: 0.18,
         reach: 110, radius: 26, dmg: 15, knock: 540, lift: 0.3, style: 'steel' },
-      { slot: 'p1', id: 'iron_skin', name: 'Iron Skin', type: 'power', icon: 'shield', kind: 'shield', pose: 'raise',
-        desc: 'Harden into steel and absorb 70 damage for 4 seconds.', cd: 11, windup: 0.08, active: 0.1, recover: 0.1,
-        absorb: 70, dur: 4, heal: 0 },
+      { slot: 'p1', id: 'magnetize', name: 'Magnetize', type: 'power', icon: 'magnet', kind: 'pull', pose: 'channel',
+        desc: 'Yank every nearby foe toward you, setting up a blade combo.', cd: 8, windup: 0.18, active: 0.1, recover: 0.2,
+        radius: 420, dmg: 6, pullV: 950, stun: 0.35 },
       { slot: 'p2', id: 'saw_disc', name: 'Saw Disc', type: 'power', icon: 'saw', kind: 'projectile', pose: 'cast',
         desc: 'Throw a spinning disc that grinds through every foe it passes.', cd: 6, windup: 0.12, active: 0.05, recover: 0.18,
         speed: 900, grav: 0, radius: 22, dmg: 7, tick: 0.12, pierce: true, life: 1.1, knock: 220, lift: 0.2, style: 'saw' },
@@ -131,7 +131,7 @@ const ELEMENTS = [
   },
   {
     id: 'venom', name: 'Venom', color: '#a6e35b', deep: '#4f8a23', price: 380,
-    blurb: 'Poison that eats away at foes, choking clouds and a striking lunge.',
+    blurb: 'Poison spit, choking clouds and a swarm of plague flies.',
     moves: [
       { slot: 'main', id: 'venom_spit', name: 'Venom Spit', type: 'ranged', icon: 'spit', kind: 'projectile', pose: 'cast',
         desc: 'Spit a glob of venom that poisons whoever it hits.', cd: 0.5, windup: 0.07, active: 0.05, recover: 0.16,
@@ -139,21 +139,21 @@ const ELEMENTS = [
       { slot: 'p1', id: 'toxic_cloud', name: 'Toxic Cloud', type: 'power', icon: 'cloud', kind: 'zone', pose: 'raise',
         desc: 'Release a cloud of poison at your aim that lingers.', cd: 8, windup: 0.18, active: 0.1, recover: 0.2,
         range: 600, zone: { r: 150, dur: 3.6, dps: 14, style: 'toxic' } },
-      { slot: 'p2', id: 'viper_lunge', name: 'Viper Lunge', type: 'power', icon: 'dash', kind: 'dash', pose: 'dash',
-        desc: 'Lunge forward fangs-first, poisoning everything you strike.', cd: 4.5, windup: 0.04, active: 0.22, recover: 0.12,
-        speed: 1500, dmg: 14, knock: 480, lift: 0.4, poison: { dps: 7, dur: 3 }, style: 'venom' },
+      { slot: 'p2', id: 'swarm', name: 'Plague Swarm', type: 'power', icon: 'swarm', kind: 'projectile', pose: 'cast',
+        desc: 'Release five plague flies that hunt down separate foes and poison them.', cd: 8, windup: 0.12, active: 0.05, recover: 0.2,
+        count: 5, spread: 0.5, speed: 520, grav: 0, radius: 9, dmg: 4, knock: 120, lift: 0.1, homing: 5, spreadTargets: true, life: 3, poison: { dps: 5, dur: 3 }, style: 'fly' },
     ],
   },
   {
     id: 'arcane', name: 'Arcane', color: '#ff8ad8', deep: '#b0369a', price: 520,
-    blurb: 'Seeking star bolts, a starburst blast and meteors called from the sky.',
+    blurb: 'Homing star bolts, stars that orbit you and meteors from the sky.',
     moves: [
       { slot: 'main', id: 'star_bolt', name: 'Star Bolts', type: 'ranged', icon: 'star', kind: 'projectile', pose: 'cast',
         desc: 'Two quick star bolts that curve toward the nearest foe.', cd: 0.5, windup: 0.06, active: 0.05, recover: 0.15,
         speed: 1250, grav: 0, radius: 10, dmg: 7, count: 2, spread: 0.1, homing: 1.8, life: 1.4, knock: 240, lift: 0.2, style: 'star' },
-      { slot: 'p1', id: 'starburst', name: 'Starburst', type: 'power', icon: 'burst', kind: 'nova', pose: 'nova',
-        desc: 'Explode in a ring of starlight that launches foes away.', cd: 8, windup: 0.18, active: 0.1, recover: 0.22,
-        radius: 190, dmg: 18, knock: 820, lift: 0.9, style: 'arcane' },
+      { slot: 'p1', id: 'orbit', name: 'Orbiting Stars', type: 'power', icon: 'orbit', kind: 'orbit', pose: 'raise',
+        desc: 'Three stars circle you for 5 seconds, striking anything they pass through.', cd: 10, windup: 0.12, active: 0.1, recover: 0.15,
+        n: 3, dur: 5, orbitR: 78, dmg: 6, tick: 0.45, knock: 300, lift: 0.3 },
       { slot: 'p2', id: 'meteor', name: 'Meteor Fall', type: 'power', icon: 'meteor', kind: 'strike', pose: 'raise',
         desc: 'Mark up to three foes and crush them with falling meteors.', cd: 11, windup: 0.3, active: 0.1, recover: 0.25,
         targets: 3, delay: 0.22, dmg: 28, knock: 700, lift: 0.7, style: 'meteor' },
@@ -176,7 +176,7 @@ const ELEMENTS = [
   },
   {
     id: 'light', name: 'Radiance', color: '#fff3b0', deep: '#f2b41c', price: 600,
-    blurb: 'Blinding blade combos, a searing beam and judgment from the sky.',
+    blurb: 'Blinding blade combos, a searing beam and a halo that returns to your hand.',
     moves: [
       { slot: 'main', id: 'radiant_blade', name: 'Radiant Blade', type: 'melee', icon: 'blade', kind: 'melee', pose: 'swing',
         desc: 'Fast blade combo. Every third slash hits much harder.', cd: 0.3, windup: 0.05, active: 0.1, recover: 0.1,
@@ -184,15 +184,63 @@ const ELEMENTS = [
       { slot: 'p1', id: 'sunbeam', name: 'Sunbeam', type: 'power', icon: 'beam', kind: 'beam', pose: 'channel',
         desc: 'Channel a searing beam that pushes foes away.', cd: 8, windup: 0.15, active: 1.0, recover: 0.2,
         dps: 42, push: 1100, length: 1000, width: 22, style: 'light' },
-      { slot: 'p2', id: 'judgment', name: 'Judgment', type: 'power', icon: 'sun', kind: 'strike', pose: 'raise',
-        desc: 'Sunbeams crash down on up to six foes.', cd: 12, windup: 0.3, active: 0.1, recover: 0.25,
-        targets: 6, delay: 0.1, dmg: 24, knock: 520, lift: 1, style: 'sun' },
+      { slot: 'p2', id: 'halo', name: 'Halo', type: 'power', icon: 'halo', kind: 'projectile', pose: 'cast',
+        desc: 'Throw a ring of light that slices through foes and returns to you.', cd: 6, windup: 0.1, active: 0.05, recover: 0.15,
+        speed: 1050, grav: 0, radius: 30, dmg: 11, knock: 360, lift: 0.3, pierce: true, tick: 0.3, boomerang: 0.42, ghost: true, life: 2.2, style: 'halo' },
+    ],
+  },
+  {
+    id: 'crystal', name: 'Crystal', color: '#9ff0e8', deep: '#2fb0a8', price: 680,
+    blurb: 'Ricocheting shards, a prism wall that turns shots around and hidden geode mines.',
+    moves: [
+      { slot: 'main', id: 'crystal_shot', name: 'Crystal Shot', type: 'ranged', icon: 'crystal', kind: 'projectile', pose: 'cast',
+        desc: 'A shard that ricochets off islands up to twice.', cd: 0.42, windup: 0.06, active: 0.05, recover: 0.12,
+        speed: 1150, grav: 300, radius: 10, dmg: 10, knock: 300, lift: 0.25, bounce: 2, life: 1.8, style: 'crystal' },
+      { slot: 'p1', id: 'prism', name: 'Prism Wall', type: 'power', icon: 'prism', kind: 'wall', pose: 'raise',
+        desc: 'Raise a crystal wall in front of you. Enemy shots that hit it fly back at them.', cd: 9, windup: 0.15, active: 0.1, recover: 0.2,
+        dur: 4, wallH: 170, dist: 90 },
+      { slot: 'p2', id: 'geode', name: 'Geode Mines', type: 'power', icon: 'mine', kind: 'mines', pose: 'cast',
+        desc: 'Scatter three geodes that arm after a moment and burst when a foe comes close.', cd: 10, windup: 0.12, active: 0.05, recover: 0.2,
+        n: 3, spreadX: 110, radius: 110, dmg: 18, knock: 700, lift: 0.9, dur: 10 },
+    ],
+  },
+  {
+    id: 'gravity', name: 'Gravity', color: '#b9a6ff', deep: '#5b45c9', price: 760,
+    blurb: 'Hook foes in, float them helplessly, then crush them into the ground.',
+    moves: [
+      { slot: 'main', id: 'grav_hook', name: 'Gravity Hook', type: 'ranged', icon: 'hook', kind: 'projectile', pose: 'cast',
+        desc: 'Fire a hook that drags the foe it catches back to you.', cd: 0.75, windup: 0.08, active: 0.05, recover: 0.15,
+        speed: 1300, grav: 0, radius: 12, dmg: 8, knock: 0, lift: 0, hook: 820, life: 0.55, style: 'hook' },
+      { slot: 'p1', id: 'antigrav', name: 'Anti-Grav Field', type: 'power', icon: 'antigrav', kind: 'zone', pose: 'raise',
+        desc: 'Open a field at your aim where foes float up, helpless.', cd: 9, windup: 0.2, active: 0.1, recover: 0.2,
+        range: 650, zone: { r: 170, dur: 3, dps: 6, style: 'antigrav' } },
+      { slot: 'p2', id: 'collapse', name: 'Collapse', type: 'power', icon: 'crush', kind: 'crush', pose: 'heavy',
+        desc: 'Slam every airborne foe nearby into the ground. Grounded foes are stunned.', cd: 8, windup: 0.22, active: 0.1, recover: 0.25,
+        radius: 700, dmg: 10, airDmg: 22, slamV: 1900, stun: 0.6 },
+    ],
+  },
+  {
+    id: 'echo', name: 'Echo', color: '#ffc6a8', deep: '#e0734a', price: 840,
+    blurb: 'Sound that passes through everything, resonance that stuns and time that rewinds.',
+    moves: [
+      { slot: 'main', id: 'sonic', name: 'Sonic Clap', type: 'ranged', icon: 'sonic', kind: 'projectile', pose: 'punch',
+        desc: 'A widening sound wave that passes through foes and walls.', cd: 0.55, windup: 0.06, active: 0.05, recover: 0.14,
+        speed: 820, grav: 0, radius: 16, grow: 70, dmg: 8, knock: 420, lift: 0.3, pierce: true, ghost: true, life: 0.75, style: 'sonic' },
+      { slot: 'p1', id: 'resonance', name: 'Resonance', type: 'power', icon: 'resonance', kind: 'resonance', pose: 'channel',
+        desc: 'Tag every foe in range. A moment later they shatter with sound and are stunned.', cd: 10, windup: 0.15, active: 0.1, recover: 0.2,
+        radius: 560, delay: 0.75, dmg: 14, knock: 260, lift: 0.4, shock: 1.1 },
+      { slot: 'p2', id: 'rewind', name: 'Rewind', type: 'power', icon: 'rewind', kind: 'rewind', pose: 'raise',
+        desc: 'Snap back to where you were 1.5 seconds ago, shaking off ailments. Saves you from falls.', cd: 12, windup: 0.05, active: 0.05, recover: 0.1,
+        back: 1.5, heal: 0.08 },
     ],
   },
 ];
 const ELEMENT_BY_ID = Object.fromEntries(ELEMENTS.map(e => [e.id, e]));
 
 /* plain brawlers and basic enemy strikes */
+// listed cheapest first everywhere (codex, loadout picker)
+ELEMENTS.sort((a, b) => a.price - b.price);
+
 const NEUTRAL = { id: 'none', name: 'Brawler', color: '#ece6da', deep: '#9a9184' };
 const ENEMY_PUNCH = {
   id: 'punch', name: 'Strike', type: 'melee', kind: 'melee', pose: 'punch', icon: 'fist',
@@ -225,7 +273,7 @@ function affinityMul(enemyEl, atkEl) {
 }
 
 const AURA = {
-  none: '#e6e1d6', steel: '#cfd6e0', venom: '#a6e35b', arcane: '#ff8ad8', wind: '#bdf3e4', fire: '#ff8a3d', water: '#7cc8ff', earth: '#e0b98f',
+  none: '#e6e1d6', crystal: '#9ff0e8', gravity: '#b9a6ff', echo: '#ffc6a8', steel: '#cfd6e0', venom: '#a6e35b', arcane: '#ff8ad8', wind: '#bdf3e4', fire: '#ff8a3d', water: '#7cc8ff', earth: '#e0b98f',
   frost: '#9fe6ff', lightning: '#fff27a', nature: '#9ae66e', void: '#c08bff', light: '#fff3b0',
 };
 
@@ -245,6 +293,9 @@ const ICON_PATHS = {
   steel: '<path d="M12 2.5 19 6v6c0 4.6-3 8-7 9.5C8 20 5 16.6 5 12V6z" fill="currentColor"/><path d="M12 6v12M8.5 9.5h7" stroke="rgba(0,0,0,.35)" stroke-width="1.8"/>',
   venom: '<path d="M12 2.5C9 7 6.5 10.3 6.5 14a5.5 5.5 0 0 0 11 0c0-3.7-2.5-7-5.5-11.5z" fill="currentColor"/><circle cx="10" cy="14.5" r="1.6" fill="rgba(0,0,0,.35)"/><circle cx="13.6" cy="16.6" r="1.1" fill="rgba(0,0,0,.35)"/>',
   arcane: '<path d="m12 2 2.3 7.7L22 12l-7.7 2.3L12 22l-2.3-7.7L2 12l7.7-2.3z" fill="currentColor"/>',
+  crystal: '<path d="M12 2 18.5 8 12 22 5.5 8z" fill="currentColor"/><path d="M5.5 8h13M12 2 9.5 8 12 22l2.5-14L12 2" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.3"/>',
+  gravity: '<circle cx="12" cy="12" r="4.2" fill="currentColor"/><ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-25 12 12)"/>',
+  echo: '<path d="M4 9.5v5M8 7v10M12 4.5v15M16 7v10M20 9.5v5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
   none: '<path d="M7 10.5V7a1.5 1.5 0 0 1 3 0v3M10 10V5.5a1.5 1.5 0 0 1 3 0V10M13 10V6.5a1.5 1.5 0 0 1 3 0v5M7 10.5a1.5 1.5 0 0 0-3 0V13a7 7 0 0 0 7 7h1a6 6 0 0 0 6-6v-2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 };
 

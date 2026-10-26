@@ -4,22 +4,22 @@
 Elementfall
 
 ## Short description (one line)
-A ragdoll brawler on floating islands. Wield 12 elements and knock every foe into the void.
+A ragdoll brawler on floating islands. Wield 15 elements and knock every foe into the void.
 
 ## Description
 Elementfall is a physics ragdoll brawler set across seven elemental realms of floating islands. Every fighter is an active ragdoll, so bodies wobble and flinch, and big hits send them tumbling. Knock enemies off the edge for an instant ring-out. Watch your own footing, though, because falling into the void ends your run.
 
-Each element gives you a main attack plus two element powers. Gale's Updraft launches foes skyward, Ember's Flame Dash burns through crowds, Tide's Tidal Wave sweeps fighters off the edge, and Rime's Frost Nova freezes everything nearby. Earn gems in battle to unlock new elements, from Stone and Storm to Steel, Venom, Void, Arcane and Radiance. Equip up to three at once and swap between them mid-combo.
+Each element gives you a main attack plus two element powers. Gale's Updraft launches foes skyward, Ember's Flame Dash burns through crowds, Tide's Tidal Wave sweeps fighters off the edge, and Rime's Frost Nova freezes everything nearby. Earn gems in battle to unlock new elements, from Stone and Storm to Void, Radiance, Crystal, Gravity and Echo: ricochet shards, prism walls that reflect shots, anti-gravity fields and a rewind that pulls you back from a fall. Equip up to three at once and swap between them mid-combo.
 
 Fight through 56 stages in 7 realms, each ending in an elemental boss. Upgrade your fighter in the forge, chase three stars on every stage, then test yourself in Endless mode.
 
 **Features**
 - Active ragdoll physics with knockback, tumbles and ring-outs
-- 12 elements, each with 36 unique moves
+- 15 elements, each with its own main attack and two unique powers (45 moves)
 - 56 campaign stages across 7 realms, with 7 bosses
 - Elemental weaknesses and combos (shatter frozen foes, shock soaked ones)
 - Endless mode with rotating realms and champion waves
-- Permanent upgrades, star ratings and a short, visual, skippable tutorial that starts in gameplay
+- Permanent upgrades, star ratings, a short visual tutorial and a Testing ground to try every element
 - Full desktop and mobile touch controls
 
 ## Controls
