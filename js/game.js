@@ -672,14 +672,20 @@ const Game = (() => {
     if (t.invuln > 0) return;
     const enemyTarget = t.team === 'enemy';
     let dmg = o.dmg;
-    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * 0.72 : 1;   // enemy hit scaling (tuned)
+    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * (att.kind === 'boss' ? 0.5 : 0.66) : 1;   // enemy hit scaling (bosses much gentler)
     let mul = 1, tag = null;
     if (enemyTarget) mul = affinityMul(t.el, o.el);
     dmg *= mul;
     if (o.head && !o.quiet) dmg *= t.kind === 'boss' || t.kind === 'brute' ? 1.15 : 1.35;
     const mv = o.mv || {};
     if (mv.shatter && t.status.freeze > 0) { dmg *= mv.shatter; t.status.freeze = 0; tag = 'SHATTER'; fx.chunks(o.px, o.py, '#d8f6ff', 18, 460, 9); Sfx.freeze(); }
-    if (o.el === 'lightning' && t.status.soak > 0) { dmg *= 1.6; tag = tag || 'OVERLOAD'; }
+    for (const cb of COMBOS) {
+      if (!cb.when(t.status, o.el)) continue;
+      dmg *= cb.mul; tag = tag || cb.name.toUpperCase();
+      if (cb.knock) o = Object.assign({}, o, { knock: o.knock * cb.knock });
+      if (cb.clear) { t.status[cb.clear] = 0; fx.chunks(o.px, o.py, '#d8f6ff', 18, 460, 9); Sfx.freeze(); }
+      break;
+    }
     if (t.isPlayer) dmg *= pStats.armor;
     if (t.shield > 0) {
       const ab = Math.min(t.shield, dmg);
@@ -1336,8 +1342,7 @@ const Game = (() => {
     if (e.action) { e.input.x = 0; return; }
     if (ai.boss) {
       const ratio = e.hp / e.maxHp;
-      if (ratio < 0.66 && ai.summoned === 0) { ai.summoned = 1; summon(e, 1); }
-      else if (ratio < 0.33 && ai.summoned === 1) { ai.summoned = 2; summon(e, 2); }
+      if (ratio < 0.5 && ai.summoned === 0) { ai.summoned = 1; summon(e, 1); }
     }
     ai.thinkT -= dt;
     if (ai.thinkT > 0) return;
@@ -1355,7 +1360,7 @@ const Game = (() => {
 
     if (kit.melee && ready(kit.melee) && dd < (kit.melee.reach + 34) * e.s && Math.abs(dy) < 110) { tryMove(e, kit.melee, pc.x, pc.y); return; }
     for (const pw of kit.powers) {
-      if (!ready(pw) || Math.random() > 0.8) continue;
+      if (!ready(pw) || Math.random() > (e.kind === 'boss' ? 0.45 : 0.8)) continue;
       const k = pw.kind;
       const ok = (k === 'nova' || k === 'updraft') ? dd < (pw.radius || 140) * 0.9
         : k === 'heal' ? e.hp < e.maxHp * 0.5

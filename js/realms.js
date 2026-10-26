@@ -83,14 +83,14 @@ const ENEMY_TYPES = {
   grunt:  { hp: 1, dmg: 1, cd: 1, scale: 1, weight: 1, speed: 250, label: 'Warrior' },
   caster: { hp: 0.8, dmg: 1.1, cd: 0.9, scale: 0.95, weight: 0.85, speed: 230, label: 'Caster' },
   brute:  { hp: 2.3, dmg: 1.5, cd: 1.3, scale: 1.25, weight: 2, speed: 190, label: 'Brute' },
-  boss:   { hp: 1, dmg: 1.25, cd: 0.8, scale: 1.75, weight: 3.2, speed: 210, label: 'Boss' },
+  boss:   { hp: 1, dmg: 1, cd: 1.25, scale: 1.75, weight: 3.2, speed: 200, label: 'Boss' },
 };
 
 /* stat curve shared by campaign and endless; d runs 0..1 (and past 1 in endless) */
 function enemyStats(type, d) {
   const t = ENEMY_TYPES[type];
   return {
-    hp: Math.round(40 * (1 + d * 2.6) * t.hp),
+    hp: Math.round(37 * (1 + d * 2.6) * t.hp),
     dmgMul: (0.75 + d * 1.3) * t.dmg,
     cdMul: lerp(1.3, 0.8, Math.min(d, 1.2)) * t.cd,
     think: lerp(0.32, 0.12, Math.min(d, 1.2)),
@@ -121,8 +121,8 @@ function buildStage(r, s) {
   const mix = r === REALMS.length - 1 ? 0.3 : 0;
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
-    waves.push([0, 1].map(() => ({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: 10 + r * 1.8 }]);
+    waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: 6 + r * 1.1 }]);
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];

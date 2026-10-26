@@ -89,13 +89,13 @@ const ELEMENTS = [
     moves: [
       { slot: 'main', id: 'shock_bolt', name: 'Shock Bolt', type: 'ranged', icon: 'bolt', kind: 'projectile', pose: 'cast',
         desc: 'A near-instant bolt that arcs to a second foe.', cd: 0.45, windup: 0.05, active: 0.05, recover: 0.14,
-        speed: 2600, grav: 0, radius: 10, dmg: 10, knock: 260, lift: 0.2, chain: { n: 1, r: 280, mul: 0.7 }, shock: 0.2, life: 0.5, style: 'bolt' },
+        speed: 2600, grav: 0, radius: 10, dmg: 13, knock: 260, lift: 0.2, chain: { n: 1, r: 280, mul: 0.7 }, shock: 0.2, life: 0.5, style: 'bolt' },
       { slot: 'p1', id: 'blink', name: 'Blink Strike', type: 'power', icon: 'blink', kind: 'blink', pose: 'nova',
         desc: 'Teleport toward your aim and discharge on arrival.', cd: 5, windup: 0.05, active: 0.1, recover: 0.15,
-        range: 380, radius: 115, dmg: 16, knock: 600, lift: 0.5, shock: 0.5, style: 'storm' },
+        range: 380, radius: 115, dmg: 21, knock: 600, lift: 0.5, shock: 0.5, style: 'storm' },
       { slot: 'p2', id: 'thunderstorm', name: 'Thunderstorm', type: 'power', icon: 'storm', kind: 'strike', pose: 'raise',
         desc: 'Call lightning down on up to four foes.', cd: 10, windup: 0.25, active: 0.1, recover: 0.2,
-        targets: 4, delay: 0.14, dmg: 22, knock: 480, lift: 0.8, shock: 0.7, style: 'bolt' },
+        targets: 4, delay: 0.14, dmg: 29, knock: 480, lift: 0.8, shock: 0.7, style: 'bolt' },
     ],
   },
   {
@@ -262,6 +262,23 @@ const AFFINITY = {
   water:     { weak: ['lightning', 'nature'], resist: ['water', 'fire', 'frost'] },
   venom:     { weak: ['fire', 'arcane'], resist: ['venom', 'nature', 'water'] },
 };
+/* element combos: set a foe up with one element, then hit it with the partner.
+   a: element(s) that apply the setup status; b: element that cashes it in. */
+const COMBOS = [
+  { id: 'shatter', name: 'Shatter', a: ['frost'], b: 'earth', mul: 2, clear: 'freeze',
+    desc: 'Freeze a foe with Rime, then smash it with Stone for double damage.', when: (st, el) => el === 'earth' && st.freeze > 0 },
+  { id: 'overload', name: 'Overload', a: ['water'], b: 'lightning', mul: 1.6,
+    desc: 'Soak foes with Tide and every Storm hit deals +60%.', when: (st, el) => el === 'lightning' && st.soak > 0 },
+  { id: 'wildfire', name: 'Wildfire', a: ['nature'], b: 'fire', mul: 1.5,
+    desc: 'Foes tangled in Thorn roots go up in flames: Ember deals +50%.', when: (st, el) => el === 'fire' && st.root > 0 },
+  { id: 'ignite', name: 'Ignite', a: ['venom'], b: 'fire', mul: 1.5,
+    desc: 'Poisoned foes catch fire easily: Ember deals +50%.', when: (st, el) => el === 'fire' && st.poison > 0 },
+  { id: 'firestorm', name: 'Firestorm', a: ['fire'], b: 'wind', mul: 1.4, knock: 1.3,
+    desc: 'Gale fans the flames: burning foes take +40% and fly further.', when: (st, el) => el === 'wind' && st.burn > 0 },
+  { id: 'resonate', name: 'Resonate', a: ['lightning', 'echo'], b: 'steel', mul: 1.5,
+    desc: 'Foes stunned by Storm or Echo ring like a bell: Steel deals +50%.', when: (st, el) => el === 'steel' && st.shock > 0 },
+];
+
 const WEAK_MUL = 1.6;
 const RESIST_MUL = 0.55;
 

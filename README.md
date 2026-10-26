@@ -28,7 +28,7 @@ To play, serve the folder (for example `python3 -m http.server`) and open `index
 | Gravity | Gravity Hook (reels a foe in) | Anti-Grav Field: foes float helplessly | Collapse: slams airborne foes down, stuns the rest | 760 |
 | Echo | Sonic Clap (widening wave through everything) | Resonance: tag foes, then stun them | Rewind: snap back 1.5s, even out of a fall | 840 |
 
-Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Combos between elements work too: frozen foes shatter under Stone or Ice Lance, and soaked foes take extra Storm damage.
+Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements also combo (shown in the Elements menu): **Shatter** (Rime freeze, then Stone for double damage), **Overload** (Tide soak, then Storm +60%), **Wildfire** (Thorn roots, then Ember +50%), **Ignite** (Venom poison, then Ember +50%), **Firestorm** (Ember burn, then Gale +40% and extra knockback) and **Resonate** (Storm or Echo stun, then Steel +50%). Ice Lance also shatters frozen foes.
 
 ## Campaign and progression
 

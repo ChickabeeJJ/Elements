@@ -210,7 +210,16 @@ const UI = (() => {
             <div><h4>${mv.name.toUpperCase()}</h4><div class="tags"><span>${i === 0 ? 'MAIN' : 'POWER'}</span>${mv.type === 'melee' ? '<span class="melee">MELEE</span>' : mv.type === 'ranged' ? '<span class="ranged">RANGED</span>' : ''}</div></div></div>
           <p>${mv.desc}</p>
           <div class="meta">${mv.dmg ? `<span>${mv.dmg}${mv.count ? '×' + mv.count : ''} DMG</span>` : ''}<span>${mv.cd}S</span><kbd>${KEYS[i]}</kbd></div>
-        </div>`).join('')}</div>`;
+        </div>`).join('')}</div>
+      ${(() => {
+        const mine = COMBOS.filter(cb => cb.b === e.id || cb.a.includes(e.id));
+        if (!mine.length) return '';
+        return `<div class="combos"><h4>COMBOS</h4>${mine.map(cb => `
+          <div class="combo-card">
+            <div class="pair">${cb.a.map(id => hex(id)).join('<span class="or">/</span>')}<span class="plus">+</span>${hex(cb.b)}</div>
+            <div><b>${cb.name.toUpperCase()}</b><p>${cb.desc}</p></div>
+          </div>`).join('')}</div>`;
+      })()}`;
     Icons.hydrate(det);
     const buy = det.querySelector('#buyEl');
     if (buy) buy.onclick = () => {
