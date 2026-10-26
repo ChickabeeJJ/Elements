@@ -20,7 +20,19 @@ const UI = (() => {
   const colorOf = id => (ELEMENT_BY_ID[id] || NEUTRAL).color;
   const hex = (id, cls = '') => `<span class="hex ${cls}" style="--c:${colorOf(id)}">${elementIcon(id)}</span>`;
   const NAME = id => (ELEMENT_BY_ID[id] || NEUTRAL).name.toUpperCase();
+  // key labels follow the player's keyboard layout (AZERTY shows Z/Q/S/D, etc.)
+  const keyNames = { KeyW: 'W', KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyQ: 'Q', KeyE: 'E', KeyP: 'P' };
+  const key = code => keyNames[code] || code;
   const KEYS = ['CLICK', 'Q', 'E'];
+  async function loadKeyLayout() {
+    try {
+      const map = await navigator.keyboard.getLayoutMap();
+      for (const c of Object.keys(keyNames)) { const v = map.get(c); if (v && /^\S$/.test(v)) keyNames[c] = v.toUpperCase(); }
+      KEYS[1] = key('KeyQ'); KEYS[2] = key('KeyE');
+      document.querySelector('.orb-p1 kbd').textContent = KEYS[1];
+      document.querySelector('.orb-p2 kbd').textContent = KEYS[2];
+    } catch (e) { /* layout API not available: keep QWERTY labels */ }
+  }
   const TIPS = [
     'Knock foes off the islands for an instant ring-out. Hurt foes fly further.',
     'Hitting an elemental weakness deals 160% damage.',
@@ -249,11 +261,12 @@ const UI = (() => {
       <h2>SETTINGS</h2>
       <div class="toggles">${rows.map(([k, label]) => `<button class="toggle${st[k] ? ' on' : ''}" data-k="${k}">${label}<span class="sw"></span></button>`).join('')}</div>
       ${document.body.classList.contains('touch') ? '' : `<div class="keys">
-        <span><kbd>A</kbd><kbd>D</kbd></span><span>Move, <kbd>S</kbd> to drop through</span>
-        <span><kbd>W</kbd><kbd>SPACE</kbd></span><span>Jump, again in the air</span>
+        <span><kbd>${key('KeyA')}</kbd><kbd>${key('KeyD')}</kbd></span><span>Move, <kbd>${key('KeyS')}</kbd> to drop through</span>
+        <span><kbd>${key('KeyW')}</kbd><kbd>SPACE</kbd></span><span>Jump, again in the air</span>
         <span><kbd>CLICK</kbd></span><span>Main attack toward the cursor</span>
-        <span><kbd>Q</kbd><kbd>E</kbd></span><span>Element powers</span>
+        <span><kbd>${KEYS[1]}</kbd><kbd>${KEYS[2]}</kbd></span><span>Element powers</span>
         <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span><span>Swap element</span>
+        <span><kbd>${key('KeyP')}</kbd></span><span>Pause</span>
       </div>`}
       <div class="actions"><button class="btn primary" id="setBack"><b>${fromPause ? 'BACK' : 'DONE'}</b></button><button class="btn danger" id="setReset"><b>RESET</b></button></div>`, s => {
       s.querySelectorAll('.toggle').forEach(t => t.onclick = () => {
@@ -405,14 +418,21 @@ const UI = (() => {
     banner('ENDLESS');
   }
   /* ----------------------------------------------------------- tutorial */
+  /* ---------------------------------------------------------- tutorial */
+  // one action per step, shown as a picture of the input (keycaps / mouse on desktop,
+  // the real on-screen button pulsing on touch) plus a two- or three-word label
+  const cap = k => `<span class="cap${k.length > 2 ? ' wide' : ''}">${k}</span>`;
+  const MOUSE = '<svg class="mouse" viewBox="0 0 26 36"><rect x="2" y="2" width="22" height="32" rx="11" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M13 2.6V15H2.6v-2A10.4 10.4 0 0 1 13 2.6z" fill="var(--teal)"/><path d="M13 3v12M2.5 15h21" stroke="currentColor" stroke-width="2"/></svg>';
+  const GOAL = '<svg class="goal" viewBox="0 0 96 44"><g fill="#8fd46b"><rect x="2" y="22" width="9" height="9"/><rect x="12" y="22" width="9" height="9"/><rect x="22" y="22" width="9" height="9"/><rect x="32" y="22" width="9" height="9"/></g><g fill="#6b5848"><rect x="12" y="32" width="9" height="9"/><rect x="22" y="32" width="9" height="9"/></g><g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"><circle cx="14" cy="5" r="3.2" fill="#fff"/><path d="M14 8v7M14 15l-3 6M14 15l3 6M14 11l6-2"/></g><g stroke="#ff5a6a" stroke-width="3" stroke-linecap="round" fill="none"><circle cx="58" cy="14" r="3.2" fill="#ff5a6a"/><path d="M56 17l-4 6M52 23l-5 3M52 23l1 6M55 19l5-4"/></g><path d="M66 20q10 6 8 20" stroke="#fff" stroke-width="2.4" fill="none" stroke-dasharray="3 3"/><path d="M69 37l5 5 4-6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>';
+  const JOY = '<svg class="joyv" viewBox="0 0 64 44"><circle cx="32" cy="22" r="19" fill="rgba(255,255,255,.08)" stroke="currentColor" stroke-width="2.4"/><circle class="k" cx="32" cy="22" r="9" fill="var(--teal)"/><path d="M8 22H2m4-4-4 4 4 4M56 22h6m-4-4 4 4-4 4" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const TUT = [
-    { text: 'MOVE LEFT AND RIGHT', touch: 'DRAG ON THE LEFT TO MOVE', done: t => t.moved > 260 },
-    { text: 'JUMP · PRESS SPACE TWICE TO DOUBLE JUMP', touch: 'TAP THE ARROW TO JUMP', done: t => t.jumped >= 2 },
-    { text: 'CLICK TO ATTACK THE DUMMY', touch: 'TAP THE BIG ORB TO ATTACK', done: t => t.hits >= 3 },
-    { text: 'USE A POWER WITH Q OR E', touch: 'TAP A SMALL ORB FOR A POWER', done: t => t.powers >= 1 },
-    { text: 'KNOCK FOES OFF THE ISLANDS · NEVER FALL YOURSELF', touch: 'KNOCK FOES OFF THE ISLANDS · NEVER FALL YOURSELF', done: (t, dt) => (t.last = (t.last || 0) + dt) > 3.2 },
+    { label: 'MOVE', key: () => cap(key('KeyA')) + cap(key('KeyD')), touchKey: () => JOY, focus: '.joy', done: t => t.moved > 260 },
+    { label: 'DOUBLE JUMP', key: () => cap('SPACE') + cap('SPACE'), focus: '.orb-jump', icon: 'up', done: t => t.jumped >= 2 },
+    { label: 'HIT THE DUMMY', key: () => MOUSE, focus: '.orb-main', icon: 'palm', count: t => `${Math.min(3, t.hits)}/3`, done: t => t.hits >= 3 },
+    { label: 'USE A POWER', key: () => cap(KEYS[1]) + cap(KEYS[2]), focus: '.orb-p1, .orb-p2', icon: 'burst', done: t => t.powers >= 1 },
+    { label: 'KNOCK FOES OFF · DON’T FALL', key: () => GOAL, touchKey: () => GOAL, done: (t, dt) => (t.last = (t.last || 0) + dt) > 3 },
   ];
-  let tutIdx = 0, tutLast = 0;
+  let tutIdx = 0, tutLast = 0, tutWait = 0;
   function startTutorial() {
     lastStart = { mode: 'tutorial' };
     closeModal(); show(null);
@@ -421,31 +441,50 @@ const UI = (() => {
     buildHud();
     setChip('wind', 'TRAINING');
     $('waveDots').innerHTML = ''; $('chipSub').textContent = 'LEARN THE BASICS';
-    tutIdx = 0; tutLast = performance.now();
-    $('tut').classList.remove('hidden', 'done');
+    tutIdx = 0; tutWait = 0; tutLast = performance.now();
+    $('tutDots').innerHTML = TUT.map(() => '<i></i>').join('');
+    $('tut').classList.remove('hidden', 'done', 'ok');
     $('tutSkip').onclick = () => { Sfx.click(); endTutorial(); };
     renderTut();
   }
   function renderTut() {
     const touch = document.body.classList.contains('touch');
     const step = TUT[Math.min(tutIdx, TUT.length - 1)];
-    $('tutNum').textContent = `${Math.min(tutIdx + 1, TUT.length)}/${TUT.length}`;
-    $('tutText').textContent = touch ? step.touch : step.text;
-    $('tutFill').style.width = (tutIdx / TUT.length * 100) + '%';
+    $('tutVis').innerHTML = touch ? (step.touchKey ? step.touchKey() : `<span class="tut-btn">${Icons.svg(step.icon)}</span>`) : step.key();
+    $('tutText').textContent = step.label;
+    $('tutCount').textContent = '';
+    $('tutDots').querySelectorAll('i').forEach((d, i) => { d.className = i < tutIdx ? 'on' : i === tutIdx ? 'cur' : ''; });
+    document.querySelectorAll('.tut-focus').forEach(el => el.classList.remove('tut-focus'));
+    if (touch && step.focus) document.querySelectorAll(step.focus).forEach(el => el.classList.add('tut-focus'));
   }
   function tutTick() {
     const run = Game.run;
     if (!run || !run.tut) return;
     const now = performance.now(), dt = (now - tutLast) / 1000; tutLast = now;
-    if (tutIdx < TUT.length && TUT[tutIdx].done(run.tut, dt)) {
+    if (tutWait > 0) { tutWait -= dt; if (tutWait <= 0) { $('tut').classList.remove('ok'); renderTut(); } return; }
+    const step = TUT[tutIdx];
+    if (!step) return;
+    if (step.count) $('tutCount').textContent = step.count(run.tut);
+    if (step.done(run.tut, dt)) {
       tutIdx++; Sfx.pickup();
-      if (tutIdx >= TUT.length) { $('tut').classList.add('done'); $('tutText').textContent = 'READY! FIRST BATTLE INCOMING'; $('tutFill').style.width = '100%'; setTimeout(endTutorial, 1400); return; }
-      renderTut();
+      $('tut').classList.add('ok');
+      $('tutDots').querySelectorAll('i').forEach((d, i) => { if (i < tutIdx) d.className = 'on'; });
+      if (tutIdx >= TUT.length) {
+        document.querySelectorAll('.tut-focus').forEach(el => el.classList.remove('tut-focus'));
+        $('tut').classList.add('done');
+        $('tutVis').innerHTML = `<span class="tut-btn go">${Icons.svg('check')}</span>`;
+        $('tutText').textContent = 'READY! FIRST BATTLE';
+        $('tutCount').textContent = '';
+        setTimeout(endTutorial, 1300);
+        return;
+      }
+      tutWait = 0.55;
     }
   }
   function endTutorial() {
     if (lastStart && lastStart.mode !== 'tutorial') return;
     $('tut').classList.add('hidden');
+    document.querySelectorAll('.tut-focus').forEach(el => el.classList.remove('tut-focus'));
     Save.data.tutorialDone = true; Save.data.seenHelp = true; Save.save();
     Game.quit();
     const [r, s] = Save.nextStage();
@@ -589,15 +628,15 @@ const UI = (() => {
       if (e.pointerId !== jp) return;
       const r = joy.getBoundingClientRect();
       let dx = e.clientX - ox, dy = e.clientY - oy;
-      const l = Math.hypot(dx, dy), max = 54;
+      const max = base.offsetWidth * 0.45 || 54, l = Math.hypot(dx, dy);
       if (l > max) { dx = dx / l * max; dy = dy / l * max; }
       knob.style.left = (ox - r.left + dx) + 'px'; knob.style.top = (oy - r.top + dy) + 'px';
-      Game.setJoy(Math.abs(dx) > 10 ? clamp(dx / 42, -1, 1) : 0);
+      Game.setJoy(Math.abs(dx) > max * 0.18 ? clamp(dx / (max * 0.78), -1, 1) : 0);
       // drop-through needs a deliberate, mostly vertical pull
-      if (dy > 48 && Math.abs(dx) < 24 && !dropped) { dropped = true; Game.press('drop'); }
+      if (dy > max * 0.85 && Math.abs(dx) < max * 0.45 && !dropped) { dropped = true; Game.press('drop'); }
       if (dy < 20) dropped = false;
     });
-    const end = e => { if (e.pointerId !== jp) return; jp = null; joy.classList.remove('on'); Game.setJoy(0); };
+    const end = e => { if (e.pointerId !== jp) return; jp = null; joy.classList.remove('on'); Game.setJoy(0); for (const el of [base, knob]) { el.style.left = ''; el.style.top = ''; } };
     joy.addEventListener('pointerup', end);
     joy.addEventListener('pointercancel', end);
 
@@ -631,6 +670,7 @@ const UI = (() => {
   /* -------------------------------------------------------------- init */
   function init() {
     Icons.hydrate();
+    loadKeyLayout();
     if (matchMedia('(pointer: coarse)').matches || /mobile|tablet/.test(Platform.device())) document.body.classList.add('touch');
     $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); startStage(r, s); };
     $('btnEndless').onclick = () => { Sfx.ensure(); Sfx.click(); startEndless(); };
@@ -676,7 +716,7 @@ const UI = (() => {
   }
 
   return {
-    init, tick, show, openPause, resume, toast, checkRotate, modalOpen, closeModal,
+    init, tick, show, openPause, resume, toast, checkRotate, modalOpen, closeModal, startStage,
     get screen() { return current; },
   };
 })();

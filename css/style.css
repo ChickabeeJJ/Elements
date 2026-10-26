@@ -229,18 +229,26 @@ kbd { display: inline-block; font-family: var(--display); font-size: 10px; line-
 .coach { position: absolute; left: 50%; top: 20%; transform: translateX(-50%); max-width: 92vw; }
 .coach p { padding: 10px 20px; border-radius: 999px; background: var(--glass); font-family: var(--display); font-size: 12px; text-align: center; line-height: 1.5; }
 
-/* touch layout */
+/* touch layout: thumb arc around a big attack button, all sized from the viewport */
+body.touch { --ob: clamp(54px, 13.5vh, 76px); --om: clamp(80px, 21vh, 116px); --og: clamp(8px, 2.2vh, 14px); --hx: clamp(40px, 10.5vh, 56px); }
 body.touch .orb-jump { display: grid; }
 body.touch kbd { display: none; }
 body.touch .joy { display: block; }
-body.touch .abilities { display: grid; grid-template-columns: auto auto auto; grid-template-rows: auto auto; gap: 10px; align-items: center; }
-body.touch .orb-main { grid-column: 3; grid-row: 1 / 3; width: 92px; height: 92px; }
-body.touch .orb-p1 { grid-column: 2; grid-row: 1; }
-body.touch .orb-p2 { grid-column: 2; grid-row: 2; }
-body.touch .orb-jump { grid-column: 1; grid-row: 2; }
-body.touch .orb-p1, body.touch .orb-p2, body.touch .orb-jump { width: 58px; height: 58px; }
-body.touch .dock { left: auto; bottom: auto; right: calc(16px + var(--safe-r)); top: calc(66px + var(--safe-t)); padding: 6px 8px; }
-body.touch .dock-slot .hex { width: 40px; height: 35px; }
+body.touch .abilities { display: block; right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); width: calc(var(--om) + var(--og) + var(--ob)); height: calc(var(--om) + var(--og) + var(--ob)); pointer-events: none; }
+body.touch .orb { position: absolute; width: var(--ob); height: var(--ob); pointer-events: auto; background: rgba(24, 28, 44, 0.62); border-width: 2px; }
+body.touch .orb-main { right: 0; bottom: 0; width: var(--om); height: var(--om); }
+body.touch .orb-jump { right: calc(var(--om) + var(--og)); bottom: 0; }
+body.touch .orb-p1 { right: calc(var(--om) * 0.8 + var(--og)); bottom: calc(var(--om) * 0.8 + var(--og)); }
+body.touch .orb-p2 { right: calc((var(--om) - var(--ob)) / 2); bottom: calc(var(--om) + var(--og)); }
+body.touch .orb-icon { width: 46%; height: 46%; }
+body.touch .orb .cd-num { font-size: calc(var(--ob) * 0.34); }
+body.touch .dock { left: auto; bottom: auto; right: calc(14px + var(--safe-r)); top: calc(62px + var(--safe-t)); padding: 6px 8px; gap: 6px; }
+body.touch .dock-slot .hex { width: var(--hx); height: calc(var(--hx) * 0.88); }
+/* resting joystick so players can see where to drag */
+body.touch .joy:not(.on) .joy-base, body.touch .joy:not(.on) .joy-knob { display: block; left: calc(30px + var(--joy) / 2 + var(--safe-l)); top: calc(100% - 26px - var(--joy) / 2 - var(--safe-b)); opacity: 0.45; }
+body.touch { --joy: clamp(96px, 26vh, 140px); }
+body.touch .joy-base { width: var(--joy); height: var(--joy); margin: calc(var(--joy) / -2) 0 0 calc(var(--joy) / -2); }
+body.touch .joy-knob { width: calc(var(--joy) * 0.45); height: calc(var(--joy) * 0.45); margin: calc(var(--joy) * -0.225) 0 0 calc(var(--joy) * -0.225); }
 
 /* -------------------------------------------------------------- modal */
 .modal { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: calc(10px + var(--safe-t)) 10px calc(10px + var(--safe-b)); background: rgba(10, 12, 20, 0.55); animation: fade 0.18s ease; }
@@ -357,11 +365,7 @@ body.touch .dock-slot .hex { width: 40px; height: 35px; }
   body.touch .keys { display: none; }
   .orb { width: 56px; height: 56px; }
   .orb-main { width: 70px; height: 70px; }
-  body.touch .orb-main { width: 78px; height: 78px; }
-  body.touch .orb-p1, body.touch .orb-p2, body.touch .orb-jump { width: 50px; height: 50px; }
   .dock-slot .hex { width: 42px; height: 37px; }
-  body.touch .dock { top: calc(58px + var(--safe-t)); }
-  body.touch .dock-slot .hex { width: 34px; height: 30px; }
   .combo b { font-size: 38px; }
   .stage-chip { padding: 4px 12px 4px 4px; }
   .chip-emblem { width: 30px; height: 30px; }
@@ -388,12 +392,6 @@ body.touch .dock-slot .hex { width: 40px; height: 35px; }
 .pill.user img { width: 24px; height: 24px; border-radius: 50%; }
 .cg-banner { position: absolute; right: calc(16px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); width: 300px; height: 250px; display: none; }
 @media (min-width: 1180px) and (min-height: 700px) { body:not(.touch) .cg-banner { display: block; } }
-.tut { position: absolute; top: calc(70px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 20px; background: var(--glass); border: 2px solid rgba(255, 255, 255, 0.08); width: min(460px, 92vw); pointer-events: auto; }
-.tut-step { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: clamp(12px, 1.6vw, 15px); text-align: center; }
-.tut-num { padding: 3px 9px; border-radius: 999px; background: var(--teal); color: #06251f; font-size: 11px; flex: none; }
-.tut-bar { width: 100%; height: 6px; border-radius: 999px; background: var(--navy-3); overflow: hidden; }
-.tut-bar i { display: block; height: 100%; width: 0; background: var(--teal); transition: width 0.25s; }
-.tut.done .tut-step b { color: var(--teal-hi); }
 /* neat pause menu: one column of equal buttons */
 .pause-stack { display: flex; flex-direction: column; gap: 8px; width: min(300px, 100%); margin: 0 auto; }
 .pause-stack .btn { width: 100%; }
@@ -434,3 +432,45 @@ body.touch .dock-slot .hex { width: 40px; height: 35px; }
 }
 .codex-list .el-pill { position: relative; }
 .codex-list .el-pill .price { position: absolute; top: -6px; right: 6px; padding: 1px 6px; border-radius: 999px; background: var(--navy); border: 1px solid rgba(255, 255, 255, 0.12); }
+
+/* ------------------------------------------------------------ tutorial */
+.tut { position: absolute; top: calc(68px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 22px 14px; border-radius: 22px; background: var(--glass); border: 2px solid rgba(255, 255, 255, 0.08); min-width: min(300px, 80vw); max-width: 92vw; pointer-events: none; transition: border-color 0.2s, transform 0.2s; }
+.tut.ok { border-color: var(--teal); transform: translateX(-50%) scale(1.04); }
+.tut-dots { display: flex; gap: 6px; }
+.tut-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); transition: background 0.2s, width 0.2s; }
+.tut-dots i.cur { width: 22px; border-radius: 999px; background: #fff; }
+.tut-dots i.on { background: var(--teal); }
+.tut-vis { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; color: #fff; }
+.cap { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 12px; background: #f4f1ea; color: #1d2233; font-family: var(--display); font-size: 20px; box-shadow: 0 5px 0 #a9a497; animation: capPress 1.2s ease-in-out infinite; }
+.cap.wide { min-width: 140px; font-size: 16px; }
+.cap + .cap { animation-delay: 0.6s; }
+@keyframes capPress { 0%, 60%, 100% { transform: none; box-shadow: 0 5px 0 #a9a497; } 30% { transform: translateY(4px); box-shadow: 0 1px 0 #a9a497; } }
+.tut-vis .mouse { width: 34px; height: 46px; animation: capPress 1.2s ease-in-out infinite; }
+.tut-vis .goal { width: 120px; height: 55px; }
+.tut-vis .joyv { width: 72px; height: 50px; }
+.tut-vis .joyv .k { animation: joySlide 1.6s ease-in-out infinite; }
+@keyframes joySlide { 0%, 100% { transform: translateX(-9px); } 50% { transform: translateX(9px); } }
+.tut-btn { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; border: 3px solid var(--teal); color: var(--teal-hi); }
+.tut-btn svg { width: 26px; height: 26px; }
+.tut-btn.go { background: var(--teal); color: #06251f; }
+.tut-label { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: clamp(15px, 2.1vw, 20px); color: #fff; text-align: center; white-space: nowrap; }
+.tut-label span:empty { display: none; }
+.tut-label span { padding: 3px 10px; border-radius: 999px; background: var(--teal); color: #06251f; font-size: 13px; }
+.tut.done .tut-label b { color: var(--teal-hi); }
+.tut-skip { position: absolute; top: 8px; right: 10px; display: flex; align-items: center; gap: 2px; padding: 4px 6px 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); font-family: var(--display); font-size: 11px; color: var(--muted); pointer-events: auto; }
+.tut-skip:hover { color: #fff; background: rgba(255, 255, 255, 0.16); }
+.tut-skip .ic { width: 14px; height: 14px; }
+.tut .tut-dots { align-self: flex-start; margin-top: 4px; }
+/* touch: the real control pulses */
+.tut-focus.orb { animation: tutPulse 1.1s ease-in-out infinite; }
+.tut-focus.joy .joy-base { opacity: 1 !important; box-shadow: 0 0 0 0 rgba(34, 195, 166, 0.7); animation: tutPulse 1.1s ease-in-out infinite; border-color: var(--teal); }
+@keyframes tutPulse { 0% { box-shadow: 0 0 0 0 rgba(34, 195, 166, 0.75); } 70% { box-shadow: 0 0 0 18px rgba(34, 195, 166, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 195, 166, 0); } }
+@media (max-height: 560px) {
+  .tut { top: calc(56px + var(--safe-t)); padding: 8px 18px 10px; gap: 7px; }
+  .cap { min-width: 38px; height: 38px; font-size: 17px; }
+  .cap.wide { min-width: 110px; font-size: 14px; }
+  .tut-vis { min-height: 40px; }
+  .tut-vis .mouse { width: 28px; height: 38px; }
+  .tut-vis .goal { width: 96px; height: 44px; }
+  .tut-btn { width: 42px; height: 42px; }
+}

@@ -34,32 +34,51 @@ class Island {
     this.dx = x - px; this.dy = y - py;
   }
 
-  // minimalist island: one smooth tapered body in two flat tones and a rounded cap
+  // blocky minimal island: a stepped pyramid of square tiles in the realm's palette
+  layout() {
+    const n = Math.max(3, Math.round(this.w / 42)), t = this.w / n;
+    const rows = [];
+    let lo = 0, hi = n, r = 0;
+    const want = clamp(Math.round(this.depth / t), 2, 5);
+    const step = Math.max(1, Math.floor((n - 1) / (2 * want)));
+    while (hi - lo > 0 && r < want) {
+      rows.push([lo, hi]);
+      lo += step; hi -= step; r++;
+    }
+    return { n, t, rows };
+  }
+
   draw(ctx, realm) {
-    const hw = this.w / 2, d = this.depth;
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.fillStyle = realm.rock;
-    ctx.beginPath();
-    ctx.moveTo(-hw, 6);
-    ctx.lineTo(hw, 6);
-    ctx.bezierCurveTo(hw * 0.9, d * 0.55, hw * 0.25, d, 0, d);
-    ctx.bezierCurveTo(-hw * 0.25, d, -hw * 0.9, d * 0.55, -hw, 6);
-    ctx.closePath(); ctx.fill();
-    // flat shadow on the right half for a hint of volume
-    ctx.fillStyle = realm.rockDark;
-    ctx.beginPath();
-    ctx.moveTo(hw * 0.12, 6);
-    ctx.lineTo(hw, 6);
-    ctx.bezierCurveTo(hw * 0.9, d * 0.55, hw * 0.25, d, 0, d);
-    ctx.bezierCurveTo(hw * 0.12, d * 0.7, hw * 0.2, d * 0.3, hw * 0.12, 6);
-    ctx.closePath(); ctx.fill();
-    // cap
-    ctx.fillStyle = realm.topDark;
-    ctx.beginPath(); ctx.roundRect(-hw - 4, 2, this.w + 8, 14, 7); ctx.fill();
-    ctx.fillStyle = realm.top;
-    ctx.beginPath(); ctx.roundRect(-hw - 4, -3, this.w + 8, 12, 6); ctx.fill();
-    ctx.restore();
+    if (!this.cells || this.cellsW !== this.w) {
+      this.cells = this.layout(); this.cellsW = this.w;
+      const rng = mulberry32(this.seed);
+      this.shade = Array.from({ length: 64 }, () => rng());
+    }
+    const { t, rows } = this.cells;
+    const x0 = this.x - this.w / 2, y0 = this.y - 5;
+    const gap = 2.5;
+    const mortar = mixHex(realm.rockDark, '#000000', 0.35);
+    // mortar silhouette first so the gaps read as crisp dark seams
+    ctx.fillStyle = mortar;
+    rows.forEach(([a, b], r) => ctx.fillRect(x0 + a * t - 1, y0 + r * t - 1, (b - a) * t + 2, t + 2));
+    let k = 0;
+    rows.forEach(([a, b], r) => {
+      const depthMix = r / Math.max(1, rows.length);
+      for (let i = a; i < b; i++) {
+        const v = this.shade[k++ % this.shade.length];
+        const x = x0 + i * t + gap / 2, y = y0 + r * t + gap / 2, s = t - gap;
+        if (r === 0) {
+          ctx.fillStyle = realm.top;
+          ctx.fillRect(x, y, s, s);
+          ctx.fillStyle = realm.topDark;
+          ctx.fillRect(x, y + s * 0.62, s, s * 0.38);
+        } else {
+          const right = i >= (a + b) / 2 ? 0.18 : 0;
+          ctx.fillStyle = mixHex(realm.rock, realm.rockDark, clamp(depthMix * 0.55 + right + (v - 0.5) * 0.16, 0, 1));
+          ctx.fillRect(x, y, s, s);
+        }
+      }
+    });
   }
 }
 
@@ -139,6 +158,8 @@ const Backdrop = (() => {
     abyss.addColorStop(0, rgba(realm.hills[2], 0));
     abyss.addColorStop(1, rgba(mixHex(realm.hills[2], '#000000', 0.5), 0.95));
     g.fillStyle = abyss; g.fillRect(x0, H * 0.75, view.w, y1 - H * 0.75);
+    // overall dim so fighters and islands pop against the sky
+    g.fillStyle = 'rgba(10, 12, 26, 0.22)'; g.fillRect(x0, y0, view.w, view.h);
     return canvas;
   }
   return { render };

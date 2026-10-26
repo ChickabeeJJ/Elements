@@ -19,7 +19,7 @@ Fight through 56 stages in 7 realms, each ending in an elemental boss. Upgrade y
 - 56 campaign stages across 7 realms, with 7 bosses
 - Elemental weaknesses and combos (shatter frozen foes, shock soaked ones)
 - Endless mode with rotating realms and champion waves
-- Permanent upgrades, star ratings and a short skippable tutorial
+- Permanent upgrades, star ratings and a short, visual, skippable tutorial that starts in gameplay
 - Full desktop and mobile touch controls
 
 ## Controls
@@ -32,13 +32,16 @@ Fight through 56 stages in 7 realms, each ending in an elemental boss. Upgrade y
 - Q / Right click (or K): element power 1
 - E / Middle click (or L): element power 2
 - 1, 2, 3 / Tab / Mouse wheel: swap element
-- Esc / P: pause
+- P (or Esc): pause
+
+Key labels in game follow the player's keyboard layout (AZERTY shows Z/Q/S/D).
 
 **Mobile**
 - Left joystick: move (pull down to drop through)
 - Right buttons: attack, power 1, power 2, jump
 - Tap the element hexes to swap
 - Attacks auto-aim; drag off a button to aim manually
+- The camera zooms in on small screens; edge arrows point to off-screen foes
 
 ## Tags
 Suggested (pick the ones the portal offers):

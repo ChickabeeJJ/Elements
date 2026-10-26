@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1d2233">
   <meta name="description" content="Elementfall - a ragdoll brawler across seven elemental realms. Unlock 12 elements, knock foes off floating islands, beat 56 stages and bosses, then survive Endless.">
   <title>Elementfall</title>
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
   <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>
 <body>
@@ -44,9 +44,10 @@
     <div class="joy" id="joy"><div class="joy-base"></div><div class="joy-knob" id="joyKnob"></div></div>
     <div class="coach hidden" id="coach"><p id="coachText"></p></div>
     <div class="tut hidden" id="tut">
-      <div class="tut-step"><span class="tut-num" id="tutNum">1/5</span><b id="tutText">MOVE</b></div>
-      <div class="tut-bar"><i id="tutFill"></i></div>
-      <button class="btn small" id="tutSkip"><b>SKIP TUTORIAL</b></button>
+      <div class="tut-dots" id="tutDots"></div>
+      <div class="tut-vis" id="tutVis"></div>
+      <div class="tut-label"><b id="tutText">MOVE</b><span id="tutCount"></span></div>
+      <button class="tut-skip" id="tutSkip">SKIP<span class="ic" data-icon="next"></span></button>
     </div>
   </div>
 
@@ -114,18 +115,18 @@
   <div id="toasts"></div>
   <div id="rotate" class="hidden"><div><span class="ic" data-icon="rotate"></span><p>TURN YOUR DEVICE SIDEWAYS</p><button class="btn primary" id="btnRotateOk"><b>PLAY ANYWAY</b></button></div></div>
 
-  <script src="js/util.js?v=6"></script>
-  <script src="js/platform.js?v=6"></script>
-  <script src="js/audio.js?v=6"></script>
-  <script src="js/elements.js?v=6"></script>
-  <script src="js/realms.js?v=6"></script>
-  <script src="js/progress.js?v=6"></script>
-  <script src="js/ragdoll.js?v=6"></script>
-  <script src="js/world.js?v=6"></script>
-  <script src="js/fx.js?v=6"></script>
-  <script src="js/game.js?v=6"></script>
-  <script src="js/icons.js?v=6"></script>
-  <script src="js/ui.js?v=6"></script>
-  <script src="js/main.js?v=6"></script>
+  <script src="js/util.js?v=7"></script>
+  <script src="js/platform.js?v=7"></script>
+  <script src="js/audio.js?v=7"></script>
+  <script src="js/elements.js?v=7"></script>
+  <script src="js/realms.js?v=7"></script>
+  <script src="js/progress.js?v=7"></script>
+  <script src="js/ragdoll.js?v=7"></script>
+  <script src="js/world.js?v=7"></script>
+  <script src="js/fx.js?v=7"></script>
+  <script src="js/game.js?v=7"></script>
+  <script src="js/icons.js?v=7"></script>
+  <script src="js/ui.js?v=7"></script>
+  <script src="js/main.js?v=7"></script>
 </body>
 </html>

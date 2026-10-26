@@ -46,9 +46,11 @@ Each realm's warriors share an element. Hitting their weakness deals 160% damage
 | `Q` / right click (or `K`) | Power 1 |
 | `E` / middle click (or `L`) | Power 2 |
 | `1` `2` `3`, `Tab`, wheel | Swap element |
-| `Esc` / `P` | Pause |
+| `P` (or `Esc`) | Pause |
 
-On touch screens, a floating joystick on the left handles movement (pull down to drop through). On the right are the attack, power and jump buttons. Attacks auto-aim at the nearest foe, or you can drag off a button to aim it yourself.
+On touch screens, a floating joystick on the left handles movement (pull down to drop through). On the right, the attack, power and jump buttons sit in a thumb arc around a big attack button and scale with the screen. Attacks auto-aim at the nearest foe, or you can drag off a button to aim it yourself. On small screens the camera zooms in and follows you, and edge arrows point to foes off screen.
+
+Key labels follow the player's keyboard layout (for example, AZERTY shows Z Q S D), and `P` pauses so `Esc` can stay free for leaving fullscreen.
 
 ## Project layout
 
@@ -62,7 +64,7 @@ js/elements.js    element kits (moves as data), affinities, emblems
 js/realms.js      realm themes, arenas, enemy archetypes, stages, endless waves
 js/progress.js    save data, unlocks, loadout, upgrades
 js/ragdoll.js     Fighter: active ragdoll, poses, tumble/recover, hurtboxes
-js/world.js       one-way floating islands (minimal two-tone), backdrop, weather
+js/world.js       one-way floating islands (blocky tile pyramids), backdrop, weather
 js/fx.js          particles, rings, arcs, beams, combat text
 js/game.js        moves runtime, hits/knockback/ring-outs, enemy AI, waves, rendering
 js/icons.js       UI and move icons

@@ -12,6 +12,8 @@ const SWAP_CD = 0.35;
 const Game = (() => {
   let canvas, ctx, dpr = 1;
   const view = { x0: 0, y0: 0, w: W, h: H, scale: 1, ox: 0, oy: 0, cw: 1, ch: 1 };
+  // camera: on small screens it zooms in and follows the player so fighters stay readable
+  const cam = { z: 1, x: W / 2, y: H / 2, k: 1, ox: 0, oy: 0 };
   const fx = new FX();
   const amb = new Ambience();
   let realmIdx = 0, realm = REALMS[0], arena = ARENAS[0];
@@ -46,6 +48,31 @@ const Game = (() => {
     view.ox = (cw - W * scale) / 2; view.oy = (ch - H * scale) / 2;
     view.x0 = -view.ox / scale; view.y0 = -view.oy / scale;
     view.w = cw / scale; view.h = ch / scale;
+    updateCam(0, true);
+  }
+
+  function wantZoom() {
+    if (state === 'idle' || dev.cinematic) return 1;
+    return clamp(0.64 / view.scale, 1, 1.42);
+  }
+  function updateCam(dt, snap) {
+    const z = wantZoom();
+    cam.z = snap ? z : lerp(cam.z, z, Math.min(1, dt * 3));
+    let tx = W / 2, ty = H / 2;
+    if (cam.z > 1.001 && player) {
+      const r = player.root;
+      tx = r.x; ty = Math.min(r.y - 70, H * 0.62);
+    }
+    const vw = view.w / cam.z, vh = view.h / cam.z;
+    tx = clamp(tx, view.x0 + vw / 2, view.x0 + view.w - vw / 2);
+    ty = clamp(ty, view.y0 + vh / 2, view.y0 + view.h - vh / 2);
+    const f = snap ? 1 : Math.min(1, dt * 5);
+    cam.x = lerp(cam.x, tx, f); cam.y = lerp(cam.y, ty, f);
+    cam.x = clamp(cam.x, view.x0 + vw / 2, view.x0 + view.w - vw / 2);
+    cam.y = clamp(cam.y, view.y0 + vh / 2, view.y0 + view.h - vh / 2);
+    cam.k = view.scale * cam.z;
+    cam.ox = view.cw / 2 - cam.x * cam.k;
+    cam.oy = view.ch / 2 - cam.y * cam.k;
   }
 
   function setRealm(i) {
@@ -1027,7 +1054,7 @@ const Game = (() => {
   }
 
   /* ---------------------------------------------------------- input */
-  function screenToWorld(sx, sy) { return { x: (sx - view.ox) / view.scale, y: (sy - view.oy) / view.scale }; }
+  function screenToWorld(sx, sy) { return { x: (sx - cam.ox) / cam.k, y: (sy - cam.oy) / cam.k }; }
 
   function autoTarget() {
     if (!player) return null;
@@ -1122,6 +1149,7 @@ const Game = (() => {
     while (acc >= STEP && steps < 10) { acc -= STEP; steps++; step(STEP); }
     if (steps >= 10) acc = 0;
     amb.update(realDt * timeScale, view);
+    updateCam(realDt, false);
   }
 
   function demoTick(dt) {
@@ -1213,10 +1241,18 @@ const Game = (() => {
     const c = ctx;
     c.setTransform(1, 0, 0, 1, 0, 0);
     const pxScale = Math.min(view.scale * dpr, 1.5);
-    c.drawImage(Backdrop.render(realm, view, pxScale), 0, 0, canvas.width, canvas.height);
+    const bg = Backdrop.render(realm, view, pxScale);
+    if (cam.z > 1.001) {
+      // backdrop zooms less than the play field for a little parallax depth
+      const zp = 1 + (cam.z - 1) * 0.4;
+      const sw = bg.width / zp, sh = bg.height / zp;
+      const fx = (cam.x * view.scale + view.ox) / view.cw, fy = (cam.y * view.scale + view.oy) / view.ch;
+      const sx = clamp(fx * bg.width - sw / 2, 0, bg.width - sw), sy = clamp(fy * bg.height - sh / 2, 0, bg.height - sh);
+      c.drawImage(bg, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    } else c.drawImage(bg, 0, 0, canvas.width, canvas.height);
     const sk = shake > 0 && Save.data.settings.shake ? shake * 0.6 : 0;
-    const k = view.scale * dpr;
-    c.setTransform(k, 0, 0, k, (view.ox + rand(-sk, sk)) * dpr, (view.oy + rand(-sk, sk)) * dpr);
+    const k = cam.k * dpr;
+    c.setTransform(k, 0, 0, k, (cam.ox + rand(-sk, sk)) * dpr, (cam.oy + rand(-sk, sk)) * dpr);
 
     amb.drawBack(c, view, time);
     for (const z of zones) drawZone(c, z, true);
@@ -1252,7 +1288,27 @@ const Game = (() => {
     amb.drawFront(c, view, time);
     fx.drawTexts(c);
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (cam.z > 1.001 && state === 'play') drawOffscreen(c);
     drawVignettes(c);
+  }
+
+  // edge arrows for foes outside the zoomed camera
+  function drawOffscreen(c) {
+    const cw = view.cw, ch = view.ch, m = 26;
+    for (const e of enemies) {
+      if (!e.alive || e.decor) continue;
+      const p = e.chest();
+      const sx = p.x * cam.k + cam.ox, sy = p.y * cam.k + cam.oy;
+      if (sx > 0 && sx < cw && sy > 0 && sy < ch) continue;
+      const x = clamp(sx, m, cw - m), y = clamp(sy, m + 50, ch - m);
+      const a = Math.atan2(sy - y, sx - x);
+      c.save(); c.translate(x, y); c.rotate(a);
+      c.fillStyle = 'rgba(16, 19, 31, 0.75)';
+      c.beginPath(); c.arc(0, 0, 15, 0, TAU); c.fill();
+      c.fillStyle = e.kind === 'boss' ? '#ffcf5a' : '#ff5a6a';
+      c.beginPath(); c.moveTo(11, 0); c.lineTo(-5, -8); c.lineTo(-2, 0); c.lineTo(-5, 8); c.closePath(); c.fill();
+      c.restore();
+    }
   }
 
   // melee slash: a tapered crescent ribbon swept through the recent tip positions
@@ -1587,7 +1643,7 @@ const Game = (() => {
   /* test hook used by automated playtests */
   const dev = {
     cinematic: false,            // capture mode for store art: no bars, markers or combat text
-    toScreen: (x, y) => ({ x: x * view.scale + view.ox, y: y * view.scale + view.oy }),
+    toScreen: (x, y) => ({ x: x * cam.k + cam.ox, y: y * cam.k + cam.oy }),
     enemies: () => aliveEnemies(),
     player: () => player,
     use: (slot, x, y) => tryMove(player, ELEMENT_BY_ID[player.el].moves[slot], x, y),
