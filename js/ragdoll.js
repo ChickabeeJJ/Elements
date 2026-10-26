@@ -178,9 +178,19 @@ class Fighter {
       } else {
         this.m = st.shock > 0 ? 0.4 : Math.min(1, this.m + dt * 3);
       }
+      const rx0 = this.root.x, ry0 = this.root.y;
       this.stepRoot(dt, plats, forces);
       if (st.freeze <= 0) { this.t += dt; this.computeTargets(); }
-      else for (let i = 0; i < 11; i++) { this.Tp[i].x = this.T[i].x; this.Tp[i].y = this.T[i].y; }
+      else {
+        // frozen: the pose is locked but travels with the root as one solid statue,
+        // so knockback and gravity move the whole body instead of tearing it from its feet
+        const dx = this.root.x - rx0, dy = this.root.y - ry0;
+        for (let i = 0; i < 11; i++) {
+          this.T[i].x += dx; this.T[i].y += dy;
+          this.Tp[i].x = this.T[i].x; this.Tp[i].y = this.T[i].y;
+          const q = this.pts[i]; q.x += dx; q.y += dy; q.px += dx; q.py += dy;
+        }
+      }
     } else {
       this.m = Math.max(0, this.m - dt * 8);
       if (this.mode === 'tumble') {
