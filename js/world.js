@@ -41,16 +41,28 @@ class Island {
 
   // blocky island: a stepped pyramid of tiles. The tile rows are also the collision
   // shape, so what looks solid is solid (the top can still be jumped up through).
+  // The top row always spans the full width (that's what gameplay uses); the body below
+  // is shaped per island from its seed: even pyramids, lopsided steps, a sheer cliff on
+  // one side, or a chunky deep base. Rows never narrow to a lone block.
   layout() {
     const n = Math.max(4, Math.round(this.w / 42)), t = this.w / n;
-    const want = clamp(Math.round(this.depth / t), 2, 5);
+    const rng = mulberry32(Math.imul(this.seed, 2654435761) ^ 0x9e3779b9);
+    rng(); rng();
+    const style = Math.floor(rng() * 4);
+    const want = clamp(Math.round(this.depth / t) + (style === 3 ? 1 : 0) - (rng() < 0.3 ? 1 : 0), 2, 5);
     const minW = Math.max(2, Math.ceil(n * 0.3));
-    const step = n >= 14 ? 2 : 1;
+    const big = n >= 14 ? 2 : 1;
+    const cliffLeft = rng() < 0.5;
     const rows = [[0, n]];
     while (rows.length < want) {
       const [a, b] = rows[rows.length - 1];
-      if (b - a - step * 2 < minW) break;
-      rows.push([a + step, b - step]);
+      let sl = big, sr = big;
+      if (style === 1) { sl = 1 + Math.floor(rng() * (big + 1)); sr = Math.max(0, big * 2 - sl + (rng() < 0.5 ? 0 : 1) - 1); }
+      else if (style === 2) { if (cliffLeft) { sl = rows.length < 3 ? 0 : 1; sr = big + 1; } else { sr = rows.length < 3 ? 0 : 1; sl = big + 1; } }
+      else if (style === 3) { sl = rng() < 0.5 ? 1 : big; sr = rng() < 0.5 ? 1 : big; }
+      if (sl + sr < 1) sr = 1;
+      if (b - a - sl - sr < minW) break;
+      rows.push([a + sl, b - sr]);
     }
     return { n, t, rows };
   }

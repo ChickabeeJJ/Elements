@@ -82,9 +82,10 @@ const Game = (() => {
     hooks.onRealm && hooks.onRealm(i);
   }
 
-  function buildArena(a) {
+  // variant reseeds island shapes so each stage looks a little different
+  function buildArena(a, variant = 0) {
     arena = a;
-    islands = a.isl.map(([x, y, w, motion], i) => new Island(x, y, w, { seed: 101 + i * 37 + realmIdx * 11, motion }));
+    islands = a.isl.map(([x, y, w, motion], i) => new Island(x, y, w, { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion }));
   }
 
   function spawnPoint() { const m = islands[0]; return { x: m.x, y: m.top }; }
@@ -146,7 +147,7 @@ const Game = (() => {
     if (mode === 'stage') {
       stageDef = buildStage(opts.r, opts.s);
       setRealm(opts.r);
-      buildArena(stageDef.arena);
+      buildArena(stageDef.arena, 1 + opts.r * 16 + opts.s);
       waveIdx = -1;
     } else if (mode === 'tutorial') {
       stageDef = null;
@@ -889,7 +890,7 @@ const Game = (() => {
       const w = endlessWave(run.kills, endlessWaveNo++);
       if (w.realm !== realmIdx) {
         setRealm(w.realm);
-        buildArena(ARENAS[w.realm % ARENAS.length]);
+        buildArena(ARENAS[w.realm % ARENAS.length], 200 + w.realm);
         const sp = spawnPoint();
         teleport(player, sp.x, sp.y - 300);
         player.invuln = 1.2;
