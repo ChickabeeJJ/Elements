@@ -1,0 +1,155 @@
+'use strict';
+/* =========================================================================
+   Effects: particles, shockwave rings, lightning arcs, sunbeams, floating
+   combat text. Everything lives in world space.
+   ========================================================================= */
+
+class FX {
+  constructor() { this.p = []; this.texts = []; this.arcs = []; }
+
+  clear() { this.p.length = 0; this.texts.length = 0; this.arcs.length = 0; }
+
+  add(o) {
+    if (this.p.length > 900) this.p.shift();
+    const p = Object.assign({ x: 0, y: 0, vx: 0, vy: 0, g: 0, drag: 0, life: 0.6, size: 6, color: '#fff', kind: 'glow', rot: 0, vr: 0, add: true, grow: 0 }, o);
+    p.max = p.life;
+    this.p.push(p);
+    return p;
+  }
+
+  burst(x, y, color, n, speed = 260, opts = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, TAU), v = rand(0.25, 1) * speed;
+      this.add(Object.assign({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, color, life: rand(0.3, 0.7), size: rand(4, 10), drag: 3 }, opts));
+    }
+  }
+
+  ring(x, y, color, r = 80, life = 0.4, width = 6) {
+    this.add({ kind: 'ring', x, y, color, size: r, life, width, add: true });
+  }
+
+  chunks(x, y, color, n, speed = 380, size = 7) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(-Math.PI, 0), v = rand(0.3, 1) * speed;
+      this.add({ kind: 'chunk', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 1500, color, size: rand(0.5, 1) * size, life: rand(0.6, 1.1), vr: rand(-12, 12), add: false });
+    }
+  }
+
+  arc(x0, y0, x1, y1, color, life = 0.22) {
+    const pts = [[x0, y0]];
+    const n = Math.max(3, Math.floor(dist(x0, y0, x1, y1) / 26));
+    for (let i = 1; i < n; i++) {
+      const t = i / n;
+      pts.push([lerp(x0, x1, t) + rand(-16, 16), lerp(y0, y1, t) + rand(-16, 16)]);
+    }
+    pts.push([x1, y1]);
+    this.arcs.push({ pts, color, life, max: life });
+  }
+
+  text(x, y, str, color = '#fff', size = 26, opts = {}) {
+    this.texts.push(Object.assign({ x, y, str, color, size, life: 1, max: 1, vy: -70 }, opts));
+  }
+
+  update(dt) {
+    for (let i = this.p.length - 1; i >= 0; i--) {
+      const p = this.p[i];
+      p.life -= dt;
+      if (p.life <= 0) { this.p.splice(i, 1); continue; }
+      const k = Math.exp(-p.drag * dt);
+      p.vx *= k; p.vy = p.vy * k + p.g * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      p.size += p.grow * dt;
+    }
+    for (let i = this.texts.length - 1; i >= 0; i--) {
+      const t = this.texts[i];
+      t.life -= dt / (t.dur || 1);
+      t.y += t.vy * dt; t.vy *= Math.exp(-2.4 * dt);
+      if (t.life <= 0) this.texts.splice(i, 1);
+    }
+    for (let i = this.arcs.length - 1; i >= 0; i--) {
+      this.arcs[i].life -= dt;
+      if (this.arcs[i].life <= 0) this.arcs.splice(i, 1);
+    }
+  }
+
+  draw(ctx) {
+    // normal-blend first, then additive
+    for (const p of this.p) {
+      if (p.add) continue;
+      const a = clamp(p.life / p.max, 0, 1);
+      ctx.globalAlpha = p.kind === 'smoke' ? a * 0.35 : Math.min(1, a * 2);
+      ctx.fillStyle = p.color;
+      if (p.kind === 'chunk') {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.beginPath(); ctx.moveTo(-p.size, -p.size * 0.6); ctx.lineTo(p.size * 0.8, -p.size * 0.8); ctx.lineTo(p.size, p.size * 0.5); ctx.lineTo(-p.size * 0.4, p.size); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else if (p.kind === 'leaf') {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size * 0.4, 0, 0, TAU); ctx.fill();
+        ctx.restore();
+      } else if (p.kind === 'bow') {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.strokeStyle = p.color; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0, 18, 36, -Math.PI * 0.8, -Math.PI * 0.2); ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.kind === 'smoke' ? 1 + (1 - a) : 1), 0, TAU); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of this.p) {
+      if (!p.add) continue;
+      const a = clamp(p.life / p.max, 0, 1);
+      if (p.kind === 'ring') {
+        const r = p.size * (1 - a * a) + 4;
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.width * a + 1;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (p.kind === 'beam') {
+        const w = p.size * (0.4 + a * 0.6);
+        const grd = ctx.createLinearGradient(p.x - w, 0, p.x + w, 0);
+        grd.addColorStop(0, rgba(p.color, 0));
+        grd.addColorStop(0.5, rgba(p.color, a * 0.9));
+        grd.addColorStop(1, rgba(p.color, 0));
+        ctx.fillStyle = grd;
+        ctx.fillRect(p.x - w, -200, w * 2, p.y + 200);
+        Glow.draw(ctx, p.color, p.x, p.y, w * 3, a);
+      } else if (p.kind === 'spark') {
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.size * 0.5;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else {
+        Glow.draw(ctx, p.color, p.x, p.y, p.size * (0.6 + a * 0.6) * 2, a);
+      }
+    }
+    for (const a of this.arcs) {
+      const k = a.life / a.max;
+      for (const [w, col, al] of [[9, a.color, 0.35], [3, '#ffffff', 1]]) {
+        ctx.globalAlpha = k * al;
+        ctx.strokeStyle = col; ctx.lineWidth = w;
+        ctx.beginPath(); a.pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  drawTexts(ctx) {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const t of this.texts) {
+      const a = clamp(t.life * 2.5, 0, 1);
+      const pop = t.life > 0.85 ? easeOutBack((1 - t.life) / 0.15) : 1;
+      ctx.globalAlpha = a;
+      ctx.font = `900 ${Math.round(t.size * pop)}px Nunito, system-ui, sans-serif`;
+      ctx.lineWidth = Math.max(3, t.size * 0.18); ctx.strokeStyle = 'rgba(20,16,30,0.85)';
+      ctx.strokeText(t.str, t.x, t.y);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.str, t.x, t.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+}

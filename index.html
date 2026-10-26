@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#120d1d">
+  <meta name="description" content="Elementfall - a physics archery duel across five elemental realms. Unlock fire, frost, storm, void and more, beat 30 stages and bosses, then test yourself in Endless.">
+  <title>Elementfall</title>
+  <link rel="stylesheet" href="css/style.css?v=1">
+  <script>if (/crazygames/.test(location.hostname + document.referrer)) document.write('<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"><\/script>');</script>
+</head>
+<body>
+  <canvas id="stage" aria-label="Game"></canvas>
+
+  <!-- ============================== HUD ============================== -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="vitals">
+        <div class="bar hp"><i class="ic" data-icon="heart"></i><div class="track"><div class="fill" id="hpFill"></div><div class="ghost" id="hpGhost"></div></div><span id="hpText">100</span></div>
+        <div class="bar st" id="stBar"><i class="ic" data-icon="bolt"></i><div class="track"><div class="fill" id="stFill"></div></div><span id="stText">100</span></div>
+      </div>
+      <div class="hud-center">
+        <div class="stage-name" id="hudStage">Verdant Vale · 1-1</div>
+        <div class="pips" id="hudPips"></div>
+        <div class="bossbar hidden" id="bossBar">
+          <div class="boss-name"><span class="boss-el" id="bossEl"></span><b id="bossName">Boss</b><small id="bossTitle"></small></div>
+          <div class="track"><div class="fill" id="bossFill"></div></div>
+        </div>
+      </div>
+      <div class="hud-right">
+        <div class="chip gem"><i class="ic" data-icon="gem"></i><span id="hudEssence">0</span></div>
+        <button class="ibtn" id="btnPause" aria-label="Pause"><i class="ic" data-icon="pause"></i></button>
+      </div>
+    </div>
+    <div class="hud-bottom">
+      <button class="jump-btn" id="btnJump" aria-label="Jump"><i class="ic" data-icon="up"></i><span>JUMP</span><small>18</small></button>
+      <div class="ebar" id="ebar"></div>
+    </div>
+    <div class="coach hidden" id="coach">
+      <div class="coach-hand"><span class="dot"></span><span class="trail"></span></div>
+      <p id="coachText">Drag back anywhere and release to shoot</p>
+    </div>
+  </div>
+
+  <!-- ============================== TITLE ============================== -->
+  <section id="title" class="screen">
+    <div class="title-wrap">
+      <div class="logo">
+        <div class="logo-orbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        <h1>Elementfall</h1>
+        <p class="tagline">Archers of the Five Realms</p>
+      </div>
+      <div class="menu">
+        <button class="btn primary big" id="btnPlay"><i class="ic" data-icon="play"></i><span>Campaign</span><small id="playSub">Stage 1-1</small></button>
+        <button class="btn big" id="btnEndless"><i class="ic" data-icon="infinity"></i><span>Endless</span><small id="endlessSub">Best: 0</small></button>
+        <div class="menu-row">
+          <button class="btn" id="btnShop"><i class="ic" data-icon="sword"></i><span>Upgrades</span></button>
+          <button class="btn" id="btnCodex"><i class="ic" data-icon="book"></i><span>Elements</span></button>
+          <button class="btn icon-only" id="btnSettings" aria-label="Settings"><i class="ic" data-icon="gear"></i></button>
+        </div>
+      </div>
+      <div class="title-foot">
+        <div class="chip gem"><i class="ic" data-icon="gem"></i><span class="essence-val">0</span></div>
+        <div class="chip star"><i class="ic" data-icon="star"></i><span id="titleStars">0 / 90</span></div>
+        <div class="chip"><span id="titleElems">1 / 9 elements</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== MAP ============================== -->
+  <section id="map" class="screen hidden">
+    <header class="screen-head">
+      <button class="ibtn" data-back aria-label="Back"><i class="ic" data-icon="back"></i></button>
+      <h2>Campaign</h2>
+      <div class="chip gem"><i class="ic" data-icon="gem"></i><span class="essence-val">0</span></div>
+    </header>
+    <div class="realm-tabs" id="realmTabs"></div>
+    <div class="realm-view" id="realmView"></div>
+  </section>
+
+  <!-- ============================== SHOP ============================== -->
+  <section id="shop" class="screen hidden">
+    <header class="screen-head">
+      <button class="ibtn" data-back aria-label="Back"><i class="ic" data-icon="back"></i></button>
+      <h2>Upgrades</h2>
+      <div class="chip gem"><i class="ic" data-icon="gem"></i><span class="essence-val">0</span></div>
+    </header>
+    <p class="screen-sub">Spend essence earned from kills, pickups and stage clears.</p>
+    <div class="shop-grid" id="shopGrid"></div>
+  </section>
+
+  <!-- ============================== CODEX ============================== -->
+  <section id="codex" class="screen hidden">
+    <header class="screen-head">
+      <button class="ibtn" data-back aria-label="Back"><i class="ic" data-icon="back"></i></button>
+      <h2>Elements</h2>
+      <div class="chip"><span id="codexCount">1 / 9</span></div>
+    </header>
+    <p class="screen-sub">Each realm's archers are attuned to an element. Hit their weakness for <b class="weak">160%</b> damage; resisted hits deal <b class="resist">55%</b>.</p>
+    <div class="codex-grid" id="codexGrid"></div>
+    <h3 class="codex-h">Realm affinities</h3>
+    <div class="aff-grid" id="affGrid"></div>
+  </section>
+
+  <!-- ============================== MODALS ============================== -->
+  <div id="modal" class="modal hidden">
+    <div class="sheet" id="sheet"></div>
+  </div>
+
+  <div id="toasts"></div>
+  <div id="rotate" class="hidden"><div><i class="ic" data-icon="rotate"></i><p>Rotate your device for the best view</p><button class="btn" id="btnRotateOk">Play anyway</button></div></div>
+
+  <script src="js/util.js?v=1"></script>
+  <script src="js/platform.js?v=1"></script>
+  <script src="js/audio.js?v=1"></script>
+  <script src="js/elements.js?v=1"></script>
+  <script src="js/realms.js?v=1"></script>
+  <script src="js/progress.js?v=1"></script>
+  <script src="js/figure.js?v=1"></script>
+  <script src="js/world.js?v=1"></script>
+  <script src="js/fx.js?v=1"></script>
+  <script src="js/game.js?v=1"></script>
+  <script src="js/icons.js?v=1"></script>
+  <script src="js/ui.js?v=1"></script>
+  <script src="js/main.js?v=1"></script>
+</body>
+</html>
