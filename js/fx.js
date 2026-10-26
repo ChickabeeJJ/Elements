@@ -109,7 +109,7 @@ class FX {
         g.addColorStop(0, rgba(p.color, 0)); g.addColorStop(0.75, rgba(p.color, 0.1 * a)); g.addColorStop(1, rgba(p.color, 0.32 * a));
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
         ctx.globalAlpha = a * 0.35; ctx.strokeStyle = p.color; ctx.lineWidth = p.width * 2.4 * a + 2;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r - p.width * 0.6, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0, r - p.width * 0.6), 0, TAU); ctx.stroke();
         ctx.globalAlpha = a; ctx.lineWidth = p.width * 0.7 * a + 1.5; ctx.strokeStyle = mixHex(p.color, '#ffffff', 0.45);
         ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
         ctx.globalAlpha = 1;
