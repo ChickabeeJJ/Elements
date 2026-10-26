@@ -1619,7 +1619,13 @@ const Game = (() => {
     for (const s of spawns) {
       s.t -= dt;
       if (Math.random() < 0.5) fx.add({ x: s.isl.x + s.ox + rand(-30, 30), y: s.isl.top - rand(0, 20), vy: -rand(80, 220), color: AURA[s.el], size: rand(4, 8), life: 0.5 });
-      if (s.t <= 0) { s.done = true; spawnEnemyAt(s.spec, s.isl.x + s.ox, s.isl.top, false, s.isl); }
+      if (s.t <= 0) {
+        // step out of the portal standing on the marked island (no drop, so no landing bounce)
+        s.done = true;
+        const e = spawnEnemyAt(s.spec, s.isl.x + s.ox, s.isl.top, true, s.isl);
+        const c = e.center(), col = (ELEMENT_BY_ID[s.el] || NEUTRAL).color;
+        fx.ring(c.x, c.y, col, 80, 0.35, 8); fx.burst(c.x, c.y, col, 14, 240);
+      }
     }
     spawns = spawns.filter(s => !s.done);
 

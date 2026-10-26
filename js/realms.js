@@ -92,7 +92,7 @@ function enemyStats(type, d) {
   return {
     hp: Math.round(36 * (1 + d * 2.6) * t.hp),
     dmgMul: (0.75 + d * 1.3) * t.dmg,
-    cdMul: lerp(1.5, 0.9, Math.min(d, 1.2)) * t.cd,
+    cdMul: lerp(1.3, 0.8, Math.min(d, 1.2)) * t.cd,
     think: lerp(0.32, 0.12, Math.min(d, 1.2)),
     aimErr: lerp(0.14, 0.04, Math.min(d, 1.1)),
     windupMul: lerp(2.5, 1.5, Math.min(d, 1)),
@@ -127,8 +127,8 @@ function buildStage(r, s) {
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
   // at most three waves; early stages are short and gentle
-  const total = 2 + Math.floor(s * 0.6) + Math.floor(r * 0.7);
-  const nW = total <= 2 ? 1 : total <= 4 ? 2 : 3;
+  const total = 3 + Math.floor(s * 0.7) + Math.floor(r * 0.8);
+  const nW = total <= 3 ? 1 : total <= 5 ? 2 : 3;
   for (let w = 0; w < nW; w++) {
     const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);
     const wave = [];
