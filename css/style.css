@@ -509,3 +509,9 @@ body.touch .skillbar { display: none; }
 .stage-card.zero { background: color-mix(in srgb, var(--c) 14%, var(--navy-2)); }
 .stage-card.zero .zero-ic { width: 18px; height: 18px; color: var(--c); }
 @media (max-width: 600px) { .stage-grid.nine { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+/* narrow screens: the element list scrolls sideways, so prices sit inside the pill (never clipped) */
+@media (max-width: 900px) {
+  .codex-list .el-pill .price { position: static; margin-left: 4px; padding: 2px 7px; border: none; border-radius: 999px; background: rgba(0, 0, 0, 0.28); color: #d8f6ff; font-size: 11px; overflow: visible; }
+  .codex-list .el-pill .price .ic { width: 12px; height: 12px; }
+}
