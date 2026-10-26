@@ -17,7 +17,7 @@ const REALMS = [
     id: 'ember', name: 'Ember Wastes', element: 'fire',
     sky: ['#2b1030', '#8a2e3b', '#ff9a52'], sun: '#ffcf7a', sunPos: [0.25, 0.32],
     hills: ['#9c3d3a', '#64232c', '#3b1520'], fog: '#ff8a5a',
-    top: '#3a2626', topDark: '#ff7a2a', rock: '#5c3b37', rockDark: '#3b2427',
+    top: '#4a302c', topDark: '#33201f', rock: '#5c3b37', rockDark: '#3b2427',
     ambient: 'ember', tint: '#ff8a3d', glowTop: true,
     boss: { name: 'Cinder Tyrant', title: 'Lord of Ash' },
   },
