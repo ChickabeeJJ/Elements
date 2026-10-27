@@ -112,6 +112,18 @@ function rollElement(rng, realm, mixChance) {
   return rng() < 0.8 ? realm.element : 'none';
 }
 
+// no wave fields more than two foes of the same element (three Void users at once was brutal)
+const SAME_ELEMENT_CAP = 2;
+function capElements(wave) {
+  const seen = {};
+  for (const spec of wave) {
+    if (spec.element === 'none' || spec.type === 'boss') continue;
+    seen[spec.element] = (seen[spec.element] || 0) + 1;
+    if (seen[spec.element] > SAME_ELEMENT_CAP) spec.element = 'none';
+  }
+  return wave;
+}
+
 /* Campaign stage: deterministic arena + list of waves. */
 function buildStage(r, s) {
   const realm = REALMS[r];
@@ -134,7 +146,7 @@ function buildStage(r, s) {
     const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);
     const wave = [];
     for (let i = 0; i < n; i++) wave.push({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d });
-    waves.push(wave);
+    waves.push(capElements(wave));
   }
   return { realm: r, stage: s, arena, waves, d, boss: false };
 }
@@ -151,7 +163,7 @@ function endlessWave(kills, waveNo) {
   const n = 1 + Math.floor(Math.random() * conc);
   const wave = [];
   for (let i = 0; i < n; i++) wave.push({ type: rollType(Math.random, Math.min(4, 1 + Math.floor(kills / 8)), 3), element: rollElement(Math.random, realm, 0.25), d });
-  return { realm: r, d, wave };
+  return { realm: r, d, wave: capElements(wave) };
 }
 
 function stageKey(r, s) { return r + '-' + s; }

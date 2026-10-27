@@ -620,6 +620,9 @@ const UI = (() => {
     const c = $('combo');
     if (n < 3) { c.classList.add('hidden'); return; }
     c.classList.remove('hidden');
+    // sit just under the stage chip, whatever its size on this screen
+    const chip = $('stageChip');
+    c.style.top = (chip.offsetTop + chip.offsetHeight + 6) + 'px';
     $('comboNum').textContent = n + '×';
     c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop');
   }

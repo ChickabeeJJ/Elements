@@ -533,3 +533,13 @@ body.touch .skillbar { display: none; }
 .combo-card b { font-family: var(--display); font-size: 13px; color: var(--gold); }
 .combo-card p { font-size: 12px; color: var(--muted); line-height: 1.35; }
 @media (max-height: 560px) { .combo-card { padding: 6px 10px 6px 8px; gap: 10px; } .combo-card .pair .hex { width: 28px; height: 25px; } .combo-card p { font-size: 11px; } }
+
+/* home top-left: username first, a smaller stars pill tucked underneath */
+.corner.tl { flex-direction: column; align-items: flex-start; gap: 8px; }
+.corner.tl .pill.stars { height: 30px; padding: 0 12px 0 8px; font-size: 12px; }
+.corner.tl .pill.stars .ic { width: 15px; height: 15px; }
+
+/* combo pill: smaller on touch screens (top is set from the stage chip in ui.js) */
+body.touch .combo { padding: 2px 10px 3px; gap: 5px; }
+body.touch .combo b { font-size: 18px; }
+body.touch .combo span { font-size: 9px; }
