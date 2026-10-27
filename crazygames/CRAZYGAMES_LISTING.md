@@ -32,7 +32,7 @@ Fight through 56 stages in 7 realms, each ending in an elemental boss. Upgrade y
 - Q / Right click (or K): element power 1
 - E / Middle click (or L): element power 2
 - 1, 2, 3 / Tab / Mouse wheel: swap element
-- P (or Esc): pause
+- P: pause (Esc only closes the pause menu, so it can still leave fullscreen)
 
 Key labels in game follow the player's keyboard layout (AZERTY shows Z/Q/S/D).
 
@@ -68,7 +68,9 @@ The covers come from real gameplay. The only text on them is the game title, wit
 
 ## CrazyGames SDK v3 integration (`js/platform.js`)
 
-**Basic Launch build: ads are switched off** (`ADS_ENABLED = false` in `js/platform.js`). No midgame, rewarded or banner ads are requested, there is no ad-block check, and the Revive / Double Gems ad buttons are hidden. Set the flag to `true` for a Full Launch.
+**Basic Launch build: ads are switched off.** SDK order: init > loadingStart > loadingStop > gameplayStart (the tutorial on a first visit starts after loadingStop). Settings has an in-game Privacy & Terms note.
+
+**Ads:** (`ADS_ENABLED = false` in `js/platform.js`). No midgame, rewarded or banner ads are requested, there is no ad-block check, and the Revive / Double Gems ad buttons are hidden. Set the flag to `true` for a Full Launch.
 
 - `SDK.init()`, `environment`
 - `game.loadingStart` / `loadingStop` around boot

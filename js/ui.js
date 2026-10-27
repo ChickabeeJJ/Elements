@@ -132,11 +132,12 @@ const UI = (() => {
       const unlock = elementUnlockedBy(mapRealm, s);
       const cur = mapRealm === nr && s === ns && !st;
       const el = document.createElement('button');
+      if (boss) el.title = realm.boss.name;
       el.className = 'stage-card' + (boss ? ' boss' : '') + (!open ? ' locked' : cur ? ' current' : '');
       el.style.setProperty('--c', realm.tint);
       el.innerHTML = `<span class="n">${open ? (boss ? '<span class="ic" data-icon="crown"></span>' : s + 1) : '<span class="ic" data-icon="lock"></span>'}</span>
         <span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>
-        <small>${boss ? realm.boss.name.toUpperCase() : 'STAGE ' + stageLabel(mapRealm, s)}</small>
+        <small>${boss ? 'BOSS' : 'STAGE ' + stageLabel(mapRealm, s)}</small>
         ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}`;
       el.onclick = () => {
         if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }
@@ -291,7 +292,9 @@ const UI = (() => {
         <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span><span>Swap element</span>
         <span><kbd>${key('KeyP')}</kbd></span><span>Pause</span>
       </div>`}
+      <button class="link-btn" id="setPrivacy">Privacy &amp; Terms</button>
       <div class="actions"><button class="btn primary" id="setBack"><b>${fromPause ? 'BACK' : 'DONE'}</b></button><button class="btn danger" id="setReset"><b>RESET</b></button></div>`, s => {
+      s.querySelector('#setPrivacy').onclick = () => { Sfx.click(); openPrivacy(fromPause); };
       s.querySelectorAll('.toggle').forEach(t => t.onclick = () => {
         const k = t.dataset.k;
         st[k] = !st[k];
@@ -769,6 +772,19 @@ const UI = (() => {
   function applyUiScale() {
     const k = clamp(Math.min(innerWidth / 1280, innerHeight / 760), 1, 1.75);
     document.documentElement.style.setProperty('--ui', k.toFixed(3));
+  }
+
+  function openPrivacy(fromPause) {
+    modal(`
+      <h2>PRIVACY &amp; TERMS</h2>
+      <div class="legal">
+        <p>Elementfall saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
+        <p>The game does not ask for or collect any other personal information, shows no ads and has no purchases.</p>
+        <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
+      </div>
+      <div class="actions"><button class="btn primary" id="prBack"><b>BACK</b></button></div>`, s => {
+      s.querySelector('#prBack').onclick = () => { Sfx.click(); openSettings(fromPause); };
+    });
   }
 
   function toMenu() { Sfx.click(); closeModal(); Game.quit(); Game.idleScene(0); show('home'); }

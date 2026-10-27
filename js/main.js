@@ -5,13 +5,15 @@
 
 (async function boot() {
   const canvas = document.getElementById('stage');
-  Platform.loadingStart();
+  // SDK order: init, loadingStart, load everything, loadingStop, and only then the UI,
+  // which may start the tutorial (the first gameplayStart must come after loadingStop)
   await Platform.init();
+  Platform.loadingStart();
   Save.load();
   try { await Promise.all([document.fonts.load('20px Bungee'), document.fonts.load('800 20px Nunito')]); } catch (e) { /* fonts are optional */ }
   Game.init(canvas);
-  UI.init();
   Platform.loadingStop();
+  UI.init();
 
   const inFight = () => UI.screen === null && !UI.modalOpen() && Game.state === 'play';
 
@@ -34,7 +36,8 @@
   /* --------------------------------------------------------- keyboard */
   const MOVE = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right' };
   window.addEventListener('keydown', e => {
-    if (e.code === 'Escape' || e.code === 'KeyP') {
+    // P pauses. Escape is left to the browser (it leaves fullscreen); it only closes an open pause menu.
+    if (e.code === 'KeyP' || (e.code === 'Escape' && UI.modalOpen() && Game.paused)) {
       if (UI.screen !== null) return;
       if (UI.modalOpen()) { if (Game.paused && Game.state === 'play') UI.resume(); }
       else UI.openPause();
