@@ -318,8 +318,10 @@ class Fighter {
             // Aimed-high punches become an uppercut: load low, then drive the
             // lead fist up in front of the face while the rear hand stays guarding.
             uppercutPose = true;
-            const wind = [f * 12 * s, 15 * s, -f * 15 * s, 17 * s];
-            const strike = [f * 24 * s, -13 * s, -f * 13 * s, 17 * s];
+            const wind = [f * 10 * s, 18 * s, -f * 15 * s, 17 * s];
+            // Punch up through the target: the lead fist finishes high and forward,
+            // with the elbow kept below/in front of the shoulder rather than behind the head.
+            const strike = [f * 22 * s, -33 * s, -f * 13 * s, 17 * s];
             hands = actionPose(wind, strike);
             lean += f * (phase === 0 ? -2 : phase === 1 ? 6 : 0) * s;
             crouch += phase === 0 ? 2 * s : 0;
@@ -435,9 +437,11 @@ class Fighter {
     if (!hands) {
       const sw = moving ? Math.sin(this.walkPh) * 8 * s : 0;
       // Grounded stance: keep both hands around the torso, with the lead hand slightly forward.
-      // Keep hands in the same relaxed guard while jumping as while standing.
-      // Only the legs tuck in the air; the arms don't rise toward the face.
-      hands = [f * 23 * s + sw, 20 * s + bob, -f * 13 * s - sw * 0.45, 18 * s + bob];
+      // Let the arms hang naturally during jumps instead of locking into idle guard.
+      // Small counter-swings keep them loose without letting the hands fly across the body.
+      hands = air
+        ? [f * 12 * s + Math.sin(this.t * 3.2) * 2 * s, 30 * s, -f * 10 * s - Math.sin(this.t * 2.6) * 1.5 * s, 29 * s]
+        : [f * 23 * s + sw, 20 * s + bob, -f * 13 * s - sw * 0.45, 18 * s + bob];
     }
     const setArm = (hi, ei, hx, hy) => {
       // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
