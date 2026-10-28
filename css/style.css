@@ -424,7 +424,13 @@ body.touch .combo span { font-size: 11px; }
 
 /* loadout editor */
 .lo-slots { display: flex; justify-content: center; gap: 14px; }
-.lo-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.lo-slot {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: inherit; font: inherit; cursor: pointer;
+  transition: transform 0.12s, filter 0.12s;
+}
+.lo-slot:not(:disabled):hover { transform: translateY(-2px); filter: brightness(1.08); }
+.lo-slot:disabled { cursor: default; opacity: 1; }
 .lo-slot .hex, .lo-slot .empty { width: 64px; height: 64px; border-radius: 12px; }
 .lo-slot .empty { display: block; background: var(--ink-3); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08); }
 .lo-slot small { font-weight: 800; font-size: 11px; letter-spacing: 0.04em; color: var(--muted); }
