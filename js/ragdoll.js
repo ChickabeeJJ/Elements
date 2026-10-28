@@ -322,11 +322,19 @@ class Fighter {
           break;
         }
         case 'heavy': {
-          const wind = [-f * 18 * s, -26 * s, -f * 10 * s, -22 * s];
-          const strike = [...front(43 * s, 6 * s), ...front(32 * s, -8 * s)];
-          hands = actionPose(wind, strike);
-          lean += f * (phase === 0 ? -5 : phase === 1 ? 9 : 1) * s;
-          crouch += phase === 1 ? 5 * s : 0;
+          if (isRanged) {
+            // Heavy projectiles (e.g. boulders): draw the arms back, then throw forward.
+            const wind = [-f * 21 * s, -24 * s, -f * 12 * s, -18 * s];
+            const strike = [...front(42 * s, 5 * s), ...front(27 * s, -8 * s)];
+            hands = actionPose(wind, strike);
+            lean += f * (phase === 0 ? -6 : phase === 1 ? 10 : 1) * s;
+          } else {
+            const wind = [-f * 18 * s, -26 * s, -f * 10 * s, -22 * s];
+            const strike = [...front(43 * s, 6 * s), ...front(32 * s, -8 * s)];
+            hands = actionPose(wind, strike);
+            lean += f * (phase === 0 ? -5 : phase === 1 ? 9 : 1) * s;
+            crouch += phase === 1 ? 5 * s : 0;
+          }
           break;
         }
         case 'swing': {
