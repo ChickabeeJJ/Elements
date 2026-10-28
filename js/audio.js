@@ -15,8 +15,8 @@ const Sfx = (() => {
     if (!AC) return false;
     ac = new AC();
     master = ac.createGain(); master.gain.value = 0.8; master.connect(ac.destination);
-    sfxBus = ac.createGain(); sfxBus.gain.value = sfxOn ? 0.9 : 0; sfxBus.connect(master);
-    musicBus = ac.createGain(); musicBus.gain.value = musicOn ? 0.32 : 0; musicBus.connect(master);
+    sfxBus = ac.createGain(); sfxBus.gain.value = sfxOn ? 0.55 : 0; sfxBus.connect(master);
+    musicBus = ac.createGain(); musicBus.gain.value = musicOn ? 0.3 : 0; musicBus.connect(master);
     noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -173,8 +173,8 @@ const Sfx = (() => {
   function applyGains() {
     if (!ac) return;
     const t = ac.currentTime;
-    sfxBus.gain.setTargetAtTime(sfxOn && !adMuted && !platMuted ? 0.9 : 0, t, 0.05);
-    musicBus.gain.setTargetAtTime(musicOn && !adMuted && !platMuted ? 0.32 : 0, t, 0.2);
+    sfxBus.gain.setTargetAtTime(sfxOn && !adMuted && !platMuted ? 0.55 : 0, t, 0.05);
+    musicBus.gain.setTargetAtTime(musicOn && !adMuted && !platMuted ? 0.3 : 0, t, 0.2);
   }
   function setSfx(on) { sfxOn = on; applyGains(); }
   function setMusic(on) { musicOn = on; applyGains(); }
