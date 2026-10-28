@@ -376,8 +376,20 @@ body.touch .skillbar { display: none; }
 .orb.ready-flash { animation: orbFlash 0.45s ease; }
 @keyframes orbFlash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 75%, transparent); } 100% { box-shadow: 0 0 0 16px transparent; } }
 .orb-jump { display: none; --c: #fff; }
-.orb-jump .orb-icon { background: none; box-shadow: none; color: #fff; }
-.orb-jump .ic { width: 100%; height: 100%; }
+.orb-jump .orb-icon {
+  background: none; box-shadow: none; color: #fff;
+  display: grid; place-items: center;
+}
+.orb-jump .ic {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+}
+.orb-jump .ic svg {
+  width: 82%; height: 82%;
+  display: block;
+  overflow: visible;
+}
+.orb-jump .ic svg path { stroke-width: 4 !important; }
 .joy { position: absolute; left: 0; bottom: 0; width: 44%; height: 62%; display: none; pointer-events: auto; touch-action: none; }
 .joy-base, .joy-knob { position: absolute; border-radius: 50%; display: none; pointer-events: none; }
 .joy-base { width: 120px; height: 120px; margin: -60px 0 0 -60px; background: rgba(10, 12, 18, 0.38); border: 2px solid rgba(255, 255, 255, 0.28); }
