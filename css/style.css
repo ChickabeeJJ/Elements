@@ -6,7 +6,20 @@
 
 @font-face { font-family: 'Rubik'; src: url('../assets/fonts/rubik.woff2') format('woff2'); font-weight: 500 900; font-display: swap; }
 
+/* Register theme colours so the browser can interpolate them instead of snapping. */
+@property --acc {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffc933;
+}
+@property --acc-hi {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffd95e;
+}
+
 :root {
+  transition: --acc 240ms ease-in-out, --acc-hi 240ms ease-in-out;
   --ink: #0c0e15;
   --ink-2: #161a25;
   --ink-3: #222737;
@@ -29,6 +42,10 @@
   --cut-m: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   --cut-l: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
   --ui: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { transition: none; }
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
