@@ -239,16 +239,88 @@ const Game = (() => {
     return f;
   }
 
-  function queueSpawn(spec) {
-    const away = islands.filter(i => !(player && player.root.plat === i));
-    const isl = spec.type === 'boss' ? islands[0] : pick(away.length ? away : islands);
-    const margin = Math.min(60, isl.w * 0.3);
-    // portals open as far from the hero as the island allows (single-island arenas included)
-    let x = rand(isl.left + margin, isl.right - margin);
-    if (player) for (let k = 0; k < 6; k++) { const c = rand(isl.left + margin, isl.right - margin); if (Math.abs(c - player.root.x) > Math.abs(x - player.root.x)) x = c; }
-    if (spec.type === 'boss') x = player.root.x < isl.x ? isl.right - 120 : isl.left + 120;
+  function queueSpawn(spec, placement = null) {
+    let isl, x;
+    if (placement) {
+      isl = placement.isl;
+      const margin = Math.min(45, isl.w * 0.18);
+      x = clamp(placement.x, isl.left + margin, isl.right - margin);
+    } else {
+      const away = islands.filter(i => !(player && player.root.plat === i));
+      isl = spec.type === 'boss' ? islands[0] : pick(away.length ? away : islands);
+      const margin = Math.min(60, isl.w * 0.3);
+      // Portals open as far from the hero as the island allows (single-island arenas included).
+      x = rand(isl.left + margin, isl.right - margin);
+      if (player) for (let k = 0; k < 6; k++) { const c = rand(isl.left + margin, isl.right - margin); if (Math.abs(c - player.root.x) > Math.abs(x - player.root.x)) x = c; }
+      if (spec.type === 'boss') x = player.root.x < isl.x ? isl.right - 120 : isl.left + 120;
+    }
     spawns.push({ spec, isl, ox: x - isl.x, t: 1.0, el: spec.element });
     Sfx.portal();
+  }
+
+  // Allocate portal positions per wave, not per enemy, so independently queued enemies
+  // cannot accidentally cluster at the same rough spawn spot.
+  function queueSpawnWave(specs) {
+    if (!specs.length) return;
+    if (specs.some(spec => spec.type === 'boss')) {
+      specs.forEach(spec => queueSpawn(spec));
+      return;
+    }
+
+    const maxPerPosition = specs.length === 2 ? 1 : 2;
+    const makePositions = sourceIslands => {
+      const positions = [];
+      sourceIslands.forEach(isl => {
+        const margin = Math.min(45, isl.w * 0.18);
+        const left = isl.left + margin, right = isl.right - margin;
+        const span = Math.max(0, right - left);
+        // Use distinct left/right zones on small islands and three zones on wider islands.
+        const ratios = span >= 420 ? [0.18, 0.5, 0.82] : span >= 180 ? [0.14, 0.86] : [0.5];
+        ratios.forEach((ratio, zone) => {
+          positions.push({ isl, x: left + span * ratio, key: islands.indexOf(isl) + ':' + zone, margin });
+        });
+      });
+      return positions;
+    };
+
+    const awayIslands = islands.filter(isl => !(player && player.root.plat === isl));
+    const awayPositions = makePositions(awayIslands);
+    // Prefer platforms away from the player, but use the whole arena if that would
+    // force enemies to reuse a rough position beyond the allowed limit.
+    let positions = awayPositions.length * maxPerPosition >= specs.length
+      ? awayPositions : makePositions(islands);
+
+    const used = new Map();
+    const placements = [];
+    for (const spec of specs) {
+      let available = positions.filter(pos => (used.get(pos.key) || 0) < maxPerPosition);
+      if (!available.length) {
+        positions = makePositions(islands);
+        available = positions.filter(pos => (used.get(pos.key) || 0) < maxPerPosition);
+      }
+
+      // Spread across empty positions before allowing a second enemy into any one area.
+      const minUsed = Math.min(...available.map(pos => used.get(pos.key) || 0));
+      available = available.filter(pos => (used.get(pos.key) || 0) === minUsed);
+      if (player) {
+        available.sort((a, b) => {
+          const da = Math.hypot(a.x - player.root.x, a.isl.top - player.root.y);
+          const db = Math.hypot(b.x - player.root.x, b.isl.top - player.root.y);
+          return db - da;
+        });
+        // Keep some randomness while favouring positions furthest from the player.
+        available = available.slice(0, Math.min(3, available.length));
+      }
+      const pos = pick(available);
+      const count = used.get(pos.key) || 0;
+      used.set(pos.key, count + 1);
+      // If a larger wave needs two enemies in the same rough area, stagger their
+      // portal positions a little so they do not appear perfectly stacked.
+      const offset = maxPerPosition === 2 ? (count === 0 ? -22 : 22) : rand(-8, 8);
+      placements.push({ isl: pos.isl, x: clamp(pos.x + offset, pos.isl.left + pos.margin, pos.isl.right - pos.margin) });
+    }
+
+    specs.forEach((spec, i) => queueSpawn(spec, placements[i]));
   }
 
   const aliveEnemies = () => enemies.filter(e => e.alive && !e.decor);
@@ -1489,7 +1561,7 @@ const Game = (() => {
     if (mode === 'tutorial' || mode === 'test') return;
     if (mode === 'stage') {
       waveIdx++;
-      for (const spec of stageDef.waves[waveIdx]) queueSpawn(spec);
+      queueSpawnWave(stageDef.waves[waveIdx]);
       hooks.onWave && hooks.onWave(waveIdx, stageDef.waves.length, stageDef.boss && waveIdx === stageDef.waves.length - 1);
     } else {
       const w = endlessWave(run.kills, endlessWaveNo++);
@@ -1504,7 +1576,7 @@ const Game = (() => {
         realmFlash = 1;
         hooks.onToast && hooks.onToast(REALMS[w.realm].name, true);
       }
-      for (const spec of w.wave) queueSpawn(spec);
+      queueSpawnWave(w.wave);
       hooks.onWave && hooks.onWave(endlessWaveNo - 1, 0, w.wave.some(s => s.type === 'boss'));
     }
     enemies = enemies.filter(e => e.alive || (e.deadT < 5.5 && !e.gone));
