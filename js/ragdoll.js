@@ -280,7 +280,7 @@ class Fighter {
     let lean = clamp(r.vx * 0.012, -7, 7) * s;
     let crouch = (this.landT || 0) * 14 * s;
     let hands = null;   // [fx, fy, bx, by] relative to neck
-    let uppercutPose = false;
+    let elbowDownPose = false;
     const act = this.action;
     if (act) {
       const mv = act.move;
@@ -317,7 +317,7 @@ class Fighter {
           } else if (ay < -0.42) {
             // Aimed-high punches become an uppercut: load low, then drive the
             // lead fist up in front of the face while the rear hand stays guarding.
-            uppercutPose = true;
+            elbowDownPose = true;
             const wind = [f * 10 * s, 18 * s, -f * 15 * s, 17 * s];
             // Punch up through the target: the lead fist finishes high and forward,
             // with the elbow kept below/in front of the shoulder rather than behind the head.
@@ -326,6 +326,8 @@ class Fighter {
             lean += f * (phase === 0 ? -2 : phase === 1 ? 6 : 0) * s;
             crouch += phase === 0 ? 2 * s : 0;
           } else {
+            // Ordinary shallow punches also keep the elbow below the fist.
+            elbowDownPose = true;
             const wind = [-f * 14 * s, 5 * s, -f * 22 * s, 8 * s];
             const strike = [...front(40 * s), -f * 11 * s, 8 * s];
             hands = actionPose(wind, strike);
@@ -457,11 +459,10 @@ class Fighter {
       // making both elbows fold to the same upside-down angle.
       let bx = -hy / l, by = hx / l;
       const leadArm = hi === P.FHAND;
-      // Keep the lead elbow tucked behind the forward hand; the rear arm bends
-      // slightly outward instead of making both arms form inverted hooks.
-      // An uppercut elbow tracks forward/down, keeping it out of the head silhouette.
-      const preferredX = uppercutPose && leadArm ? f : leadArm ? -f : f;
-      const preferredY = uppercutPose && leadArm ? 0.82 : -0.42;
+      // During any melee punch, bias the lead elbow down and forward.
+      // The old upward preference folded the arm above the wrist and across the head.
+      const preferredX = elbowDownPose && leadArm ? f : leadArm ? -f : f;
+      const preferredY = elbowDownPose && leadArm ? 0.95 : -0.42;
       if (bx * preferredX + by * preferredY < 0) { bx = -bx; by = -by; }
       const armLen = 24 * s;
       const half = Math.min(armLen, l / 2);
