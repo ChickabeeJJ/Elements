@@ -425,14 +425,16 @@ class Fighter {
     if (!hands) {
       const sw = moving ? Math.sin(this.walkPh) * 8 * s : 0;
       // Grounded stance: keep both hands around the torso, with the lead hand slightly forward.
+      // Compact, separated guard in the air prevents hands drifting over the face.
       hands = air
-        ? [f * 22 * s, -8 * s, -f * 20 * s, -6 * s]
+        ? [f * 21 * s, 5 * s, -f * 17 * s, 10 * s]
         : [f * 23 * s + sw, 20 * s + bob, -f * 13 * s - sw * 0.45, 18 * s + bob];
     }
     const setArm = (hi, ei, hx, hy) => {
       // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
       const rawLen = Math.hypot(hx, hy) || 1;
-      const maxReach = 46 * s;
+      // Keep a little bend in the elbows; full extension makes the hands look detached.
+      const maxReach = 41 * s;
       if (rawLen > maxReach) { const k = maxReach / rawLen; hx *= k; hy *= k; }
       T[hi].x = nx + hx; T[hi].y = ny + hy;
       const mx = nx + hx / 2, my = ny + hy / 2;
@@ -467,10 +469,19 @@ class Fighter {
       p.px = p.x; p.py = p.y;
       p.x += vx; p.y += vy + g;
       if (m > 0.01) {
-        const k = MUSCLE[i] * m;
+        let k = MUSCLE[i] * m;
+        const isArmPoint = i === P.FELB || i === P.FHAND || i === P.BELB || i === P.BHAND;
+        let damping = MUSCLE_DAMP;
+        if (isArmPoint && this.mode === 'active') {
+          // Hands follow the animated targets firmly during combat and jumps,
+          // but still go loose when the fighter is stunned or tumbling.
+          const control = this.action ? 2.1 : !this.root.grounded ? 1.65 : 1.3;
+          k = Math.min(this.action ? 0.56 : 0.46, k * control);
+          damping += this.action ? 0.12 : !this.root.grounded ? 0.08 : 0.04;
+        }
         const tvx = T[i].x - Tp[i].x, tvy = T[i].y - Tp[i].y;
-        p.x += (T[i].x - p.x) * k - (vx - tvx) * MUSCLE_DAMP * m;
-        p.y += (T[i].y - p.y) * k - (vy - tvy) * MUSCLE_DAMP * m;
+        p.x += (T[i].x - p.x) * k - (vx - tvx) * damping * m;
+        p.y += (T[i].y - p.y) * k - (vy - tvy) * damping * m;
       }
     }
     const s = this.s;
@@ -597,6 +608,9 @@ class Fighter {
     };
     const bandColor = this.el === 'none' ? '#aeb8c8' : this.accent;
     cuff(P.BELB, P.BHAND, bandColor);
+    // Small rounded hand endpoints clarify where the rear arms finish.
+    ctx.fillStyle = shade;
+    ctx.beginPath(); ctx.arc(pts[P.BHAND].x, pts[P.BHAND].y, 5.3 * s, 0, TAU); ctx.fill();
     // torso: thick capsule with a slightly narrower waist
     seg(1, 2, 22, body);
     // front leg
@@ -610,6 +624,9 @@ class Fighter {
     // front arm on top
     seg(1, 3, 11, body); seg(3, 4, 9.5, body);
     cuff(P.FELB, P.FHAND, bandColor);
+    // Keep the leading hand visibly attached to the forearm during fast attacks.
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(pts[P.FHAND].x, pts[P.FHAND].y, 5.8 * s, 0, TAU); ctx.fill();
     if (this.isPlayer && this.alive && this.el !== 'none') {
       ctx.globalCompositeOperation = 'lighter';
       Glow.draw(ctx, AURA[this.el], pts[P.FHAND].x, pts[P.FHAND].y, 16 * s, 0.55);
