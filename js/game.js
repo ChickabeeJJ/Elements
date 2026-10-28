@@ -1830,12 +1830,76 @@ const Game = (() => {
     return autoTarget() || { x: c.x + player.facing * 300, y: c.y };
   }
 
+  function vineRopeLength(hand, tip) {
+    const d = Math.hypot(tip.x - hand.x, tip.y - hand.y);
+    // A little extra line gives the vine slack instead of behaving like a steel cable.
+    return d + Math.max(18, Math.min(70, d * 0.12));
+  }
+
+  function makeVineRope(hand, tip, length) {
+    const count = Math.max(8, Math.min(28, Math.ceil(length / 28) + 1));
+    const rope = [];
+    for (let i = 0; i < count; i++) {
+      const t = i / (count - 1);
+      const x = hand.x + (tip.x - hand.x) * t;
+      const y = hand.y + (tip.y - hand.y) * t;
+      rope.push({ x, y, px: x, py: y });
+    }
+    return rope;
+  }
+
+  function updateVineRope(v, hand, tip, dt) {
+    if (!v.rope || v.rope.length < 3) v.rope = makeVineRope(hand, tip, v.length);
+    const rope = v.rope, last = rope.length - 1;
+    const segmentLength = v.length / last;
+
+    // Verlet particles give the vine weight and flop; the ends stay attached to the
+    // fighter's hand and the current hook point.
+    rope[0].x = hand.x; rope[0].y = hand.y;
+    rope[last].x = tip.x; rope[last].y = tip.y;
+    for (let i = 1; i < last; i++) {
+      const p = rope[i];
+      const vx = (p.x - p.px) * 0.985;
+      const vy = (p.y - p.py) * 0.985;
+      p.px = p.x; p.py = p.y;
+      p.x += vx;
+      p.y += vy + 900 * dt * dt;
+    }
+
+    // Distance constraints keep the rope from stretching, while gravity lets it sag.
+    for (let iter = 0; iter < 7; iter++) {
+      rope[0].x = hand.x; rope[0].y = hand.y;
+      rope[last].x = tip.x; rope[last].y = tip.y;
+      for (let i = 0; i < last; i++) {
+        const a = rope[i], b = rope[i + 1];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 0.001) continue;
+        const error = (d - segmentLength) / d;
+        const cx = dx * error, cy = dy * error;
+        if (i === 0) {
+          b.x -= cx; b.y -= cy;
+        } else if (i === last - 1) {
+          a.x += cx; a.y += cy;
+        } else {
+          a.x += cx * 0.5; a.y += cy * 0.5;
+          b.x -= cx * 0.5; b.y -= cy * 0.5;
+        }
+      }
+      rope[0].x = hand.x; rope[0].y = hand.y;
+      rope[last].x = tip.x; rope[last].y = tip.y;
+    }
+    rope[0].px = hand.x; rope[0].py = hand.y;
+    rope[last].px = tip.x; rope[last].py = tip.y;
+  }
+
   function attachVine(f, aim) {
     const hand = f.hand();
     const dx = aim.x - hand.x, dy = aim.y - hand.y;
     const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
     let px = hand.x, py = hand.y;
-    // Step along the actual vine path. An enemy hit before terrain becomes the moving anchor.
+    // The first enemy hit becomes the vine tip. Damage is dealt only on this
+    // initial contact; the attached rope itself is not a repeating damage hitbox.
     for (let d = 10; d <= 620; d += 10) {
       const x = hand.x + ux * d, y = hand.y + uy * d;
       let enemyHit = null;
@@ -1846,25 +1910,33 @@ const Game = (() => {
       }
       if (enemyHit) {
         const target = enemyHit.target, hit = enemyHit.hit;
-        const ax = hit.px, ay = hit.py;
+        const tip = { x: hit.px, y: hit.py };
+        const ropeLength = vineRopeLength(hand, tip);
         vineSwing = {
-          x: ax, y: ay, target, ox: ax - target.root.x, oy: ay - target.root.y,
-          length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0, hitCooldown: new Map()
+          x: tip.x, y: tip.y, target, ox: tip.x - target.root.x, oy: tip.y - target.root.y,
+          length: ropeLength, rope: makeVineRope(hand, tip, ropeLength), age: 0
         };
         f.action = null;
-        fx.burst(ax, ay, '#9ae66e', 10, 130, { life: 0.28 });
+        const dmg = 8, knock = 160, lift = 0.1;
+        applyHit(f, target, {
+          mv: { dmg, knock, lift }, el: 'nature', dmg, knock, lift,
+          dirX: Math.sign(target.root.x - f.root.x) || f.facing, dirY: -0.08,
+          idx: hit.idx, px: hit.px, py: hit.py
+        });
+        fx.burst(tip.x, tip.y, '#9ae66e', 7, 100, { life: 0.24 });
         return;
       }
       for (const isl of islands) {
         if (x < isl.left || x > isl.right) continue;
         if (isl.solidAt(x, y) || (Math.abs(y - isl.top) < 12 && uy > 0)) {
-          const ax = x, ay = Math.min(y, isl.top);
+          const tip = { x, y: Math.min(y, isl.top) };
+          const ropeLength = vineRopeLength(hand, tip);
           vineSwing = {
-            x: ax, y: ay, isl,
-            length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0, hitCooldown: new Map()
+            x: tip.x, y: tip.y, isl,
+            length: ropeLength, rope: makeVineRope(hand, tip, ropeLength), age: 0
           };
           f.action = null;
-          fx.burst(ax, ay, '#9ae66e', 8, 110, { life: 0.25 });
+          fx.burst(tip.x, tip.y, '#9ae66e', 8, 110, { life: 0.25 });
           return;
         }
       }
@@ -1876,7 +1948,6 @@ const Game = (() => {
     if (!vineSwing || !input.attack || !f || f.el !== 'nature' || !f.alive) { vineSwing = null; return; }
     const v = vineSwing, r = f.root;
     const hand = f.hand();
-    if (!v.hitCooldown) v.hitCooldown = new Map();
 
     if (v.target) {
       if (!v.target.alive || v.target.gone) { vineSwing = null; return; }
@@ -1885,49 +1956,25 @@ const Game = (() => {
     }
     v.age += dt;
 
-    // The rope is damaging. Initialise cooldown state for every latch type and
-    // obtain the hand before using it, avoiding crashes on enemy and terrain hooks.
-    for (const target of opponents(f)) {
-      if (!target.alive || target.gone || blocked(target)) continue;
-      const hit = target.hitCapsule(hand.x, hand.y, v.x, v.y, 13);
-      if (!hit || (v.hitCooldown.get(target) || 0) > time) continue;
-      v.hitCooldown.set(target, time + 0.42);
-      const dirX = Math.sign(target.root.x - f.root.x) || f.facing;
-      applyHit(f, target, {
-        mv: { dmg: 32, knock: 420, lift: 0.24 }, el: 'nature', dmg: 32, knock: 420, lift: 0.24,
-        dirX, dirY: -0.15, idx: hit.idx, head: hit.head, px: hit.px, py: hit.py
-      });
-      fx.burst(hit.px, hit.py, '#9ae66e', 12, 240, { life: 0.3 });
-    }
-
     if (v.target) {
-      // Enemy latch: the player is NOT constrained to the target. If player movement
-      // stretches the rope past its latched length, move the vine tip via the target.
+      // The hooked tip follows the enemy. When the player's movement takes the
+      // hand beyond rope length, tension moves the enemy/tip instead of dragging
+      // or teleporting the player back toward the enemy.
       const target = v.target;
-      if (!target.alive || target.gone) { vineSwing = null; return; }
       let dx = hand.x - v.x, dy = hand.y - v.y;
       const d = Math.hypot(dx, dy);
       if (d > v.length && d > 0.001) {
         const nx = dx / d, ny = dy / d;
         const dragScale = target.kind === 'boss' ? 0.32 : target.kind === 'brute' ? 0.62 : 1;
+        const extension = d - v.length;
+        target.root.vx = clamp(target.root.vx + nx * (700 + extension * 4) * dragScale * dt, -1250, 1250);
+        target.root.vy = clamp(target.root.vy + ny * (700 + extension * 4) * dragScale * dt, -1050, 1050);
 
-        // Physical pull, scaled for heavier enemies.
-        target.root.vx = clamp(target.root.vx + nx * 1180 * dragScale * dt, -1250, 1250);
-        target.root.vy = clamp(target.root.vy + ny * 1180 * dragScale * dt, -1050, 1050);
-
-        // Correct stretch at the endpoint, not at the player's body. Cap this
-        // per-step correction to avoid teleporting an enemy after a large displacement.
-        let correctionX = hand.x - nx * v.length - v.x;
-        let correctionY = hand.y - ny * v.length - v.y;
-        const correctionLen = Math.hypot(correctionX, correctionY);
-        const maxCorrection = 280 * dt;
-        if (correctionLen > maxCorrection && correctionLen > 0) {
-          const scale = maxCorrection / correctionLen;
-          correctionX *= scale;
-          correctionY *= scale;
-        }
-        target.root.x += correctionX;
-        target.root.y += correctionY;
+        // Small positional correction keeps the tether responsive without making
+        // the vine or its tip behave like a rigid rod.
+        const correction = Math.min(extension * 0.18, 95 * dt) * dragScale;
+        const correctionX = nx * correction, correctionY = ny * correction;
+        target.root.x += correctionX; target.root.y += correctionY;
         for (let i = 0; i < target.pts.length; i++) {
           target.pts[i].x += correctionX; target.pts[i].y += correctionY;
           target.pts[i].px += correctionX; target.pts[i].py += correctionY;
@@ -1937,19 +1984,18 @@ const Game = (() => {
         v.x = target.root.x + v.ox;
         v.y = target.root.y + v.oy;
       }
-
-      // Enemy-hook mode is a pull, not a player swing: preserve normal player movement.
-      if (Math.random() < dt * 18) fx.add({x:v.x+rand(-4,4),y:v.y+rand(-4,4),vx:rand(-18,18),vy:rand(-18,18),color:'#9ae66e',size:rand(2,4),life:0.25});
+      updateVineRope(v, hand, { x: v.x, y: v.y }, dt);
+      if (Math.random() < dt * 12) fx.add({x:v.x+rand(-4,4),y:v.y+rand(-4,4),vx:rand(-18,18),vy:rand(-18,18),color:'#9ae66e',size:rand(2,4),life:0.25});
       return;
     }
 
-    // Terrain latch: keep the taut-rope swing behaviour.
+    // Terrain hooks still swing the player when the vine reaches its maximum length.
     let dx = hand.x - v.x, dy = hand.y - v.y;
     let d = Math.hypot(dx, dy);
     if (d < 0.001) { dx = 1; dy = 0; d = 1; }
     const nx = dx / d, ny = dy / d;
-    const correctionX = v.x + nx * v.length - hand.x;
-    const correctionY = v.y + ny * v.length - hand.y;
+    const correctionX = d > v.length ? v.x + nx * v.length - hand.x : 0;
+    const correctionY = d > v.length ? v.y + ny * v.length - hand.y : 0;
     if (Math.abs(correctionX) > 0.001 || Math.abs(correctionY) > 0.001) {
       r.x += correctionX; r.y += correctionY;
       for (let i = 0; i < f.pts.length; i++) {
@@ -1959,14 +2005,17 @@ const Game = (() => {
         f.Tp[i].x += correctionX; f.Tp[i].y += correctionY;
       }
     }
-    // Keep only tangential velocity so momentum swings around the anchor.
-    const radial = r.vx * nx + r.vy * ny;
-    if (radial > 0) { r.vx -= radial * nx; r.vy -= radial * ny; }
-    r.grounded = false; r.plat = null;
-    r.vy += 520 * dt;
-    r.vx += -ny * (f.input.x || 0) * 1150 * dt;
-    r.vy += nx * (f.input.x || 0) * 1150 * dt;
-    if (Math.random() < dt * 18) fx.add({x:v.x+rand(-4,4),y:v.y+rand(-4,4),vx:rand(-18,18),vy:rand(-18,18),color:'#9ae66e',size:rand(2,4),life:0.25});
+    // Only remove outward velocity when the rope is actually taut.
+    if (d >= v.length) {
+      const radial = r.vx * nx + r.vy * ny;
+      if (radial > 0) { r.vx -= radial * nx; r.vy -= radial * ny; }
+      r.grounded = false; r.plat = null;
+      r.vy += 520 * dt;
+      r.vx += -ny * (f.input.x || 0) * 1150 * dt;
+      r.vy += nx * (f.input.x || 0) * 1150 * dt;
+    }
+    updateVineRope(v, f.hand(), { x: v.x, y: v.y }, dt);
+    if (Math.random() < dt * 12) fx.add({x:v.x+rand(-4,4),y:v.y+rand(-4,4),vx:rand(-18,18),vy:rand(-18,18),color:'#9ae66e',size:rand(2,4),life:0.25});
   }
 
   function playerControl(dt) {
@@ -2195,8 +2244,21 @@ const Game = (() => {
     for (const p of projectiles) drawProjectile(c, p);
     if (vineSwing && player && input.attack) {
       const h = player.hand();
-      c.strokeStyle = '#9ae66e'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
-      c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(vineSwing.x, vineSwing.y); c.stroke();
+      const rope = vineSwing.rope;
+      c.strokeStyle = '#6ebd51'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath();
+      if (rope && rope.length > 2) {
+        c.moveTo(h.x, h.y);
+        for (let i = 1; i < rope.length - 1; i++) {
+          const midX = (rope[i].x + rope[i + 1].x) * 0.5;
+          const midY = (rope[i].y + rope[i + 1].y) * 0.5;
+          c.quadraticCurveTo(rope[i].x, rope[i].y, midX, midY);
+        }
+        c.lineTo(vineSwing.x, vineSwing.y);
+      } else {
+        c.moveTo(h.x, h.y); c.lineTo(vineSwing.x, vineSwing.y);
+      }
+      c.stroke();
       c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#9ae66e', vineSwing.x, vineSwing.y, 15, 0.55); c.globalCompositeOperation = 'source-over';
       c.fillStyle = '#d8ffb7'; c.beginPath(); c.arc(vineSwing.x, vineSwing.y, 6, 0, TAU); c.fill();
     }

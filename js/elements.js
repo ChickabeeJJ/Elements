@@ -103,8 +103,8 @@ const ELEMENTS = [
     blurb: 'Vines that root and drain, snares of thorns and healing blooms.',
     moves: [
       { slot: 'main', id: 'vine_lash', name: 'Vine Swing', type: 'ranged', icon: 'vine', kind: 'projectile', pose: 'cast',
-        desc: 'Hold to fire a long vine that hooks terrain or enemies; hooked enemies are dragged along. Release to let go.', cd: 0.18, windup: 0.05, active: 0.1, recover: 0.08,
-        speed: 720, reach: 620, radius: 20, dmg: 32, knock: 420, lift: 0.24, root: 0.4, leech: 0.2, style: 'nature', vineSwing: true },
+        desc: 'Hold to cast a flexible vine. It flops between your hand and its hook point; moving away pulls hooked enemies. Deals damage only on initial enemy contact.', cd: 0.18, windup: 0.05, active: 0.1, recover: 0.08,
+        speed: 720, reach: 620, radius: 20, dmg: 8, knock: 160, lift: 0.1, style: 'nature', vineSwing: true },
       { slot: 'p1', id: 'thorn_snare', name: 'Thorn Snare', type: 'power', icon: 'snare', kind: 'projectile', pose: 'cast',
         desc: 'Lob a seed that bursts into a patch of rooting thorns.', cd: 6, windup: 0.12, active: 0.05, recover: 0.2,
         speed: 760, grav: 1300, radius: 12, dmg: 6, knock: 120, lift: 0.1,
