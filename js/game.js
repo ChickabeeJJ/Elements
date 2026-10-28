@@ -154,7 +154,7 @@ const Game = (() => {
     mode = opts.mode;
     paused = false;
     pStats = Save.playerStats();
-    run = { kills: 0, ringouts: 0, hits: 0, essence: 0, dmgTaken: 0, r: opts.r || 0, s: opts.s || 0, falls: 0 };
+    run = { kills: 0, ringouts: 0, hits: 0, essence: 0, essenceRemainder: 0, dmgTaken: 0, r: opts.r || 0, s: opts.s || 0, falls: 0 };
     if (mode === 'stage') {
       stageDef = buildStage(opts.r, opts.s);
       setRealm(opts.r);
@@ -693,6 +693,7 @@ const Game = (() => {
 
   function heal(f, n) {
     if (!f.alive || n <= 0) return;
+    if (f.isPlayer) n *= pStats.healMul;
     const before = f.hp;
     f.hp = Math.min(f.maxHp, f.hp + n);
     const got = f.hp - before;
@@ -715,6 +716,7 @@ const Game = (() => {
     if (!t.alive) { const k = o.knock * 0.9; t.impulse(o.idx, o.dirX * k, (o.dirY - o.lift) * k, 0.6); return; }
     if (t.invuln > 0) return;
     const enemyTarget = t.team === 'enemy';
+    if (att && att.isPlayer && enemyTarget) o = Object.assign({}, o, { knock: o.knock * pStats.knockDealtMul });
     let dmg = o.dmg;
     if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * (att.kind === 'boss' ? 0.5 : 0.66) : 1;   // enemy hit scaling (bosses much gentler)
     let mul = 1, tag = null;
@@ -834,6 +836,10 @@ const Game = (() => {
   function grantEssence(n, x, y) {
     n = Math.round(n);
     if (!run || mode === 'test') return;
+    // Carry fractional bonus between rewards so small drops benefit from Scavenger too.
+    const scaled = n * pStats.essenceMul + (run.essenceRemainder || 0);
+    n = Math.floor(scaled);
+    run.essenceRemainder = scaled - n;
     run.essence += n;
     fx.text(x, y, '+' + n, '#ffd76a', 22, { dur: 1.2, vy: -50 });
   }
@@ -1524,13 +1530,13 @@ const Game = (() => {
     const hpRatio = Math.max(0, player.hp) / player.maxHp;
     const res = {
       mode, won, canRevive: !won && !run.revived, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
-      essence: run.essence, stars: 0, unlocked: null, firstClear: false, best: false,
+      essence: run.essence + Math.round(run.essenceRemainder || 0), stars: 0, unlocked: null, firstClear: false, best: false,
     };
     if (mode === 'stage' && res.won) {
       res.stars = hpRatio >= 0.65 && run.falls === 0 ? 3 : hpRatio >= 0.3 ? 2 : 1;
       const rec = Save.recordClear(run.r, run.s, res.stars);
       res.firstClear = rec.firstClear;
-      res.bonus = 10 + run.r * 5 + (rec.firstClear ? 15 : 0) + rec.newStars * 5;
+      res.bonus = Math.round((10 + run.r * 5 + (rec.firstClear ? 15 : 0) + rec.newStars * 5) * pStats.essenceMul);
       res.essence += res.bonus;
       if (rec.firstClear) res.unlocked = elementUnlockedBy(run.r, run.s);
     }
@@ -1562,7 +1568,7 @@ const Game = (() => {
 
   function quit() {
     if (run && (state === 'play' || state === 'won' || state === 'lost')) {
-      Save.data.essence += run.essence;
+      Save.data.essence += run.essence + Math.round(run.essenceRemainder || 0);
       if (mode === 'endless' && run.kills > Save.data.endlessBest) Save.data.endlessBest = run.kills;
       Save.save();
     }
