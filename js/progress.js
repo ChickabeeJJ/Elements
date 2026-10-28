@@ -10,6 +10,9 @@ const UPGRADES = [
   { id: 'focus', name: 'Focus', desc: '-6% power cooldowns', max: 6, base: 60, color: '#59d0ff', icon: 'swirl' },
   { id: 'swift', name: 'Swiftness', desc: '+6% move speed and jump', max: 5, base: 35, color: '#7ee081', icon: 'wing' },
   { id: 'anchor', name: 'Anchor', desc: '-8% knockback taken', max: 5, base: 45, color: '#e0b98f', icon: 'anchor' },
+  { id: 'recovery', name: 'Recovery', desc: '+8% healing received', max: 5, base: 45, color: '#68e0a3', icon: 'heal' },
+  { id: 'impact', name: 'Impact', desc: '+6% knockback dealt', max: 6, base: 60, color: '#ff8b53', icon: 'burst' },
+  { id: 'scavenger', name: 'Scavenger', desc: '+8% essence earned', max: 5, base: 65, color: '#ffd76a', icon: 'crystal' },
 ];
 
 const Save = (() => {
@@ -101,6 +104,9 @@ const Save = (() => {
       speedMul: 1 + u.swift * 0.06,
       jumpMul: 1 + u.swift * 0.03,
       knockMul: 1 - u.anchor * 0.08,
+      healMul: 1 + u.recovery * 0.08,
+      knockDealtMul: 1 + u.impact * 0.06,
+      essenceMul: 1 + u.scavenger * 0.08,
     };
   }
 
