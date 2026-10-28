@@ -1832,8 +1832,8 @@ const Game = (() => {
 
   function vineRopeLength(hand, tip) {
     const d = Math.hypot(tip.x - hand.x, tip.y - hand.y);
-    // A little extra line gives the vine slack instead of behaving like a steel cable.
-    return d + Math.max(18, Math.min(70, d * 0.12));
+    // The original hook distance is the baseline; total rope length may extend by 10%.
+    return Math.max(1, d * 1.10);
   }
 
   function makeVineRope(hand, tip, length) {
@@ -1970,9 +1970,9 @@ const Game = (() => {
         target.root.vx = clamp(target.root.vx + nx * (700 + extension * 4) * dragScale * dt, -1250, 1250);
         target.root.vy = clamp(target.root.vy + ny * (700 + extension * 4) * dragScale * dt, -1050, 1050);
 
-        // Small positional correction keeps the tether responsive without making
-        // the vine or its tip behave like a rigid rod.
-        const correction = Math.min(extension * 0.18, 95 * dt) * dragScale;
+        // Hard maximum: the endpoint is repositioned to the rope's 110% length
+        // limit. Rope particles still sag and flop; only the hooked endpoint is constrained.
+        const correction = extension;
         const correctionX = nx * correction, correctionY = ny * correction;
         target.root.x += correctionX; target.root.y += correctionY;
         for (let i = 0; i < target.pts.length; i++) {
