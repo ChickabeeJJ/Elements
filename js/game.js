@@ -196,11 +196,13 @@ const Game = (() => {
   }
 
   /* -------------------------------------------------------- enemies */
-  // foes wear their element: a deep tint of its colour, so every fighter reads at a glance
+  // Lift enemy colours while retaining enough shade for dimensional silhouettes.
   function bodyColors(el, type) {
     const E = ELEMENT_BY_ID[el] || NEUTRAL;
-    const k = type === 'boss' ? 0.42 : 0.52;
-    return [mixHex(E.deep, '#18191f', k), mixHex(E.deep, '#0e0e12', k + 0.14)];
+    const vivid = E.color || E.deep || '#e6e1d6';
+    const bodyMix = type === 'boss' ? 0.68 : type === 'brute' ? 0.76 : 0.82;
+    const shadeMix = type === 'boss' ? 0.42 : 0.52;
+    return [mixHex(E.deep, vivid, bodyMix), mixHex(E.deep, '#10131b', shadeMix)];
   }
 
   const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance']);
