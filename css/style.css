@@ -409,7 +409,7 @@ body.touch .orb-jump { right: calc(var(--om) + var(--og)); bottom: 0; }
 body.touch .orb-p1 { right: calc(var(--om) * 0.8 + var(--og)); bottom: calc(var(--om) * 0.8 + var(--og)); }
 body.touch .orb-p2 { right: calc((var(--om) - var(--ob)) / 2); bottom: calc(var(--om) + var(--og)); }
 body.touch .orb .cd-num { font-size: calc(var(--ob) * 0.34); }
-body.touch .dock { left: auto; bottom: auto; right: calc(14px + var(--safe-r)); top: calc(64px + var(--safe-t)); padding: 4px; gap: 4px; }
+body.touch .dock { left: auto; bottom: auto; right: calc(14px + var(--safe-r)); top: calc(64px + var(--safe-t)); padding: 10px; gap: 6px; }
 body.touch .dock-slot .hex { width: var(--hx); height: var(--hx); border-radius: 7px; }
 body.touch .joy:not(.on) .joy-base, body.touch .joy:not(.on) .joy-knob { display: block; left: calc(30px + var(--joy) / 2 + var(--safe-l)); top: calc(100% - 26px - var(--joy) / 2 - var(--safe-b)); opacity: 0.5; }
 body.touch .joy-base { width: var(--joy); height: var(--joy); margin: calc(var(--joy) / -2) 0 0 calc(var(--joy) / -2); }
