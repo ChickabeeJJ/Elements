@@ -92,7 +92,8 @@ function enemyStats(type, d) {
   return {
     // Rebalance durability only: regular enemies -20%, bosses +30%.
     hp: Math.round(37 * (1 + d * 2.6) * t.hp * (type === 'boss' ? 1.3 : 0.8)),
-    dmgMul: (0.75 + d * 1.3) * t.dmg,
+    // Caster and brute attacks deal 25% less damage; all other enemy damage is unchanged.
+    dmgMul: (0.75 + d * 1.3) * t.dmg * (type === 'caster' || type === 'brute' ? 0.75 : 1),
     cdMul: lerp(1.3, 0.8, Math.min(d, 1.2)) * t.cd,
     think: lerp(0.32, 0.12, Math.min(d, 1.2)),
     aimErr: lerp(0.14, 0.04, Math.min(d, 1.1)),
