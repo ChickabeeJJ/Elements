@@ -1849,7 +1849,7 @@ const Game = (() => {
         const ax = hit.px, ay = hit.py;
         vineSwing = {
           x: ax, y: ay, target, ox: ax - target.root.x, oy: ay - target.root.y,
-          length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0
+          length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0, hitCooldown: new Map(), hitCooldown: new Map()
         };
         f.action = null;
         fx.burst(ax, ay, '#9ae66e', 10, 130, { life: 0.28 });
@@ -1881,6 +1881,20 @@ const Game = (() => {
       v.y = v.target.root.y + v.oy;
     }
     v.age += dt;
+    // The vine itself is a damaging rope: anything crossing its length takes a heavy hit,
+    // with a short per-target cooldown so sustained contact hurts without deleting health instantly.
+    for (const target of opponents(f)) {
+      if (!target.alive || target.gone || blocked(target)) continue;
+      const hit = target.hitCapsule(hand.x, hand.y, v.x, v.y, 13);
+      if (!hit || (v.hitCooldown.get(target) || 0) > time) continue;
+      v.hitCooldown.set(target, time + 0.42);
+      const dirX = Math.sign(target.root.x - f.root.x) || f.facing;
+      applyHit(f, target, {
+        mv: { dmg: 32, knock: 420, lift: 0.24 }, el: 'nature', dmg: 32, knock: 420, lift: 0.24,
+        dirX, dirY: -0.15, idx: hit.idx, head: hit.head, px: hit.px, py: hit.py
+      });
+      fx.burst(hit.px, hit.py, '#9ae66e', 12, 240, { life: 0.3 });
+    }
     // Enforce the rope length at the hand itself, translating the entire ragdoll together.
     // This keeps a taut, straight rope without limb/body drift or artificial stretching.
     const hand = f.hand();
@@ -1907,7 +1921,7 @@ const Game = (() => {
     }
     // Keep only tangential velocity so momentum swings around the anchor instead of stretching through it.
     const radial = r.vx * nx + r.vy * ny;
-    r.vx -= radial * nx; r.vy -= radial * ny;
+    if (radial > 0) { r.vx -= radial * nx; r.vy -= radial * ny; }
     r.grounded = false; r.plat = null;
     r.vy += 520 * dt;
     r.vx += -ny * (f.input.x || 0) * 1150 * dt;
