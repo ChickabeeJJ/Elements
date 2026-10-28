@@ -7,7 +7,7 @@
 const Sfx = (() => {
   let ac = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null;
   let sfxOn = true, musicOn = true, adMuted = false, platMuted = false;
-  let musicTimer = null, musicRealm = 0, step = 0;
+  let musicTimer = null, musicRealm = 0, step = 0, soundtrack = null;
 
   function ensure() {
     if (ac) { if (ac.state === 'suspended') ac.resume(); return true; }
@@ -148,39 +148,49 @@ const Sfx = (() => {
   }
 
   function startMusic() {
-    if (musicTimer) return;
-    const beat = 0.42;
-    let next = ac.currentTime + 0.1;
-    musicTimer = setInterval(() => {
-      if (!ac || ac.state !== 'running') return;
-      while (next < ac.currentTime + 0.6) {
-        const sc = SCALES[musicRealm], root = ROOTS[musicRealm];
-        if (step % 16 === 0) {
-          const deg = [0, 3, 4, 2][(step / 16) % 4];
-          pad(mtof(root - 12 + sc[deg % sc.length]), next, beat * 16);
-          pad(mtof(root - 12 + sc[(deg + 2) % sc.length] + 12), next, beat * 16);
-        }
-        if (Math.random() < 0.55) {
-          const n = sc[Math.floor(Math.random() * sc.length)] + (Math.random() < 0.3 ? 12 : 0);
-          pluck(mtof(root + n), next);
-        }
-        next += beat; step++;
-      }
-    }, 150);
+    if (!soundtrack) {
+      soundtrack = new Audio('assets/audio/Weight_of_the_Horizon.mp3');
+      soundtrack.loop = true;
+      soundtrack.preload = 'auto';
+      soundtrack.volume = 0.3;
+    }
+    if (musicOn && !adMuted && !platMuted) {
+      soundtrack.volume = 0.3;
+      const playback = soundtrack.play();
+      if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+    }
   }
 
   function setRealm(i) { musicRealm = clamp(i, 0, SCALES.length - 1); }
   function applyGains() {
     if (!ac) return;
     const t = ac.currentTime;
+    const musicAudible = musicOn && !adMuted && !platMuted;
     sfxBus.gain.setTargetAtTime(sfxOn && !adMuted && !platMuted ? 0.55 : 0, t, 0.05);
-    musicBus.gain.setTargetAtTime(musicOn && !adMuted && !platMuted ? 0.3 : 0, t, 0.2);
+    musicBus.gain.setTargetAtTime(musicAudible ? 0.3 : 0, t, 0.2);
+    if (soundtrack) {
+      soundtrack.volume = musicAudible ? 0.3 : 0;
+      if (musicAudible) {
+        const playback = soundtrack.play();
+        if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+      } else {
+        soundtrack.pause();
+      }
+    }
   }
   function setSfx(on) { sfxOn = on; applyGains(); }
   function setMusic(on) { musicOn = on; applyGains(); }
   function setAdMuted(m) { adMuted = m; applyGains(); }
   function setPlatformMute(m) { platMuted = m; applyGains(); }
-  function suspend(s) { if (!ac) return; s ? ac.suspend() : ac.resume(); }
+  function suspend(s) {
+    if (ac) s ? ac.suspend() : ac.resume();
+    if (!soundtrack) return;
+    if (s) soundtrack.pause();
+    else if (musicOn && !adMuted && !platMuted) {
+      const playback = soundtrack.play();
+      if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+    }
+  }
 
   return {
     ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
