@@ -181,7 +181,30 @@ kbd { display: inline-block; font-family: var(--font); font-weight: 800; font-si
 .stage-card .stars .ic { width: 14px; height: 14px; color: #3b4258; }
 .stage-card .stars .ic.on { color: var(--acc); }
 .stage-card small { font-weight: 700; font-size: 11px; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.stage-card.current { background: color-mix(in srgb, var(--c) 22%, var(--ink-2)); box-shadow: inset 0 0 0 2px var(--c), inset 0 -3px 0 rgba(0, 0, 0, 0.3); }
+.stage-card.current {
+  isolation: isolate;
+  background: transparent;
+  box-shadow: none;
+}
+.stage-card.current::before,
+.stage-card.current::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  clip-path: var(--cut-m);
+}
+.stage-card.current::before {
+  inset: 0;
+  background: var(--c);
+  z-index: -2;
+}
+.stage-card.current::after {
+  inset: 2px;
+  background: color-mix(in srgb, var(--c) 22%, var(--ink-2));
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.3);
+  z-index: -1;
+}
 .stage-card.boss { background: linear-gradient(180deg, #4a1822, #2a1018); }
 .stage-card.boss .n { color: #ff8d98; }
 .stage-card.locked { opacity: 0.45; cursor: not-allowed; }
