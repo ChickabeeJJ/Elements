@@ -144,13 +144,28 @@ class FX {
         ctx.closePath(); ctx.fill();
         ctx.restore(); ctx.globalAlpha = 1;
       } else if (p.kind === 'crescent') {
-        // wind gust: a curved air blade sweeping outward along p.ang
-        const r = p.size * (1.2 - a * 0.6);
-        ctx.globalAlpha = a * 0.9; ctx.strokeStyle = p.color; ctx.lineCap = 'round';
-        ctx.lineWidth = 2 + a * 7;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r, p.ang - 0.75, p.ang + 0.75); ctx.stroke();
-        ctx.globalAlpha = a * 0.5; ctx.lineWidth = 1.5 + a * 3;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.72, p.ang - 0.55, p.ang + 0.55); ctx.stroke();
+        // A narrow forward-sweeping gust. The old circular arc rose far above
+        // shallow horizontal punches, making the effect overlap the fighter's head.
+        const r = p.size * (1.2 - a * 0.35);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.ang);
+        ctx.globalAlpha = a * 0.9;
+        ctx.strokeStyle = p.color;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 2 + a * 5;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.12, r * 0.06);
+        ctx.bezierCurveTo(r * 0.22, -r * 0.22, r * 0.72, -r * 0.17, r * 1.08, -r * 0.02);
+        ctx.stroke();
+        ctx.globalAlpha = a * 0.55;
+        ctx.lineWidth = 1.2 + a * 2.5;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.05, r * 0.12);
+        ctx.bezierCurveTo(r * 0.38, -r * 0.04, r * 0.78, -r * 0.04, r * 1.0, r * 0.04);
+        ctx.stroke();
+        ctx.restore();
         ctx.globalAlpha = 1;
       } else if (p.kind === 'beam') {
         const w = p.size * (0.4 + a * 0.6);

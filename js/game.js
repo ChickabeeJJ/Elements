@@ -638,10 +638,26 @@ const Game = (() => {
     act.trail = act.trail || [];
     if (!act.gust && act.el === 'wind') {
       act.gust = true;
-      // Use the target-facing direction, not the lead fist's current wind-up angle.
+      // Spawn ahead of the torso, not on the wind-up hand near the head.
+      // Keep the gust's path tightly aligned to the aim vector.
       const ang = Math.atan2(uy, ux);
-      for (let i = 0; i < 3; i++) fx.add({ kind: 'crescent', x: h.x, y: h.y, vx: Math.cos(ang) * (260 + i * 120), vy: Math.sin(ang) * (260 + i * 120), ang, size: 34 + i * 16, color: '#e6fff7', life: 0.28 + i * 0.05, drag: 3, add: true });
-      for (let i = 0; i < 6; i++) { const b = ang + rand(-0.35, 0.35), v = rand(500, 900); fx.add({ kind: 'spark', x: h.x, y: h.y, vx: Math.cos(b) * v, vy: Math.sin(b) * v, color: '#dffcf2', size: rand(4, 7), life: rand(0.18, 0.3), drag: 4, add: true }); }
+      const sx = n.x + ux * 24 * f.s;
+      const sy = n.y + uy * 24 * f.s + 7 * f.s;
+      for (let i = 0; i < 3; i++) {
+        const lead = i * 12 * f.s;
+        const speed = 360 + i * 110;
+        fx.add({
+          kind: 'crescent',
+          x: sx + ux * lead, y: sy + uy * lead,
+          vx: ux * speed, vy: uy * speed,
+          ang, size: 22 + i * 9, color: '#e6fff7',
+          life: 0.2 + i * 0.035, drag: 3, add: true
+        });
+      }
+      for (let i = 0; i < 6; i++) {
+        const b = ang + rand(-0.12, 0.12), v = rand(520, 820);
+        fx.add({ kind: 'spark', x: sx, y: sy, vx: Math.cos(b) * v, vy: Math.sin(b) * v, color: '#dffcf2', size: rand(3, 5), life: rand(0.15, 0.24), drag: 4, add: true });
+      }
     }
     act.trail.push({ x: tx, y: ty, ix: lerp(n.x, tx, 0.45), iy: lerp(n.y, ty, 0.45) });
     if (act.trail.length > 10) act.trail.shift();
