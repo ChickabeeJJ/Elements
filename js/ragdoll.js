@@ -356,13 +356,21 @@ class Fighter {
       hands = air ? [f * 22 * s, -8 * s, -f * 20 * s, -6 * s] : [f * 22 * s + sw, 10 * s + bob, f * 10 * s - sw, 14 * s + bob];
     }
     const setArm = (hi, ei, hx, hy) => {
+      // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
+      // Unreachable targets make the pose solver fold the elbows into awkward angles.
+      const rawLen = Math.hypot(hx, hy) || 1;
+      const maxReach = 46 * s;
+      if (rawLen > maxReach) { const k = maxReach / rawLen; hx *= k; hy *= k; }
       T[hi].x = nx + hx; T[hi].y = ny + hy;
       const mx = nx + hx / 2, my = ny + hy / 2;
       const l = Math.hypot(hx, hy) || 1;
-      // elbows bend down and away from the body
+      // Place the elbow using the geometry of two equal-length arm bones, rather
+      // than a shallow offset that contradicts the lengths enforced by the solver.
       let bx = -hy / l, by = hx / l;
       if (by < 0) { bx = -bx; by = -by; }
-      const bend = Math.max(0, 46 * s - l) * 0.45 + 2 * s;
+      const armLen = 24 * s;
+      const half = Math.min(armLen, l / 2);
+      const bend = Math.sqrt(Math.max(0, armLen * armLen - half * half));
       T[ei].x = mx + bx * bend; T[ei].y = my + by * bend;
     };
     setArm(P.FHAND, P.FELB, hands[0], hands[1]);
