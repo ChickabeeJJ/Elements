@@ -505,8 +505,18 @@ class Fighter {
     const cuff = (e, h, col) => {
       if (this.el === 'none') return;
       const E = pts[e], Hh = pts[h];
-      ctx.strokeStyle = col; ctx.lineWidth = 10.5 * s;
-      ctx.beginPath(); ctx.moveTo(lerp(E.x, Hh.x, 0.62), lerp(E.y, Hh.y, 0.62)); ctx.lineTo(lerp(E.x, Hh.x, 0.78), lerp(E.y, Hh.y, 0.78)); ctx.stroke();
+      const x1 = lerp(E.x, Hh.x, 0.62), y1 = lerp(E.y, Hh.y, 0.62);
+      const x2 = lerp(E.x, Hh.x, 0.78), y2 = lerp(E.y, Hh.y, 0.78);
+      // Polished elemental bracer: metallic sheen with a hint of its wearer's colour.
+      const grad = ctx.createLinearGradient(x1, y1 - 4 * s, x2, y2 + 4 * s);
+      grad.addColorStop(0, mixHex(col, '#ffffff', 0.72));
+      grad.addColorStop(0.32, mixHex(col, '#dfe8f5', 0.34));
+      grad.addColorStop(0.7, mixHex(col, '#657184', 0.3));
+      grad.addColorStop(1, mixHex(col, '#ffffff', 0.48));
+      ctx.strokeStyle = grad; ctx.lineWidth = 10.5 * s;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.72)'; ctx.lineWidth = 1.6 * s;
+      ctx.beginPath(); ctx.moveTo(lerp(x1, x2, 0.12), lerp(y1, y2, 0.12) - 2.5 * s); ctx.lineTo(lerp(x1, x2, 0.7), lerp(y1, y2, 0.7) - 2.5 * s); ctx.stroke();
     };
     cuff(P.BELB, P.BHAND, mixHex(this.accent, '#000000', 0.2));
     // torso: thick capsule with a slightly narrower waist
