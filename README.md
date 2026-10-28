@@ -1,4 +1,4 @@
-# Elementfall
+# Element Rag
 
 A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**, but careful: if you fall into the void yourself, the run is over.
 
@@ -37,7 +37,7 @@ Each realm's warriors share an element. Hitting their weakness deals 160% damage
 - Seven realms with eight stages each: Verdant Vale, Ember Wastes, Tidal Reef, Frostpeak, Stormspire, Toxic Mire and The Void Rift. Each realm has its own arena layouts, and some have moving islands. Stage 8 is a boss: Thornwarden, Cinder Tyrant, Tidecaller, Rimeheart, Storm Herald, Plaguebinder or The Hollow King. Bosses use their element's full kit and summon reinforcements.
 - Enemy types are Warriors, Casters (keep their distance and cast), Brutes (heavy, hard to knock away, carry a power) and Bosses. Hurt enemies fly further when hit.
 - Stages have at most three waves; when a boss falls, its reinforcements fall with it. Stars come from the health you have left (3 stars also needs no falls). Gems come from kills, ring-outs, pickups and clears. They unlock new elements and buy permanent upgrades: Vitality, Might, Ward, Focus, Swiftness and Anchor.
-- Falling into the void ends a stage, but you can revive once per run by watching an ad. You can also watch one to double a stage's gems.
+- Falling into the void ends a stage. The ad rewards (one revive per run, double gems) only appear when ads are switched on; this Basic Launch build ships with ads off.
 - **Endless** sends waves forever. Realms and arenas rotate every 10 kills, and an elder champion appears every 8th wave.
 
 ## Controls
@@ -61,7 +61,7 @@ Key labels follow the player's keyboard layout (for example, AZERTY shows Z Q S 
 
 ```
 index.html
-css/style.css     UI: navy glass panels, pill buttons, hex element dock, ability orbs
+css/style.css     UI: ink panels with cut corners, square element tiles, skill badges, touch orbs
 js/util.js        math, seeded RNG, glow sprite cache
 js/platform.js    CrazyGames SDK v3 wrapper: events, ads, banners, accounts, data
 js/audio.js       synthesized SFX + generative per-realm music
@@ -75,7 +75,7 @@ js/game.js        moves runtime, hits/knockback/ring-outs, enemy AI, waves, rend
 js/icons.js       UI and move icons
 js/ui.js          home, stage select, codex/shop, forge, pause, tutorial, HUD, touch
 js/main.js        boot, loop, keyboard/mouse
-assets/fonts/     Bungee + Nunito (SIL Open Font License)
+assets/fonts/     Rubik (SIL Open Font License)
 crazygames/       listing text (CRAZYGAMES_LISTING.md), 3 covers, 2 preview videos
 ```
 
@@ -83,4 +83,4 @@ The CrazyGames SDK v3 script is always included. Every call is guarded, so the g
 
 ## Credits
 
-Fonts: [Bungee](https://fonts.google.com/specimen/Bungee) by David Jonathan Ross and [Nunito](https://fonts.google.com/specimen/Nunito) by Vernon Adams, Cyreal and Jacques Le Bailly, both under the SIL Open Font License 1.1.
+Font: [Rubik](https://fonts.google.com/specimen/Rubik) by Hubert and Fischer, under the SIL Open Font License 1.1.

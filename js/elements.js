@@ -169,7 +169,7 @@ const ELEMENTS = [
       { slot: 'p1', id: 'rift', name: 'Rift', type: 'power', icon: 'rift', kind: 'zone', pose: 'raise',
         desc: 'Tear open a rift at your aim that drags in and grinds foes.', cd: 9, windup: 0.2, active: 0.1, recover: 0.2,
         range: 650, zone: { r: 240, dur: 2.4, dps: 15, pull: 2800, style: 'rift' } },
-      { slot: 'p2', id: 'shadow_step', name: 'Shadow Step', type: 'power', icon: 'dash', kind: 'dash', pose: 'dash',
+      { slot: 'p2', id: 'shadow_step', name: 'Shadow Step', type: 'power', icon: 'shadowstep', kind: 'dash', pose: 'dash',
         desc: 'Phase through foes untouchable, cutting everything in your path.', cd: 4, windup: 0.03, active: 0.22, recover: 0.1,
         speed: 1650, dmg: 17, knock: 380, lift: 0.4, invuln: true, style: 'void' },
     ],
@@ -178,7 +178,7 @@ const ELEMENTS = [
     id: 'light', name: 'Radiance', color: '#fff3b0', deep: '#f2b41c', price: 600,
     blurb: 'Blinding blade combos, a searing beam and a halo that returns to your hand.',
     moves: [
-      { slot: 'main', id: 'radiant_blade', name: 'Radiant Blade', type: 'melee', icon: 'blade', kind: 'melee', pose: 'swing',
+      { slot: 'main', id: 'radiant_blade', name: 'Radiant Blade', type: 'melee', icon: 'sunblade', kind: 'melee', pose: 'swing',
         desc: 'Fast blade combo. Every third slash hits much harder.', cd: 0.3, windup: 0.05, active: 0.1, recover: 0.1,
         reach: 96, radius: 22, dmg: 9, knock: 300, lift: 0.25, combo: { n: 3, dmg: 2, knock: 3 }, style: 'light' },
       { slot: 'p1', id: 'sunbeam', name: 'Sunbeam', type: 'power', icon: 'beam', kind: 'beam', pose: 'channel',

@@ -53,6 +53,9 @@ const Game = (() => {
     updateCam(0, true);
   }
 
+  let shiftX = 0;   // screen-space offset for the menu scene (home menu column)
+  function setShift(px) { shiftX = px; }
+
   function wantZoom() {
     if (dev.camOverride) return dev.camOverride.z;
     if (state === 'idle' || dev.cinematic) return 1;
@@ -75,7 +78,9 @@ const Game = (() => {
     cam.x = clamp(cam.x, view.x0 + vw / 2, view.x0 + view.w - vw / 2);
     cam.y = clamp(cam.y, view.y0 + vh / 2, view.y0 + view.h - vh / 2);
     cam.k = view.scale * cam.z;
-    cam.ox = view.cw / 2 - cam.x * cam.k;
+    const sx = state === 'idle' ? shiftX : 0;
+    cam.sx = snap ? sx : lerp(cam.sx || 0, sx, Math.min(1, dt * 6));
+    cam.ox = view.cw / 2 - cam.x * cam.k + cam.sx;
     cam.oy = view.ch / 2 - cam.y * cam.k;
   }
 
@@ -191,8 +196,11 @@ const Game = (() => {
   }
 
   /* -------------------------------------------------------- enemies */
-  function bodyColors() {
-    return realm.id === 'void' ? ['#2a2433', '#1b1722'] : ['#3a3944', '#282731'];
+  // foes wear their element: a deep tint of its colour, so every fighter reads at a glance
+  function bodyColors(el, type) {
+    const E = ELEMENT_BY_ID[el] || NEUTRAL;
+    const k = type === 'boss' ? 0.42 : 0.52;
+    return [mixHex(E.deep, '#18191f', k), mixHex(E.deep, '#0e0e12', k + 0.14)];
   }
 
   const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance']);
@@ -215,7 +223,7 @@ const Game = (() => {
   function spawnEnemyAt(spec, x, y, instant, isl) {
     const T = ENEMY_TYPES[spec.type];
     const stats = enemyStats(spec.type, spec.d);
-    const [body, shade] = bodyColors();
+    const [body, shade] = bodyColors(spec.element, spec.type);
     const f = new Fighter({
       x, y: instant ? y : y - 520, facing: player && x > player.root.x ? -1 : 1, scale: spec.scale || T.scale,
       kind: spec.type, el: spec.element, body, shade, accent: AURA[spec.element], weight: T.weight,
@@ -1724,7 +1732,7 @@ const Game = (() => {
     const mx = input.joyX || (input.right ? 1 : 0) - (input.left ? 1 : 0);
     f.input.x = mx;
     const q = input.queued;
-    if (run && run.tut) run.tut.moved += Math.abs(f.root.vx) * dt;
+    if (run && run.tut && mx) run.tut.moved += dt;   // any steer input counts as moving
     if (q.jump) { if (f.jump()) { if (run && run.tut) run.tut.jumped++; Sfx.jump(); fx.burst(f.root.x, f.root.y, '#ffffff', 8, 140, { life: 0.3 }); } q.jump = false; }
     if (q.drop) {
       // only drop through when there is an island below to land on, never into the void
@@ -2357,7 +2365,7 @@ const Game = (() => {
   function drawTelegraph(c, e) {
     const hd = e.head();
     const k = Math.min(1, e.action.t / e.action.move.windup);
-    c.font = `${Math.round(24 + k * 10)}px Bungee, Impact, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = `900 ${Math.round(24 + k * 10)}px Rubik, Impact, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.lineWidth = 5; c.lineJoin = 'round'; c.strokeStyle = 'rgba(24,16,8,0.9)';
     const y = hd.y - 62 * e.s;
     c.strokeText('!', hd.x, y);
@@ -2432,7 +2440,7 @@ const Game = (() => {
   };
 
   return {
-    dev, init, resize, update, render, start, quit, revive, idleScene, hud, hooks,
+    dev, init, resize, update, render, start, quit, revive, idleScene, hud, hooks, setShift,
     press, release, setKey, setJoy, setDirAim, setMouse, selectSlot, cycleSlot,
     setPreviewElement(id) { if (player && state === 'idle') { player.loadout = [id]; setPlayerElement(player, id, true); idleDemo.t = 0.3; } },
     get state() { return state; }, get mode() { return mode; }, get realmIdx() { return realmIdx; },

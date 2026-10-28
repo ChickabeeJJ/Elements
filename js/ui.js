@@ -52,6 +52,7 @@ const UI = (() => {
     $('hud').classList.toggle('hidden', name !== null);
     document.body.classList.toggle('playing', name === null);
     if (name === 'home') refreshHome();
+    homeShift();
     if (name) Platform.gameplayStop();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
@@ -63,9 +64,8 @@ const UI = (() => {
     $('endlessSub').textContent = 'BEST ' + Save.data.endlessBest;
     $('homeStars').textContent = Save.totalStars() + '/' + TOTAL_STAGES * 3;
     const cheapest = Math.min(...UPGRADES.map(u => Save.upgradeCost(u.id) ?? Infinity));
-    $('homeForge').textContent = cheapest <= Save.data.essence ? 'AVAILABLE' : '';
     $('homeForge').classList.toggle('hidden', !(cheapest <= Save.data.essence));
-    $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS</span><div class="row">${Save.loadout().map(id => hex(id)).join('')}</div><button class="btn small" id="homeChange"><b>CHANGE</b></button>`;
+    $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS</span><div class="row">${Save.loadout().map(id => hex(id)).join('')}<button class="btn small" id="homeChange"><b>CHANGE</b></button></div>`;
     $('homeChange').onclick = () => { Sfx.ensure(); Sfx.click(); openLoadout(); };
     refreshUser();
     setTimeout(() => { if (current === 'home') Platform.showBanner('cgBanner'); }, 300);
@@ -104,6 +104,8 @@ const UI = (() => {
       };
       tabs.appendChild(b);
     });
+    const act = tabs.querySelector('.active');
+    if (act) tabs.scrollLeft = act.offsetLeft - (tabs.clientWidth - act.offsetWidth) / 2;
     const realm = REALMS[mapRealm];
     const aff = AFFINITY[realm.element];
     const stars = Array.from({ length: STAGES_PER_REALM }, (_, s) => Save.data.stars[stageKey(mapRealm, s)] || 0).reduce((a, b) => a + b, 0);
@@ -207,7 +209,7 @@ const UI = (() => {
       ${open ? '' : `<div class="buy-row"><p>Unlock ${e.name} with gems from battles, pickups and stage clears.</p><button class="btn${Save.data.essence >= e.price ? ' primary' : ''}" id="buyEl"><span class="ic" data-icon="gem"></span><b>UNLOCK · ${e.price}</b></button></div>`}
       <div class="moves">${e.moves.map((mv, i) => `
         <div class="move"${open ? '' : ' style="opacity:.5"'}>
-          <div class="move-top"><span class="move-ic" style="--c:${e.color}"><span class="ic" data-icon="${mv.icon}"></span></span>
+          <div class="move-top"><span class="move-ic" style="--c:${e.color};--d:${e.deep}"><span class="ic" data-icon="${mv.icon}"></span></span>
             <div><h4>${mv.name.toUpperCase()}</h4><div class="tags"><span>${i === 0 ? 'MAIN' : 'POWER'}</span>${mv.type === 'melee' ? '<span class="melee">MELEE</span>' : mv.type === 'ranged' ? '<span class="ranged">RANGED</span>' : ''}</div></div></div>
           <p>${mv.desc}</p>
           <div class="meta">${mv.dmg ? `<span>${mv.dmg}${mv.count ? '×' + mv.count : ''} DMG</span>` : ''}<span>${mv.cd}S</span><kbd>${KEYS[i]}</kbd></div>
@@ -253,7 +255,7 @@ const UI = (() => {
         b.innerHTML = `<span class="ic" data-icon="gem"></span><b>${cost}</b>`;
         b.onclick = () => {
           if (Save.buy(u.id)) { Sfx.pickup(); show('forge'); renderForge(); }
-          else { Sfx.denied(); toast('NOT ENOUGH ESSENCE'); }
+          else { Sfx.denied(); toast('NOT ENOUGH GEMS'); }
         };
       }
       card.appendChild(b);
@@ -449,11 +451,11 @@ const UI = (() => {
   // one action per step, shown as a picture of the input (keycaps / mouse on desktop,
   // the real on-screen button pulsing on touch) plus a two- or three-word label
   const cap = k => `<span class="cap${k.length > 2 ? ' wide' : ''}">${k}</span>`;
-  const MOUSE = '<svg class="mouse" viewBox="0 0 26 36"><rect x="2" y="2" width="22" height="32" rx="11" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M13 2.6V15H2.6v-2A10.4 10.4 0 0 1 13 2.6z" fill="var(--teal)"/><path d="M13 3v12M2.5 15h21" stroke="currentColor" stroke-width="2"/></svg>';
+  const MOUSE = '<svg class="mouse" viewBox="0 0 26 36"><rect x="2" y="2" width="22" height="32" rx="11" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M13 2.6V15H2.6v-2A10.4 10.4 0 0 1 13 2.6z" fill="var(--acc)"/><path d="M13 3v12M2.5 15h21" stroke="currentColor" stroke-width="2"/></svg>';
   const GOAL = '<svg class="goal" viewBox="0 0 96 44"><g fill="#8fd46b"><rect x="2" y="22" width="9" height="9"/><rect x="12" y="22" width="9" height="9"/><rect x="22" y="22" width="9" height="9"/><rect x="32" y="22" width="9" height="9"/></g><g fill="#6b5848"><rect x="12" y="32" width="9" height="9"/><rect x="22" y="32" width="9" height="9"/></g><g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"><circle cx="14" cy="5" r="3.2" fill="#fff"/><path d="M14 8v7M14 15l-3 6M14 15l3 6M14 11l6-2"/></g><g stroke="#ff5a6a" stroke-width="3" stroke-linecap="round" fill="none"><circle cx="58" cy="14" r="3.2" fill="#ff5a6a"/><path d="M56 17l-4 6M52 23l-5 3M52 23l1 6M55 19l5-4"/></g><path d="M66 20q10 6 8 20" stroke="#fff" stroke-width="2.4" fill="none" stroke-dasharray="3 3"/><path d="M69 37l5 5 4-6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>';
-  const JOY = '<svg class="joyv" viewBox="0 0 64 44"><circle cx="32" cy="22" r="19" fill="rgba(255,255,255,.08)" stroke="currentColor" stroke-width="2.4"/><circle class="k" cx="32" cy="22" r="9" fill="var(--teal)"/><path d="M8 22H2m4-4-4 4 4 4M56 22h6m-4-4 4 4-4 4" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const JOY = '<svg class="joyv" viewBox="0 0 64 44"><circle cx="32" cy="22" r="19" fill="rgba(255,255,255,.08)" stroke="currentColor" stroke-width="2.4"/><circle class="k" cx="32" cy="22" r="9" fill="var(--acc)"/><path d="M8 22H2m4-4-4 4 4 4M56 22h6m-4-4 4 4-4 4" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const TUT = [
-    { label: 'MOVE', key: () => cap(key('KeyA')) + cap(key('KeyD')), touchKey: () => JOY, focus: '.joy', done: t => t.moved > 260 },
+    { label: 'MOVE', key: () => cap(key('KeyA')) + cap(key('KeyD')), touchKey: () => JOY, focus: '.joy', done: t => t.moved > 0 },
     { label: 'DOUBLE JUMP', key: () => cap('SPACE') + cap('SPACE'), focus: '.orb-jump', icon: 'up', done: t => t.jumped >= 2 },
     { label: 'HIT THE DUMMY', key: () => MOUSE, focus: '.orb-main', icon: 'palm', count: t => `${Math.min(3, t.hits)}/3`, done: t => t.hits >= 3 },
     { label: 'USE A POWER', key: () => cap(KEYS[1]) + cap(KEYS[2]), focus: '.orb-p1, .orb-p2', icon: 'burst', done: t => t.powers >= 1 },
@@ -558,6 +560,7 @@ const UI = (() => {
     const orbs = [document.querySelector('.orb-main'), document.querySelector('.orb-p1'), document.querySelector('.orb-p2')];
     orbs.forEach((b, i) => {
       b.style.setProperty('--c', el.color);
+      b.querySelector('.orb-icon').style.setProperty('--d', el.deep);
       b.querySelector('.orb-icon').innerHTML = Icons.svg(h.moves[i].mv.icon);
       b.title = h.moves[i].mv.name;
     });
@@ -565,6 +568,7 @@ const UI = (() => {
     document.querySelectorAll('.skill').forEach(sk => {
       const mv = h.moves[+sk.dataset.i].mv;
       sk.style.setProperty('--c', el.color);
+      sk.style.setProperty('--d', el.deep);
       sk.querySelector('.sk-icon').innerHTML = Icons.svg(mv.icon);
       sk.querySelector('.sk-name').textContent = mv.name.toUpperCase();
     });
@@ -589,6 +593,7 @@ const UI = (() => {
         if (p === 0 && i > 0 && hudCache['was' + i]) { orbs[i].classList.remove('ready-flash'); void orbs[i].offsetWidth; orbs[i].classList.add('ready-flash'); }
         const sk = i > 0 && document.querySelector(`.skill[data-i="${i}"]`);
         if (sk) {
+          sk.style.setProperty('--p', p);
           sk.classList.toggle('cooling', p > 0);
           if (p === 0 && hudCache['was' + i]) { sk.classList.remove('ready-flash'); void sk.offsetWidth; sk.classList.add('ready-flash'); }
         }
@@ -773,13 +778,21 @@ const UI = (() => {
   function applyUiScale() {
     const k = clamp(Math.min(innerWidth / 1280, innerHeight / 760), 1, 1.75);
     document.documentElement.style.setProperty('--ui', k.toFixed(3));
+    homeShift();
+  }
+
+  // the home menu is a column on the left, so frame the arena in the space to its right
+  function homeShift() {
+    const panel = document.querySelector('.home-panel');
+    const w = current === 'home' && innerWidth > 600 ? panel.getBoundingClientRect().width : 0;
+    Game.setShift(w * 0.5);
   }
 
   function openPrivacy(fromPause) {
     modal(`
       <h2>PRIVACY &amp; TERMS</h2>
       <div class="legal">
-        <p>Elementfall saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
+        <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
         <p>The game does not ask for or collect any other personal information, shows no ads and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
       </div>

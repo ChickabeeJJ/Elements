@@ -188,7 +188,7 @@ class FX {
       const a = clamp(t.life * 2.5, 0, 1);
       const pop = t.life > 0.85 ? easeOutBack((1 - t.life) / 0.15) : 1;
       ctx.globalAlpha = a;
-      ctx.font = `${Math.round(t.size * pop * 0.9)}px Bungee, Impact, sans-serif`;
+      ctx.font = `900 ${Math.round(t.size * pop * 0.9)}px Rubik, Impact, sans-serif`;
       ctx.lineWidth = Math.max(3, t.size * 0.2); ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(40,40,40,0.9)';
       ctx.strokeText(t.str, t.x, t.y);
       ctx.fillStyle = t.color;

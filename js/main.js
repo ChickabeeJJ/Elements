@@ -10,7 +10,7 @@
   await Platform.init();
   Platform.loadingStart();
   Save.load();
-  try { await Promise.all([document.fonts.load('20px Bungee'), document.fonts.load('800 20px Nunito')]); } catch (e) { /* fonts are optional */ }
+  try { await Promise.all([document.fonts.load('900 20px Rubik'), document.fonts.load('600 20px Rubik')]); } catch (e) { /* fonts are optional */ }
   Game.init(canvas);
   Platform.loadingStop();
   UI.init();
