@@ -196,13 +196,14 @@ const Game = (() => {
   }
 
   /* -------------------------------------------------------- enemies */
-  // Lift enemy colours while retaining enough shade for dimensional silhouettes.
+  // Keep rear limbs readable: shaded, but only subtly darker than the torso.
   function bodyColors(el, type) {
     const E = ELEMENT_BY_ID[el] || NEUTRAL;
     const vivid = E.color || E.deep || '#e6e1d6';
     const bodyMix = type === 'boss' ? 0.68 : type === 'brute' ? 0.76 : 0.82;
-    const shadeMix = type === 'boss' ? 0.42 : 0.52;
-    return [mixHex(E.deep, vivid, bodyMix), mixHex(E.deep, '#10131b', shadeMix)];
+    const body = mixHex(E.deep, vivid, bodyMix);
+    const shade = mixHex(body, E.deep || '#10131b', type === 'boss' ? 0.22 : 0.18);
+    return [body, shade];
   }
 
   const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance']);

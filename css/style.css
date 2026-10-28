@@ -666,46 +666,52 @@ body.touch .combo span { font-size: 11px; }
 button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transform 0.08s ease, filter 0.14s ease; }
 @media (prefers-reduced-motion: reduce) { button, .btn { transition: none; } }
 
-/* Subtle animated trace around the main Play button. */
-@property --play-trace-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-#btnPlay {
-  isolation: isolate;
-}
-#btnPlay::after {
-  content: "";
+/* Clearly visible moving outline trace on Play hover/focus. */
+#btnPlay { isolation: isolate; }
+#btnPlay > .ic,
+#btnPlay > .bt { position: relative; z-index: 2; }
+#btnPlay .play-trace {
   position: absolute;
   inset: 0;
-  z-index: 1;
-  padding: 1.5px;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
   pointer-events: none;
   opacity: 0;
-  background: conic-gradient(
-    from var(--play-trace-angle),
-    transparent 0deg 296deg,
-    color-mix(in srgb, #fff 35%, var(--acc)) 312deg,
-    color-mix(in srgb, #fff 92%, var(--acc)) 322deg,
-    #fff 327deg,
-    color-mix(in srgb, #fff 55%, var(--acc)) 336deg,
-    transparent 350deg 360deg
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--acc) 45%, transparent));
+  transition: opacity 0.16s ease;
 }
-#btnPlay:hover::after,
-#btnPlay:focus-visible::after {
-  opacity: 1;
-  animation: playTrace 2.2s linear infinite;
+#btnPlay .play-trace .trace-halo {
+  fill: none;
+  stroke: var(--acc-ink);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 92 908;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--acc) 65%, transparent));
 }
-@keyframes playTrace {
-  to { --play-trace-angle: 360deg; }
+#btnPlay .play-trace .trace-line {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 92 908;
+  stroke-dashoffset: 0;
+}
+#btnPlay:hover .play-trace,
+#btnPlay:focus-visible .play-trace { opacity: 1; }
+#btnPlay:hover .play-trace .trace-halo,
+#btnPlay:hover .play-trace .trace-line,
+#btnPlay:focus-visible .play-trace .trace-halo,
+#btnPlay:focus-visible .play-trace .trace-line {
+  animation: playTraceTravel 2.45s linear infinite;
+}
+@keyframes playTraceTravel {
+  to { stroke-dashoffset: -1000; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #btnPlay:hover::after,
-  #btnPlay:focus-visible::after { animation: none; }
+  #btnPlay .play-trace .trace-halo,
+  #btnPlay .play-trace .trace-line { animation: none !important; }
 }

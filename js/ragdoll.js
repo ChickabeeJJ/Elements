@@ -287,7 +287,8 @@ class Fighter {
       const t = act.t;
       const phase = t < w ? 0 : t < w + a ? 1 : 2;
       const u = phase === 0 ? t / Math.max(w, 1e-3) : phase === 1 ? (t - w) / Math.max(a, 1e-3) : clamp((t - w - a) / Math.max(rc, 1e-3), 0, 1);
-      const guard = [f * 22 * s, 10 * s, f * 10 * s, 14 * s];
+      // Relaxed guard: lead hand forward at chest height, rear hand near the torso.
+      const guard = [f * 24 * s, 22 * s + bob, f * 9 * s, 24 * s + bob];
       const blend = (h) => phase === 2 ? h.map((v, i) => lerp(v, guard[i], easeInOut(u))) : h;
       switch (mv.pose) {
         case 'punch': {
@@ -353,21 +354,27 @@ class Fighter {
 
     if (!hands) {
       const sw = moving ? Math.sin(this.walkPh) * 8 * s : 0;
-      hands = air ? [f * 22 * s, -8 * s, -f * 20 * s, -6 * s] : [f * 22 * s + sw, 10 * s + bob, f * 10 * s - sw, 14 * s + bob];
+      // Grounded stance: keep both hands around the torso, with the lead hand slightly forward.
+      hands = air
+        ? [f * 22 * s, -8 * s, -f * 20 * s, -6 * s]
+        : [f * 24 * s + sw, 22 * s + bob, f * 9 * s - sw * 0.45, 24 * s + bob];
     }
     const setArm = (hi, ei, hx, hy) => {
       // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
-      // Unreachable targets make the pose solver fold the elbows into awkward angles.
       const rawLen = Math.hypot(hx, hy) || 1;
       const maxReach = 46 * s;
       if (rawLen > maxReach) { const k = maxReach / rawLen; hx *= k; hy *= k; }
       T[hi].x = nx + hx; T[hi].y = ny + hy;
       const mx = nx + hx / 2, my = ny + hy / 2;
       const l = Math.hypot(hx, hy) || 1;
-      // Place the elbow using the geometry of two equal-length arm bones, rather
-      // than a shallow offset that contradicts the lengths enforced by the solver.
+      // Pick the elbow side deliberately: lead elbow bends forward/up, rear elbow
+      // bends back/down. This gives the arms a readable L-shaped bend instead of
+      // making both elbows fold to the same upside-down angle.
       let bx = -hy / l, by = hx / l;
-      if (by < 0) { bx = -bx; by = -by; }
+      const leadArm = hi === P.FHAND;
+      const preferredX = (leadArm ? f : -f);
+      const preferredY = leadArm ? -0.35 : -0.12;
+      if (bx * preferredX + by * preferredY < 0) { bx = -bx; by = -by; }
       const armLen = 24 * s;
       const half = Math.min(armLen, l / 2);
       const bend = Math.sqrt(Math.max(0, armLen * armLen - half * half));
@@ -504,19 +511,42 @@ class Fighter {
     // elemental wrist cuffs: the back one sits behind the torso, the front one on top
     const cuff = (e, h, col) => {
       if (this.el === 'none') return;
+      const brute = this.kind === 'brute';
       const E = pts[e], Hh = pts[h];
-      const x1 = lerp(E.x, Hh.x, 0.62), y1 = lerp(E.y, Hh.y, 0.62);
-      const x2 = lerp(E.x, Hh.x, 0.78), y2 = lerp(E.y, Hh.y, 0.78);
-      // Polished elemental bracer: metallic sheen with a hint of its wearer's colour.
-      const grad = ctx.createLinearGradient(x1, y1 - 4 * s, x2, y2 + 4 * s);
-      grad.addColorStop(0, mixHex(col, '#ffffff', 0.72));
-      grad.addColorStop(0.32, mixHex(col, '#dfe8f5', 0.34));
-      grad.addColorStop(0.7, mixHex(col, '#657184', 0.3));
-      grad.addColorStop(1, mixHex(col, '#ffffff', 0.48));
-      ctx.strokeStyle = grad; ctx.lineWidth = 10.5 * s;
+      const x1 = lerp(E.x, Hh.x, brute ? 0.48 : 0.62), y1 = lerp(E.y, Hh.y, brute ? 0.48 : 0.62);
+      const x2 = lerp(E.x, Hh.x, 0.8), y2 = lerp(E.y, Hh.y, 0.8);
+      // Brutes wear broad polished metal bracers, tinted slightly by their element.
+      const grad = ctx.createLinearGradient(x1, y1 - 5 * s, x2, y2 + 5 * s);
+      grad.addColorStop(0, mixHex(col, '#ffffff', brute ? 0.92 : 0.72));
+      grad.addColorStop(0.2, mixHex(col, '#f2f6ff', brute ? 0.72 : 0.34));
+      grad.addColorStop(0.43, mixHex(col, '#a9b5c9', brute ? 0.5 : 0.3));
+      grad.addColorStop(0.58, mixHex(col, '#ffffff', brute ? 0.88 : 0.48));
+      grad.addColorStop(0.77, mixHex(col, '#566176', brute ? 0.24 : 0.3));
+      grad.addColorStop(1, mixHex(col, '#ffffff', brute ? 0.78 : 0.48));
+      ctx.strokeStyle = grad; ctx.lineWidth = (brute ? 14 : 10.5) * s;
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.72)'; ctx.lineWidth = 1.6 * s;
-      ctx.beginPath(); ctx.moveTo(lerp(x1, x2, 0.12), lerp(y1, y2, 0.12) - 2.5 * s); ctx.lineTo(lerp(x1, x2, 0.7), lerp(y1, y2, 0.7) - 2.5 * s); ctx.stroke();
+      // Thin dark edges make the metal read as a separate fitted plate.
+      if (brute) {
+        ctx.strokeStyle = mixHex(col, '#202634', 0.46); ctx.lineWidth = 1.2 * s;
+        for (const t of [0.08, 0.91]) {
+          const ex = lerp(x1, x2, t), ey = lerp(y1, y2, t);
+          ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + 0.8 * s, ey - 3.2 * s); ctx.stroke();
+        }
+      }
+      // Bright specular streak on top of the bracer.
+      ctx.strokeStyle = 'rgba(255,255,255,0.94)'; ctx.lineWidth = (brute ? 2.4 : 1.6) * s;
+      ctx.beginPath();
+      ctx.moveTo(lerp(x1, x2, 0.1), lerp(y1, y2, 0.1) - 2.5 * s);
+      ctx.lineTo(lerp(x1, x2, 0.72), lerp(y1, y2, 0.72) - 2.5 * s);
+      ctx.stroke();
+      if (brute) {
+        // Small coloured reflection below the main highlight.
+        ctx.strokeStyle = mixHex(col, '#ffffff', 0.55); ctx.lineWidth = 1.1 * s;
+        ctx.beginPath();
+        ctx.moveTo(lerp(x1, x2, 0.18), lerp(y1, y2, 0.18) + 2.2 * s);
+        ctx.lineTo(lerp(x1, x2, 0.68), lerp(y1, y2, 0.68) + 2.2 * s);
+        ctx.stroke();
+      }
     };
     cuff(P.BELB, P.BHAND, mixHex(this.accent, '#000000', 0.2));
     // torso: thick capsule with a slightly narrower waist
