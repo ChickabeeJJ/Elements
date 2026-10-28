@@ -7,7 +7,7 @@
 const Sfx = (() => {
   let ac = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null;
   let sfxOn = true, musicOn = true, adMuted = false, platMuted = false;
-  let musicTimer = null, musicRealm = 0, step = 0;
+  let musicTimer = null, musicRealm = 0, step = 0, soundtrack = null, soundtrackFailed = false;
 
   function ensure() {
     if (ac) { if (ac.state === 'suspended') ac.resume(); return true; }
@@ -147,7 +147,7 @@ const Sfx = (() => {
     o.start(t); o.stop(t + 1);
   }
 
-  function startMusic() {
+  function startProceduralMusic() {
     if (musicTimer) return;
     const beat = 0.42;
     let next = ac.currentTime + 0.1;
@@ -169,18 +169,59 @@ const Sfx = (() => {
     }, 150);
   }
 
+  function startMusic() {
+    if (!soundtrack) {
+      soundtrack = new Audio('assets/audio/Weight_of_the_Horizon.mp3');
+      soundtrack.loop = true;
+      soundtrack.preload = 'auto';
+      soundtrack.volume = 0.3;
+      soundtrack.addEventListener('error', () => {
+        soundtrackFailed = true;
+        startProceduralMusic();
+        applyGains();
+      }, { once: true });
+    }
+    if (soundtrackFailed) {
+      startProceduralMusic();
+      return;
+    }
+    if (musicOn && !adMuted && !platMuted) {
+      soundtrack.volume = 0.3;
+      const playback = soundtrack.play();
+      if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+    }
+  }
+
   function setRealm(i) { musicRealm = clamp(i, 0, SCALES.length - 1); }
   function applyGains() {
     if (!ac) return;
     const t = ac.currentTime;
+    const musicAudible = musicOn && !adMuted && !platMuted;
     sfxBus.gain.setTargetAtTime(sfxOn && !adMuted && !platMuted ? 0.55 : 0, t, 0.05);
-    musicBus.gain.setTargetAtTime(musicOn && !adMuted && !platMuted ? 0.3 : 0, t, 0.2);
+    musicBus.gain.setTargetAtTime(musicAudible && soundtrackFailed ? 0.3 : 0, t, 0.2);
+    if (soundtrack && !soundtrackFailed) {
+      soundtrack.volume = musicAudible ? 0.3 : 0;
+      if (musicAudible) {
+        const playback = soundtrack.play();
+        if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+      } else {
+        soundtrack.pause();
+      }
+    }
   }
   function setSfx(on) { sfxOn = on; applyGains(); }
   function setMusic(on) { musicOn = on; applyGains(); }
   function setAdMuted(m) { adMuted = m; applyGains(); }
   function setPlatformMute(m) { platMuted = m; applyGains(); }
-  function suspend(s) { if (!ac) return; s ? ac.suspend() : ac.resume(); }
+  function suspend(s) {
+    if (ac) s ? ac.suspend() : ac.resume();
+    if (!soundtrack || soundtrackFailed) return;
+    if (s) soundtrack.pause();
+    else if (musicOn && !adMuted && !platMuted) {
+      const playback = soundtrack.play();
+      if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+    }
+  }
 
   return {
     ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
