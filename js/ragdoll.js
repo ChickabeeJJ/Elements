@@ -281,6 +281,7 @@ class Fighter {
     let crouch = (this.landT || 0) * 14 * s;
     let hands = null;   // [fx, fy, bx, by] relative to neck
     let elbowDownPose = false;
+    let straightPunch = false;
     const act = this.action;
     if (act) {
       const mv = act.move;
@@ -329,7 +330,10 @@ class Fighter {
             // Ordinary shallow punches also keep the elbow below the fist.
             elbowDownPose = true;
             const wind = [-f * 14 * s, 5 * s, -f * 22 * s, 8 * s];
-            const strike = [...front(40 * s), -f * 11 * s, 8 * s];
+            // Extend the lead hand almost straight on the impact frames, while
+            // keeping the rear fist in guard and the elbow bent slightly downward.
+            const strike = [...front(44 * s), -f * 11 * s, 8 * s];
+            straightPunch = phase === 1;
             hands = actionPose(wind, strike);
             lean += f * (phase === 1 ? 7 : -3) * s;
           }
@@ -449,7 +453,7 @@ class Fighter {
       // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
       const rawLen = Math.hypot(hx, hy) || 1;
       // Keep a little bend in the elbows; full extension makes the hands look detached.
-      const maxReach = 41 * s;
+      const maxReach = straightPunch && hi === P.FHAND ? 46 * s : 41 * s;
       if (rawLen > maxReach) { const k = maxReach / rawLen; hx *= k; hy *= k; }
       T[hi].x = nx + hx; T[hi].y = ny + hy;
       const mx = nx + hx / 2, my = ny + hy / 2;
