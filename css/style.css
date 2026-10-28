@@ -126,7 +126,7 @@ kbd { display: inline-block; font-family: var(--font); font-weight: 800; font-si
 .home-panel::after {
   content: "";
   position: absolute; top: 0; bottom: 0; left: 100%;
-  width: clamp(240px, 38vw, 650px);
+  width: clamp(225px, 36vw, 620px);
   pointer-events: none; z-index: -1;
   background: linear-gradient(90deg,
     rgba(9, 11, 17, 0.97) 0%,
@@ -215,9 +215,9 @@ kbd { display: inline-block; font-family: var(--font); font-weight: 800; font-si
   z-index: -2;
 }
 .el-pill.active::after {
-  inset: 2px;
+  inset: 1px;
   background: color-mix(in srgb, var(--c) 22%, var(--ink-2));
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
   z-index: -1;
 }
 .el-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
