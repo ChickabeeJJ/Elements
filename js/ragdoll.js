@@ -282,6 +282,7 @@ class Fighter {
     let hands = null;   // [fx, fy, bx, by] relative to neck
     let elbowDownPose = false;
     let straightPunch = false;
+    let straightShot = false;
     const act = this.action;
     if (act) {
       const mv = act.move;
@@ -414,6 +415,16 @@ class Fighter {
         }
         default: break;
       }
+
+      // On the firing frames, put the lead hand directly on the shot vector.
+      // Use near-full arm reach and no sideways spread so the hand points where
+      // the projectile actually travels, independent of the wind-up pose.
+      if (isRanged && phase === 1) {
+        straightShot = true;
+        if (!hands) hands = [f * 23 * s, 20 * s + bob, -f * 13 * s, 18 * s + bob];
+        hands[0] = ax * 47.5 * s;
+        hands[1] = ay * 47.5 * s;
+      }
     }
 
     const gx = r.x, gy = r.y;
@@ -453,7 +464,7 @@ class Fighter {
       // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
       const rawLen = Math.hypot(hx, hy) || 1;
       // Keep a little bend in the elbows; full extension makes the hands look detached.
-      const maxReach = straightPunch && hi === P.FHAND ? 46 * s : 41 * s;
+      const maxReach = straightShot && hi === P.FHAND ? 47.5 * s : straightPunch && hi === P.FHAND ? 46 * s : 41 * s;
       if (rawLen > maxReach) { const k = maxReach / rawLen; hx *= k; hy *= k; }
       T[hi].x = nx + hx; T[hi].y = ny + hy;
       const mx = nx + hx / 2, my = ny + hy / 2;
@@ -470,7 +481,7 @@ class Fighter {
       if (bx * preferredX + by * preferredY < 0) { bx = -bx; by = -by; }
       const armLen = 24 * s;
       const half = Math.min(armLen, l / 2);
-      const bend = Math.sqrt(Math.max(0, armLen * armLen - half * half));
+      const bend = straightShot && hi === P.FHAND ? 1.5 * s : Math.sqrt(Math.max(0, armLen * armLen - half * half));
       T[ei].x = mx + bx * bend; T[ei].y = my + by * bend;
     };
     setArm(P.FHAND, P.FELB, hands[0], hands[1]);
