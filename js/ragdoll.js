@@ -424,6 +424,14 @@ class Fighter {
         hands[0] = ax * 47.5 * s;
         hands[1] = ay * 47.5 * s;
       }
+
+      // Ranged attacks only animate the firing arm. Keep the rear hand anchored
+      // at its idle guard position through wind-up, firing, and recovery.
+      if (isRanged) {
+        if (!hands) hands = [f * 23 * s, 20 * s + bob, -f * 13 * s, 18 * s + bob];
+        hands[2] = -f * 13 * s;
+        hands[3] = 18 * s + bob;
+      }
     }
 
     const gx = r.x, gy = r.y;
