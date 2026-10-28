@@ -684,22 +684,24 @@ button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transf
 }
 #btnPlay .play-trace .trace-halo {
   fill: none;
+  /* Element-coloured edge with a dark outline so every palette stays readable. */
   stroke: var(--acc);
-  stroke-width: 6;
+  stroke-width: 8;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 155 845;
   stroke-dashoffset: 0;
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--acc) 85%, transparent));
+  filter: drop-shadow(0 0 2px #080b12) drop-shadow(0 0 7px color-mix(in srgb, var(--acc) 92%, transparent));
 }
 #btnPlay .play-trace .trace-line {
   fill: none;
-  stroke: #fff;
-  stroke-width: 2;
+  stroke: var(--acc);
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 155 845;
   stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 2px #080b12);
 }
 #btnPlay:hover .play-trace,
 #btnPlay:focus-visible .play-trace { opacity: 1; }

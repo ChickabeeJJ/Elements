@@ -510,49 +510,23 @@ class Fighter {
     // back limbs in the shade tone
     seg(2, 9, 13, shade); seg(9, 10, 11, shade);
     seg(1, 5, 11, shade); seg(5, 6, 9.5, shade);
-    // elemental wrist cuffs: the back one sits behind the torso, the front one on top
+    // Simple solid-colour wrist bands: use the fighter's element colour, no gradients or trim.
     const cuff = (e, h, col) => {
       const brute = this.kind === 'brute';
-      const metal = col || '#a8b4c8';
       const E = pts[e], Hh = pts[h];
       const x1 = lerp(E.x, Hh.x, brute ? 0.43 : 0.56), y1 = lerp(E.y, Hh.y, brute ? 0.43 : 0.56);
       const x2 = lerp(E.x, Hh.x, 0.83), y2 = lerp(E.y, Hh.y, 0.83);
-      // Fitted wrist armour: dark edge, cool steel body and a clean elemental reflection.
-      const grad = ctx.createLinearGradient(x1, y1 - 5.5 * s, x2, y2 + 5.5 * s);
-      grad.addColorStop(0, mixHex(metal, '#ffffff', 0.94));
-      grad.addColorStop(0.16, mixHex(metal, '#e8f0ff', 0.76));
-      grad.addColorStop(0.34, mixHex(metal, '#6b778b', 0.26));
-      grad.addColorStop(0.49, mixHex(metal, '#ffffff', 0.96));
-      grad.addColorStop(0.65, mixHex(metal, '#b8c5d9', 0.48));
-      grad.addColorStop(0.82, mixHex(metal, '#3d485d', 0.3));
-      grad.addColorStop(1, mixHex(metal, '#ffffff', 0.8));
-      ctx.strokeStyle = grad;
+      ctx.strokeStyle = col || '#aeb8c8';
       ctx.lineWidth = (brute ? 15.5 : 11.5) * s;
-      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-
-      // Raised rims at either end make each band read as a piece of armour.
-      ctx.strokeStyle = mixHex(metal, '#202634', 0.34);
-      ctx.lineWidth = (brute ? 1.55 : 1.15) * s;
-      for (const t of [0.06, 0.94]) {
-        const ex = lerp(x1, x2, t), ey = lerp(y1, y2, t);
-        ctx.beginPath(); ctx.moveTo(ex, ey - 3.1 * s); ctx.lineTo(ex, ey + 3.1 * s); ctx.stroke();
-      }
-
-      // Narrow specular stripe plus a softer coloured glint on every bracer.
-      ctx.strokeStyle = 'rgba(255,255,255,0.97)';
-      ctx.lineWidth = (brute ? 2.5 : 1.9) * s;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.beginPath();
-      ctx.moveTo(lerp(x1, x2, 0.12), lerp(y1, y2, 0.12) - 2.5 * s);
-      ctx.lineTo(lerp(x1, x2, 0.68), lerp(y1, y2, 0.68) - 2.5 * s);
-      ctx.stroke();
-      ctx.strokeStyle = mixHex(metal, '#ffffff', 0.72);
-      ctx.lineWidth = 1.1 * s;
-      ctx.beginPath();
-      ctx.moveTo(lerp(x1, x2, 0.2), lerp(y1, y2, 0.2) + 2.3 * s);
-      ctx.lineTo(lerp(x1, x2, 0.7), lerp(y1, y2, 0.7) + 2.3 * s);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
       ctx.stroke();
     };
-    cuff(P.BELB, P.BHAND, this.el === 'none' ? '#aeb8c8' : mixHex(this.accent, '#000000', 0.08));
+    const bandColor = this.el === 'none' ? '#aeb8c8' : this.accent;
+    cuff(P.BELB, P.BHAND, bandColor);
     // torso: thick capsule with a slightly narrower waist
     seg(1, 2, 22, body);
     // front leg
@@ -565,7 +539,7 @@ class Fighter {
     this.drawHeadgear(ctx, hd, time);
     // front arm on top
     seg(1, 3, 11, body); seg(3, 4, 9.5, body);
-    cuff(P.FELB, P.FHAND, this.el === 'none' ? '#aeb8c8' : this.accent);
+    cuff(P.FELB, P.FHAND, bandColor);
     if (this.isPlayer && this.alive && this.el !== 'none') {
       ctx.globalCompositeOperation = 'lighter';
       Glow.draw(ctx, AURA[this.el], pts[P.FHAND].x, pts[P.FHAND].y, 16 * s, 0.55);
