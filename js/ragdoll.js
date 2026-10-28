@@ -282,6 +282,7 @@ class Fighter {
     let hands = null;   // [fx, fy, bx, by] relative to neck
     let elbowDownPose = false;
     let straightAttack = false;
+    let rangedRelaxBack = false;
     const act = this.action;
     if (act) {
       const mv = act.move;
@@ -425,12 +426,13 @@ class Fighter {
         hands[1] = ay * 47.5 * s;
       }
 
-      // Ranged attacks only animate the firing arm. Keep the rear hand anchored
-      // at its idle guard position through wind-up, firing, and recovery.
+      // Ranged attacks use one active firing arm; let the rear arm hang relaxed
+      // beside the torso throughout wind-up, shot, and recovery.
       if (isRanged) {
-        if (!hands) hands = [f * 23 * s, 20 * s + bob, -f * 13 * s, 18 * s + bob];
-        hands[2] = -f * 13 * s;
-        hands[3] = 18 * s + bob;
+        rangedRelaxBack = true;
+        if (!hands) hands = [f * 23 * s, 20 * s + bob, -f * 8 * s, 34 * s];
+        hands[2] = -f * 8 * s;
+        hands[3] = 34 * s;
       }
     }
 
@@ -483,8 +485,8 @@ class Fighter {
       const leadArm = hi === P.FHAND;
       // During any melee punch, bias the lead elbow down and forward.
       // The old upward preference folded the arm above the wrist and across the head.
-      const preferredX = elbowDownPose && leadArm ? f : leadArm ? -f : f;
-      const preferredY = elbowDownPose && leadArm ? 0.95 : -0.42;
+      const preferredX = rangedRelaxBack && !leadArm ? -f : elbowDownPose && leadArm ? f : leadArm ? -f : f;
+      const preferredY = rangedRelaxBack && !leadArm ? 0.85 : elbowDownPose && leadArm ? 0.95 : -0.42;
       if (bx * preferredX + by * preferredY < 0) { bx = -bx; by = -by; }
       const armLen = 24 * s;
       const half = Math.min(armLen, l / 2);
