@@ -202,7 +202,8 @@ const Game = (() => {
     const vivid = E.color || E.deep || '#e6e1d6';
     const bodyMix = type === 'boss' ? 0.68 : type === 'brute' ? 0.76 : 0.82;
     const body = mixHex(E.deep, vivid, bodyMix);
-    const shade = mixHex(body, E.deep || '#10131b', type === 'boss' ? 0.22 : 0.18);
+    // Rear limbs and hands should be only a touch darker, not nearly black.
+    const shade = mixHex(body, '#10131b', type === 'boss' ? 0.16 : 0.13);
     return [body, shade];
   }
 

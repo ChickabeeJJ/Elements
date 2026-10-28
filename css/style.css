@@ -365,9 +365,9 @@ body.touch .skillbar { display: none; }
 
 /* touch buttons */
 .abilities { position: absolute; right: calc(16px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); display: flex; align-items: flex-end; gap: 12px; }
-.orb { --c: #fff; --p: 0; position: relative; width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; background: rgba(10, 12, 18, 0.72); color: #0d1018; touch-action: none; }
+.orb { --c: #fff; --p: 0; position: relative; width: 73px; height: 73px; border-radius: 50%; display: grid; place-items: center; background: rgba(10, 12, 18, 0.72); color: #0d1018; touch-action: none; }
 .orb:active { transform: scale(0.94); }
-.orb-main { width: 84px; height: 84px; }
+.orb-main { width: 92px; height: 92px; }
 .orb .ring { position: absolute; inset: -3px; border-radius: 50%; background: conic-gradient(var(--c) calc((1 - var(--p)) * 360deg), rgba(255, 255, 255, 0.12) 0); -webkit-mask: radial-gradient(circle, transparent 63%, #000 65%); mask: radial-gradient(circle, transparent 63%, #000 65%); }
 .orb-icon { width: 64%; height: 64%; border-radius: 50%; }
 .orb.cooling .orb-icon { filter: grayscale(0.85) brightness(0.55); }
@@ -398,7 +398,7 @@ body.touch .skillbar { display: none; }
 .coach { position: absolute; left: 50%; top: 20%; transform: translateX(-50%); max-width: 92vw; }
 .coach p { padding: 10px 20px; clip-path: var(--cut-s); background: var(--panel); font-weight: 700; font-size: 13px; text-align: center; line-height: 1.5; }
 
-body.touch { --ob: clamp(54px, 13.5vh, 76px); --om: clamp(80px, 21vh, 116px); --og: clamp(8px, 2.2vh, 14px); --hx: clamp(32px, 8vh, 42px); --joy: clamp(96px, 26vh, 140px); }
+body.touch { --ob: clamp(59px, 14.85vh, 84px); --om: clamp(88px, 23.1vh, 128px); --og: clamp(8px, 2.2vh, 14px); --hx: clamp(32px, 8vh, 42px); --joy: clamp(96px, 26vh, 140px); }
 body.touch .orb-jump { display: grid; }
 body.touch kbd { display: none; }
 body.touch .joy { display: block; }
@@ -598,8 +598,8 @@ body.touch .combo span { font-size: 11px; }
   .pick { padding: 3px 8px 3px 3px; }
   .pick .hex { width: 26px; height: 26px; }
   body.touch .keys { display: none; }
-  .orb { width: 56px; height: 56px; }
-  .orb-main { width: 70px; height: 70px; }
+  .orb { width: 62px; height: 62px; }
+  .orb-main { width: 77px; height: 77px; }
   .dock-slot .hex { width: 40px; height: 40px; }
   .skill { min-width: 150px; gap: 8px; }
   .sk-icon, .sk-cd { width: 36px; height: 36px; border-radius: 9px; }
@@ -671,6 +671,7 @@ button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transf
 #btnPlay > .ic,
 #btnPlay > .bt { position: relative; z-index: 2; }
 #btnPlay .play-trace {
+  display: block;
   position: absolute;
   inset: 0;
   z-index: 3;
@@ -679,25 +680,25 @@ button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transf
   overflow: visible;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.16s ease;
+  transition: opacity 0.12s ease;
 }
 #btnPlay .play-trace .trace-halo {
   fill: none;
-  stroke: var(--acc-ink);
-  stroke-width: 3.4;
+  stroke: var(--acc);
+  stroke-width: 6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 92 908;
+  stroke-dasharray: 155 845;
   stroke-dashoffset: 0;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--acc) 65%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--acc) 85%, transparent));
 }
 #btnPlay .play-trace .trace-line {
   fill: none;
   stroke: #fff;
-  stroke-width: 1.25;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 92 908;
+  stroke-dasharray: 155 845;
   stroke-dashoffset: 0;
 }
 #btnPlay:hover .play-trace,
@@ -714,4 +715,23 @@ button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transf
 @media (prefers-reduced-motion: reduce) {
   #btnPlay .play-trace .trace-halo,
   #btnPlay .play-trace .trace-line { animation: none !important; }
+}
+
+/* Ability orbs: +10% sizing and a calm, staggered vertical float. */
+.orb {
+  animation: orbFloat 3.4s ease-in-out infinite;
+  will-change: transform;
+}
+.orb-p1 { animation-delay: -0.7s; }
+.orb-p2 { animation-delay: -1.5s; }
+.orb-main { animation-delay: -2.2s; }
+.orb-jump { animation-delay: -1.1s; }
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.orb:active { animation-play-state: paused; transform: translateY(0) scale(0.94); }
+.orb.ready-flash { animation: orbFloat 3.4s ease-in-out infinite, orbFlash 0.45s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .orb, .orb.ready-flash { animation: none !important; }
 }
