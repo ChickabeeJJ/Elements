@@ -214,7 +214,7 @@ const Game = (() => {
     if (!E) return { melee: type === 'caster' ? null : ENEMY_PUNCH, ranged: type === 'grunt' ? null : ENEMY_ROCK, powers: [] };
     const [main, p1, p2] = E.moves;
     const melee = main.type === 'melee' ? main : ENEMY_PUNCH;
-    const ranged = main.type === 'ranged' ? main : [p1, p2].find(m => m.kind === 'projectile') || ENEMY_ROCK;
+    const ranged = main.type === 'ranged' ? (main.vineSwing ? ENEMY_ROCK : main) : [p1, p2].find(m => m.kind === 'projectile') || ENEMY_ROCK;
     let powers = [];
     if (type === 'brute') powers = [p1, p2].filter(m => AI_KINDS.has(m.kind) && m !== ranged).slice(0, 1);
     if (type === 'boss') powers = [p1, p2].filter(m => AI_KINDS.has(m.kind));
@@ -1888,6 +1888,12 @@ const Game = (() => {
     let d = Math.hypot(dx, dy);
     if (d < 0.001) { dx = 1; dy = 0; d = 1; }
     const nx = dx / d, ny = dy / d;
+    if (v.target) {
+      // Tension in the taut vine drags the caught enemy toward the player.
+      const dragScale = v.target.kind === 'boss' ? 0.32 : v.target.kind === 'brute' ? 0.62 : 1;
+      v.target.root.vx = clamp(v.target.root.vx + nx * 1180 * dragScale * dt, -1250, 1250);
+      v.target.root.vy = clamp(v.target.root.vy + ny * 1180 * dragScale * dt, -1050, 1050);
+    }
     const correctionX = v.x + nx * v.length - hand.x;
     const correctionY = v.y + ny * v.length - hand.y;
     if (Math.abs(correctionX) > 0.001 || Math.abs(correctionY) > 0.001) {
@@ -2008,7 +2014,7 @@ const Game = (() => {
     const tc = target ? target.chest() : { x: player.root.x + 300, y: player.root.y - 80 };
     const mv = kit[[0, 0, 1, 0, 2][idleDemo.i++ % 5]];
     const safe = { melee: 1, projectile: 1, nova: 1, shield: 1, heal: 1, strike: 1, beam: 1, zone: 1, wave: 1 };
-    if (!safe[mv.kind] || mv.flat) { idleDemo.t = 0.4; return; }
+    if (!safe[mv.kind] || mv.flat || mv.vineSwing) { idleDemo.t = 0.4; return; }
     player.facing = tc.x >= player.root.x ? 1 : -1;
     tryMove(player, mv, tc.x, tc.y);
     idleDemo.t = rand(1.1, 1.8);

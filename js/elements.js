@@ -44,7 +44,7 @@ const ELEMENTS = [
     moves: [
       { slot: 'main', id: 'water_whip', name: 'Bubble Beam', type: 'ranged', icon: 'bubble', kind: 'projectile', pose: 'cast',
         desc: 'Fire a tight, focused stream of water bubbles toward your aim.', cd: 0.48, windup: 0.06, active: 0.05, recover: 0.14,
-        speed: 850, grav: 0, radius: 10, dmg: 5, count: 9, spread: 0.018, knock: 170, lift: 0.12, soak: 2, life: 1.05, style: 'bubble' },
+        speed: 520, grav: 0, radius: 11, dmg: 7, count: 3, spread: 0.018, knock: 210, lift: 0.12, soak: 2, life: 1.4, style: 'bubble' },
       { slot: 'p1', id: 'tidal_wave', name: 'Tidal Wave', type: 'power', icon: 'wave', kind: 'wave', pose: 'nova',
         desc: 'Send a wave rolling across the ground that sweeps foes away.', cd: 6, windup: 0.18, active: 0.1, recover: 0.2,
         speed: 720, height: 95, life: 1.2, dmg: 14, knock: 820, lift: 0.4, soak: 4, style: 'water' },
@@ -102,9 +102,9 @@ const ELEMENTS = [
     id: 'nature', name: 'Thorn', color: '#9ae66e', deep: '#3f9b3a', price: 270,
     blurb: 'Vines that root and drain, snares of thorns and healing blooms.',
     moves: [
-      { slot: 'main', id: 'vine_lash', name: 'Vine Swing', type: 'melee', icon: 'vine', kind: 'melee', pose: 'swing',
-        desc: 'Hold to latch a vine onto island terrain and swing. Release to let go.', cd: 0.18, windup: 0.05, active: 0.1, recover: 0.08,
-        reach: 620, radius: 20, dmg: 8, knock: 260, lift: 0.2, root: 0.4, leech: 0.2, style: 'nature', vineSwing: true },
+      { slot: 'main', id: 'vine_lash', name: 'Vine Swing', type: 'ranged', icon: 'vine', kind: 'projectile', pose: 'cast',
+        desc: 'Hold to fire a long vine that hooks terrain or enemies; hooked enemies are dragged along. Release to let go.', cd: 0.18, windup: 0.05, active: 0.1, recover: 0.08,
+        speed: 720, reach: 620, radius: 20, dmg: 8, knock: 260, lift: 0.2, root: 0.4, leech: 0.2, style: 'nature', vineSwing: true },
       { slot: 'p1', id: 'thorn_snare', name: 'Thorn Snare', type: 'power', icon: 'snare', kind: 'projectile', pose: 'cast',
         desc: 'Lob a seed that bursts into a patch of rooting thorns.', cd: 6, windup: 0.12, active: 0.05, recover: 0.2,
         speed: 760, grav: 1300, radius: 12, dmg: 6, knock: 120, lift: 0.1,
