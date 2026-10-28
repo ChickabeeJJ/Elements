@@ -90,7 +90,8 @@ const ENEMY_TYPES = {
 function enemyStats(type, d) {
   const t = ENEMY_TYPES[type];
   return {
-    hp: Math.round(37 * (1 + d * 2.6) * t.hp),
+    // Rebalance durability only: regular enemies -20%, bosses +30%.
+    hp: Math.round(37 * (1 + d * 2.6) * t.hp * (type === 'boss' ? 1.3 : 0.8)),
     dmgMul: (0.75 + d * 1.3) * t.dmg,
     cdMul: lerp(1.3, 0.8, Math.min(d, 1.2)) * t.cd,
     think: lerp(0.32, 0.12, Math.min(d, 1.2)),
