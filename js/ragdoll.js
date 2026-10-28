@@ -280,6 +280,7 @@ class Fighter {
     let lean = clamp(r.vx * 0.012, -7, 7) * s;
     let crouch = (this.landT || 0) * 14 * s;
     let hands = null;   // [fx, fy, bx, by] relative to neck
+    let uppercutPose = false;
     const act = this.action;
     if (act) {
       const mv = act.move;
@@ -313,9 +314,18 @@ class Fighter {
             const strike = [...front(39 * s, 7 * s), ...front(32 * s, -8 * s)];
             hands = actionPose(wind, strike);
             lean += f * (phase === 1 ? 3 : -1) * s;
+          } else if (ay < -0.42) {
+            // Aimed-high punches become an uppercut: load low, then drive the
+            // lead fist up in front of the face while the rear hand stays guarding.
+            uppercutPose = true;
+            const wind = [f * 12 * s, 15 * s, -f * 15 * s, 17 * s];
+            const strike = [f * 24 * s, -13 * s, -f * 13 * s, 17 * s];
+            hands = actionPose(wind, strike);
+            lean += f * (phase === 0 ? -2 : phase === 1 ? 6 : 0) * s;
+            crouch += phase === 0 ? 2 * s : 0;
           } else {
             const wind = [-f * 14 * s, 5 * s, -f * 22 * s, 8 * s];
-            const strike = [...front(46 * s), -f * 11 * s, 8 * s];
+            const strike = [...front(40 * s), -f * 11 * s, 8 * s];
             hands = actionPose(wind, strike);
             lean += f * (phase === 1 ? 7 : -3) * s;
           }
@@ -425,10 +435,9 @@ class Fighter {
     if (!hands) {
       const sw = moving ? Math.sin(this.walkPh) * 8 * s : 0;
       // Grounded stance: keep both hands around the torso, with the lead hand slightly forward.
-      // Compact, separated guard in the air prevents hands drifting over the face.
-      hands = air
-        ? [f * 21 * s, 5 * s, -f * 17 * s, 10 * s]
-        : [f * 23 * s + sw, 20 * s + bob, -f * 13 * s - sw * 0.45, 18 * s + bob];
+      // Keep hands in the same relaxed guard while jumping as while standing.
+      // Only the legs tuck in the air; the arms don't rise toward the face.
+      hands = [f * 23 * s + sw, 20 * s + bob, -f * 13 * s - sw * 0.45, 18 * s + bob];
     }
     const setArm = (hi, ei, hx, hy) => {
       // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
@@ -446,8 +455,9 @@ class Fighter {
       const leadArm = hi === P.FHAND;
       // Keep the lead elbow tucked behind the forward hand; the rear arm bends
       // slightly outward instead of making both arms form inverted hooks.
-      const preferredX = leadArm ? -f : f;
-      const preferredY = -0.42;
+      // An uppercut elbow tracks forward/down, keeping it out of the head silhouette.
+      const preferredX = uppercutPose && leadArm ? f : leadArm ? -f : f;
+      const preferredY = uppercutPose && leadArm ? 0.82 : -0.42;
       if (bx * preferredX + by * preferredY < 0) { bx = -bx; by = -by; }
       const armLen = 24 * s;
       const half = Math.min(armLen, l / 2);
