@@ -71,8 +71,8 @@ b, h1, h2, h3, h4, p { margin: 0; font-weight: inherit; }
   font-weight: 800; font-size: 16px; line-height: 1.1; letter-spacing: 0.04em; text-transform: uppercase;
   transition: background 0.12s, transform 0.08s, filter 0.12s;
 }
-.btn:hover { background: var(--ink-4); }
-.btn:active { transform: translateY(1px) scale(0.98); }
+.btn:hover { background: var(--ink-4); filter: drop-shadow(0 0 7px color-mix(in srgb, var(--acc) 30%, transparent)); }
+.btn:active { transform: translateY(1px) scale(0.98); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--acc) 22%, transparent)); }
 .btn b { white-space: nowrap; }
 .btn small { font-weight: 600; font-size: 12px; letter-spacing: 0.03em; color: var(--muted); white-space: nowrap; }
 .btn.primary { background: var(--acc); color: var(--acc-ink); }
@@ -88,7 +88,7 @@ b, h1, h2, h3, h4, p { margin: 0; font-weight: inherit; }
 .btn[disabled] { opacity: 0.5; cursor: default; }
 
 .round { width: 44px; height: 44px; display: grid; place-items: center; flex: none; clip-path: var(--cut-s); background: var(--ink-3); color: var(--text); transition: background 0.12s; }
-.round:hover { background: var(--ink-4); }
+.round:hover { background: var(--ink-4); filter: drop-shadow(0 0 7px color-mix(in srgb, var(--acc) 30%, transparent)); }
 .round .ic { width: 20px; height: 20px; }
 
 .pill { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 10px; clip-path: var(--cut-s); background: var(--panel); font-weight: 800; font-size: 15px; letter-spacing: 0.03em; white-space: nowrap; }
@@ -660,3 +660,8 @@ body.touch .combo span { font-size: 11px; }
   .seg::-webkit-scrollbar { display: none; }
   .seg button { flex: none; }
 }
+
+/* Soft theme-coloured response for secondary controls too. */
+.toggle:hover, .seg button:hover, .pill.user:hover, .tut-skip:hover { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--acc) 24%, transparent)); }
+button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transform 0.08s ease, filter 0.14s ease; }
+@media (prefers-reduced-motion: reduce) { button, .btn { transition: none; } }
