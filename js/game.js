@@ -1583,7 +1583,8 @@ const Game = (() => {
   }
 
   function summon(boss, n) {
-    for (let i = 0; i < n; i++) queueSpawn({ type: 'grunt', element: boss.el, d: boss.ai.d });
+    const reinforcements = Array.from({ length: n }, () => ({ type: 'grunt', element: boss.el, d: boss.ai.d }));
+    queueSpawnWave(reinforcements);
     fx.text(boss.head().x, boss.head().y - 90, 'Reinforcements!', boss.accent, 26, { dur: 1.4 });
   }
 
