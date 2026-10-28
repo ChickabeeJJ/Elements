@@ -42,9 +42,9 @@ const ELEMENTS = [
     id: 'water', name: 'Tide', color: '#7cc8ff', deep: '#2f7fe0', price: 90,
     blurb: 'Long-reaching whips and waves that wash foes over the edge.',
     moves: [
-      { slot: 'main', id: 'water_whip', name: 'Bubble Volley', type: 'ranged', icon: 'bubble', kind: 'projectile', pose: 'cast',
-        desc: 'Spray a fan of water bubbles that travel in a wide spread.', cd: 0.48, windup: 0.06, active: 0.05, recover: 0.14,
-        speed: 780, grav: 90, radius: 11, dmg: 5, count: 8, spread: 0.62, knock: 170, lift: 0.12, soak: 2, life: 1.05, style: 'bubble' },
+      { slot: 'main', id: 'water_whip', name: 'Bubble Beam', type: 'ranged', icon: 'bubble', kind: 'projectile', pose: 'cast',
+        desc: 'Fire a tight, focused stream of water bubbles toward your aim.', cd: 0.48, windup: 0.06, active: 0.05, recover: 0.14,
+        speed: 850, grav: 0, radius: 10, dmg: 5, count: 9, spread: 0.018, knock: 170, lift: 0.12, soak: 2, life: 1.05, style: 'bubble' },
       { slot: 'p1', id: 'tidal_wave', name: 'Tidal Wave', type: 'power', icon: 'wave', kind: 'wave', pose: 'nova',
         desc: 'Send a wave rolling across the ground that sweeps foes away.', cd: 6, windup: 0.18, active: 0.1, recover: 0.2,
         speed: 720, height: 95, life: 1.2, dmg: 14, knock: 820, lift: 0.4, soak: 4, style: 'water' },

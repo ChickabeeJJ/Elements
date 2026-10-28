@@ -1834,36 +1834,74 @@ const Game = (() => {
     const hand = f.hand();
     const dx = aim.x - hand.x, dy = aim.y - hand.y;
     const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
-    // Ray-step toward the aim and latch onto the first solid island surface.
-    for (let d = 28; d <= 620; d += 10) {
+    let px = hand.x, py = hand.y;
+    // Step along the actual vine path. An enemy hit before terrain becomes the moving anchor.
+    for (let d = 10; d <= 620; d += 10) {
       const x = hand.x + ux * d, y = hand.y + uy * d;
+      let enemyHit = null;
+      for (const target of opponents(f)) {
+        if (!target.alive || target.gone || blocked(target)) continue;
+        const hit = target.hitCapsule(px, py, x, y, 15);
+        if (hit) { enemyHit = { target, hit }; break; }
+      }
+      if (enemyHit) {
+        const target = enemyHit.target, hit = enemyHit.hit;
+        const ax = hit.px, ay = hit.py;
+        vineSwing = {
+          x: ax, y: ay, target, ox: ax - target.root.x, oy: ay - target.root.y,
+          length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0
+        };
+        f.action = null;
+        fx.burst(ax, ay, '#9ae66e', 10, 130, { life: 0.28 });
+        return;
+      }
       for (const isl of islands) {
         if (x < isl.left || x > isl.right) continue;
         if (isl.solidAt(x, y) || (Math.abs(y - isl.top) < 12 && uy > 0)) {
-          vineSwing = { x, y: Math.min(y, isl.top), isl, length: Math.max(90, dist(f.root, {x,y})), age: 0 };
+          const ax = x, ay = Math.min(y, isl.top);
+          vineSwing = {
+            x: ax, y: ay, isl,
+            length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0
+          };
           f.action = null;
-          fx.burst(x, vineSwing.y, '#9ae66e', 8, 110, { life: 0.25 });
+          fx.burst(ax, ay, '#9ae66e', 8, 110, { life: 0.25 });
           return;
         }
       }
+      px = x; py = y;
     }
   }
 
   function updateVineSwing(f, dt) {
     if (!vineSwing || !input.attack || !f || f.el !== 'nature' || !f.alive) { vineSwing = null; return; }
     const v = vineSwing, r = f.root;
-    v.age += dt;
-    const dx = r.x - v.x, dy = r.y - v.y;
-    const d = Math.hypot(dx, dy) || 1;
-    // Constrain the ragdoll root to the rope length, retaining tangential velocity
-    // so gravity and momentum produce a pendulum rather than a hard reel-in.
-    const nx = dx / d, ny = dy / d;
-    if (d > v.length) {
-      r.x = v.x + nx * v.length;
-      r.y = v.y + ny * v.length;
-      const radial = r.vx * nx + r.vy * ny;
-      if (radial > 0) { r.vx -= radial * nx; r.vy -= radial * ny; }
+    if (v.target) {
+      if (!v.target.alive || v.target.gone) { vineSwing = null; return; }
+      v.x = v.target.root.x + v.ox;
+      v.y = v.target.root.y + v.oy;
     }
+    v.age += dt;
+    // Enforce the rope length at the hand itself, translating the entire ragdoll together.
+    // This keeps a taut, straight rope without limb/body drift or artificial stretching.
+    const hand = f.hand();
+    let dx = hand.x - v.x, dy = hand.y - v.y;
+    let d = Math.hypot(dx, dy);
+    if (d < 0.001) { dx = 1; dy = 0; d = 1; }
+    const nx = dx / d, ny = dy / d;
+    const correctionX = v.x + nx * v.length - hand.x;
+    const correctionY = v.y + ny * v.length - hand.y;
+    if (Math.abs(correctionX) > 0.001 || Math.abs(correctionY) > 0.001) {
+      r.x += correctionX; r.y += correctionY;
+      for (let i = 0; i < f.pts.length; i++) {
+        f.pts[i].x += correctionX; f.pts[i].y += correctionY;
+        f.pts[i].px += correctionX; f.pts[i].py += correctionY;
+        f.T[i].x += correctionX; f.T[i].y += correctionY;
+        f.Tp[i].x += correctionX; f.Tp[i].y += correctionY;
+      }
+    }
+    // Keep only tangential velocity so momentum swings around the anchor instead of stretching through it.
+    const radial = r.vx * nx + r.vy * ny;
+    r.vx -= radial * nx; r.vy -= radial * ny;
     r.grounded = false; r.plat = null;
     r.vy += 520 * dt;
     r.vx += -ny * (f.input.x || 0) * 1150 * dt;
@@ -2097,8 +2135,9 @@ const Game = (() => {
     for (const p of projectiles) drawProjectile(c, p);
     if (vineSwing && player && input.attack) {
       const h = player.hand();
-      c.strokeStyle = '#9ae66e'; c.lineWidth = 4; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(h.x, h.y); c.quadraticCurveTo((h.x+vineSwing.x)/2+Math.sin(time*9)*9, (h.y+vineSwing.y)/2, vineSwing.x, vineSwing.y); c.stroke();
+      c.strokeStyle = '#9ae66e'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(vineSwing.x, vineSwing.y); c.stroke();
+      c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#9ae66e', vineSwing.x, vineSwing.y, 15, 0.55); c.globalCompositeOperation = 'source-over';
       c.fillStyle = '#d8ffb7'; c.beginPath(); c.arc(vineSwing.x, vineSwing.y, 6, 0, TAU); c.fill();
     }
     for (const f of player ? enemies.concat([player]) : enemies) {
