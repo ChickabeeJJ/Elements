@@ -624,15 +624,23 @@ const Game = (() => {
   function meleeTick(f, act) {
     const mv = act.move;
     const n = f.pts[P.NECK], h = f.hand();
-    const dx = h.x - n.x, dy = h.y - n.y, l = Math.hypot(dx, dy) || 1;
-    const ext = Math.max(0, mv.reach * f.s - 46 * f.s);
-    const tx = h.x + dx / l * ext, ty = h.y + dy / l * ext;
+    // The fist is still travelling through its wind-up on the first active frame.
+    // Aim the actual hit and its wind effect at the locked target, never along the
+    // temporary wind-up hand position (which can point backwards).
+    let dx = (act.tx ?? f.root.x + Math.cos(f.aim) * mv.reach) - n.x;
+    let dy = (act.ty ?? f.root.y + Math.sin(f.aim) * mv.reach) - n.y;
+    let l = Math.hypot(dx, dy);
+    if (l < 1) { dx = Math.cos(f.aim); dy = Math.sin(f.aim); l = 1; }
+    const ux = dx / l, uy = dy / l;
+    const tx = n.x + ux * mv.reach * f.s;
+    const ty = n.y + uy * mv.reach * f.s;
     act.tip = { x: tx, y: ty, nx: n.x, ny: n.y };
     act.trail = act.trail || [];
     if (!act.gust && act.el === 'wind') {
       act.gust = true;
-      const ang = Math.atan2(dy, dx);
-      for (let i = 0; i < 3; i++) fx.add({ kind: 'crescent', x: n.x, y: n.y, vx: Math.cos(ang) * (260 + i * 120), vy: Math.sin(ang) * (260 + i * 120), ang, size: 34 + i * 16, color: '#e6fff7', life: 0.28 + i * 0.05, drag: 3, add: true });
+      // Use the target-facing direction, not the lead fist's current wind-up angle.
+      const ang = Math.atan2(uy, ux);
+      for (let i = 0; i < 3; i++) fx.add({ kind: 'crescent', x: h.x, y: h.y, vx: Math.cos(ang) * (260 + i * 120), vy: Math.sin(ang) * (260 + i * 120), ang, size: 34 + i * 16, color: '#e6fff7', life: 0.28 + i * 0.05, drag: 3, add: true });
       for (let i = 0; i < 6; i++) { const b = ang + rand(-0.35, 0.35), v = rand(500, 900); fx.add({ kind: 'spark', x: h.x, y: h.y, vx: Math.cos(b) * v, vy: Math.sin(b) * v, color: '#dffcf2', size: rand(4, 7), life: rand(0.18, 0.3), drag: 4, add: true }); }
     }
     act.trail.push({ x: tx, y: ty, ix: lerp(n.x, tx, 0.45), iy: lerp(n.y, ty, 0.45) });
