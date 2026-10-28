@@ -74,7 +74,14 @@ b, h1, h2, h3, h4, p { margin: 0; font-weight: inherit; }
 .round:hover { background: var(--ink-4); }
 .round .ic { width: 20px; height: 20px; }
 
-.pill { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 10px; clip-path: var(--cut-s); background: var(--panel); font-weight: 800; font-size: 15px; letter-spacing: 0.03em; white-space: nowrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; height: 38px;
+  padding: 0 14px 0 10px;
+  /* Keep the dark fill under the entire badge; the corner cut was leaving tiny bare slivers. */
+  clip-path: none; border-radius: 0; background: var(--panel);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.045);
+  font-weight: 800; font-size: 15px; letter-spacing: 0.03em; white-space: nowrap;
+}
 .pill .ic { width: 18px; height: 18px; }
 .pill.user { cursor: pointer; font-size: 13px; }
 .pill.user img { width: 22px; height: 22px; border-radius: 4px; }
@@ -115,9 +122,17 @@ kbd { display: inline-block; font-family: var(--font); font-weight: 800; font-si
 /* ----------------------------------------------------------------- home */
 #home { padding: 0; }
 .home-panel {
-  position: absolute; left: 0; top: 0; bottom: 0; width: calc(390px + var(--safe-l)); display: flex; flex-direction: column; justify-content: center; gap: 18px;
+  position: absolute; left: 0; top: 0; bottom: 0;
+  /* Give the menu a wider, more deliberate dark backing before it fades into the arena. */
+  width: min(calc(470px + var(--safe-l)), 78vw);
+  display: flex; flex-direction: column; justify-content: center; gap: 18px;
   padding: calc(20px + var(--safe-t)) 34px calc(20px + var(--safe-b)) calc(34px + var(--safe-l));
-  background: linear-gradient(90deg, rgba(9, 11, 17, 0.94) 0, rgba(9, 11, 17, 0.86) 78%, rgba(9, 11, 17, 0));
+  background: linear-gradient(90deg,
+    rgba(9, 11, 17, 0.97) 0%,
+    rgba(9, 11, 17, 0.96) 62%,
+    rgba(9, 11, 17, 0.84) 82%,
+    rgba(9, 11, 17, 0.42) 94%,
+    rgba(9, 11, 17, 0) 100%);
 }
 .title { display: flex; flex-direction: column; align-items: flex-start; line-height: 0.92; font-weight: 900; letter-spacing: -0.01em; }
 .title .t1 { font-size: 54px; color: #fff; }
