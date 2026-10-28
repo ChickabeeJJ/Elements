@@ -18,6 +18,11 @@ const UI = (() => {
   let returnTo = 'home';
 
   const colorOf = id => (ELEMENT_BY_ID[id] || NEUTRAL).color;
+  function applyAccentTheme(id = Save.loadout()[0]) {
+    const el = ELEMENT_BY_ID[id] || NEUTRAL;
+    document.documentElement.style.setProperty('--acc', el.color);
+    document.documentElement.style.setProperty('--acc-hi', `color-mix(in srgb, ${el.color} 82%, white)`);
+  }
   const hex = (id, cls = '') => `<span class="hex ${cls}" style="--c:${colorOf(id)}">${elementIcon(id)}</span>`;
   const NAME = id => (ELEMENT_BY_ID[id] || NEUTRAL).name.toUpperCase();
   // key labels follow the player's keyboard layout (AZERTY shows Z/Q/S/D, etc.)
@@ -58,6 +63,7 @@ const UI = (() => {
   }
 
   function refreshHome() {
+    applyAccentTheme();
     const [r, s] = Save.nextStage();
     const all = Object.keys(Save.data.stars).length >= TOTAL_STAGES;
     $('playSub').textContent = all ? 'ALL STAGES CLEAR' : `STAGE ${stageLabel(r, s)} · ${REALMS[r].name.toUpperCase()}`;
@@ -155,15 +161,26 @@ const UI = (() => {
     let sel = Save.loadout().slice(), drawn = false;
     const draw = () => {
       const keep = drawn; drawn = true;
+      applyAccentTheme(sel[0] || Save.loadout()[0]);
       modal(`
         <h2>YOUR ELEMENTS</h2>
-        <div class="lo-slots">${[0, 1, 2].map(i => `<div class="lo-slot">${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small></div>`).join('')}</div>
+        <div class="lo-slots">${[0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small></button>`).join('')}</div>
         <p class="hint">Pick up to three. You can swap between them in battle with 1, 2 and 3.</p>
         <div class="picker">${ELEMENTS.map(e => {
           const open = Save.elementOpen(e.id);
           return `<button class="pick${sel.includes(e.id) ? ' on' : ''}${open ? '' : ' locked'}" data-el="${e.id}" style="--c:${e.color}">${hex(e.id, open ? '' : 'locked')}<span>${e.name.toUpperCase()}</span>${open ? '' : `<span class="price">${e.price}</span>`}</button>`;
         }).join('')}</div>
         <div class="actions"><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
+        sh.querySelectorAll('.lo-slot:not(:disabled)').forEach(slot => slot.onclick = () => {
+          if (sel.length <= 1) {
+            Sfx.denied();
+            toast('KEEP AT LEAST ONE ELEMENT EQUIPPED');
+            return;
+          }
+          Sfx.click();
+          sel.splice(Number(slot.dataset.slot), 1);
+          draw();
+        });
         sh.querySelectorAll('.pick').forEach(b => b.onclick = () => {
           const id = b.dataset.el;
           if (!Save.elementOpen(id)) { Sfx.click(); closeModal(); codexSel = id; openCodex(); return; }
@@ -175,6 +192,7 @@ const UI = (() => {
         });
         sh.querySelector('#loDone').onclick = () => {
           Sfx.click(); Save.setLoadout(sel);
+          applyAccentTheme();
           if (current === 'home') refreshHome();
           after ? after() : closeModal();
         };
