@@ -15,10 +15,10 @@ const SEGS = [
   [2, 7, 7], [7, 8, 6], [2, 9, 7], [9, 10, 6],
 ];
 const BONE_LEN = [17, 45, 24, 24, 24, 24, 29, 28, 29, 28];
-const MUSCLE = [0.15, 0.22, 0.27, 0.09, 0.14, 0.09, 0.13, 0.15, 0.24, 0.15, 0.24];
+const MUSCLE = [0.15, 0.22, 0.27, 0.16, 0.24, 0.16, 0.23, 0.15, 0.24, 0.15, 0.24];
 const MUSCLE_DAMP = 0.22;
 // inverse masses: heavy trunk, light extremities, so limbs whip around the body
-const INV_MASS = [0.8, 0.35, 0.3, 1, 1.25, 1, 1.25, 0.75, 1, 0.75, 1];
+const INV_MASS = [0.8, 0.35, 0.3, 0.88, 0.92, 0.88, 0.92, 0.75, 1, 0.75, 1];
 // soft joint limits [a, b, minLen, maxLen] in unscaled units
 const JOINT_LIMITS = [
   [2, 8, 36, 58], [2, 10, 36, 58],     // knees never fold flat
@@ -286,43 +286,105 @@ class Fighter {
       const w = mv.windup, a = mv.active, rc = mv.recover;
       const t = act.t;
       const phase = t < w ? 0 : t < w + a ? 1 : 2;
-      const u = phase === 0 ? t / Math.max(w, 1e-3) : phase === 1 ? (t - w) / Math.max(a, 1e-3) : clamp((t - w - a) / Math.max(rc, 1e-3), 0, 1);
-      // Relaxed guard: lead hand slightly forward, rear hand back, both around chest height.
+      const u = phase === 0
+        ? clamp(t / Math.max(w, 1e-3), 0, 1)
+        : phase === 1
+          ? clamp((t - w) / Math.max(a, 1e-3), 0, 1)
+          : clamp((t - w - a) / Math.max(rc, 1e-3), 0, 1);
+
+      // Continuous attack poses: settle into wind-up, drive through the active
+      // frames, then return to guard instead of snapping between static targets.
       const guard = [f * 23 * s, 20 * s + bob, -f * 13 * s, 18 * s + bob];
-      const blend = (h) => phase === 2 ? h.map((v, i) => lerp(v, guard[i], easeInOut(u))) : h;
+      const poseLerp = (from, to, k) => from.map((v, i) => lerp(v, to[i], k));
+      const actionPose = (wind, strike) => {
+        if (phase === 0) return poseLerp(guard, wind, easeInOut(u));
+        if (phase === 1) return poseLerp(wind, strike, easeOut(clamp(u / 0.3, 0, 1)));
+        return poseLerp(strike, guard, easeInOut(u));
+      };
+      const isRanged = mv.type === 'ranged' || mv.pose === 'cast' || mv.kind === 'projectile' || mv.kind === 'beam';
+      const px = -ay, py = ax;
+      const front = (distance, spread = 0) => [ax * distance + px * spread, ay * distance + py * spread];
+
       switch (mv.pose) {
         case 'punch': {
-          const h = phase === 0 ? [-ax * 6 * s, 6 * s, -f * 14 * s, 12 * s] : [ax * 52 * s, ay * 52 * s, -f * 16 * s, 10 * s];
-          hands = blend(h); lean += f * (phase === 1 ? 6 : -2) * s; break;
+          if (isRanged) {
+            // Ranged palm/clap: gather both hands at the chest, then project together.
+            const wind = [-f * 8 * s, 2 * s, -f * 18 * s, 8 * s];
+            const strike = [...front(39 * s, 7 * s), ...front(32 * s, -8 * s)];
+            hands = actionPose(wind, strike);
+            lean += f * (phase === 1 ? 3 : -1) * s;
+          } else {
+            const wind = [-f * 14 * s, 5 * s, -f * 22 * s, 8 * s];
+            const strike = [...front(46 * s), -f * 11 * s, 8 * s];
+            hands = actionPose(wind, strike);
+            lean += f * (phase === 1 ? 7 : -3) * s;
+          }
+          break;
         }
         case 'heavy': {
-          const h = phase === 0 ? [-f * 18 * s, -36 * s, -f * 10 * s, -30 * s] : [ax * 54 * s, ay * 54 * s, -f * 18 * s, 8 * s];
-          hands = blend(h); lean += f * (phase === 0 ? -6 : 9) * s; crouch += phase === 1 ? 6 * s : 0; break;
+          const wind = [-f * 18 * s, -26 * s, -f * 10 * s, -22 * s];
+          const strike = [...front(43 * s, 6 * s), ...front(32 * s, -8 * s)];
+          hands = actionPose(wind, strike);
+          lean += f * (phase === 0 ? -5 : phase === 1 ? 9 : 1) * s;
+          crouch += phase === 1 ? 5 * s : 0;
+          break;
         }
         case 'swing': {
           const dir = act.alt ? -1 : 1;
-          const a0 = this.aim - f * 1.6 * dir, a1 = this.aim + f * 0.9 * dir;
-          const ang = phase === 0 ? a0 : lerp(a0, a1, easeOut(Math.min(1, phase === 1 ? u : 1)));
-          const h = [Math.cos(ang) * 50 * s, Math.sin(ang) * 50 * s, -f * 14 * s, 12 * s];
-          hands = blend(h); lean += f * (phase === 1 ? 5 : 0) * s; break;
+          const wind = [-f * 18 * s, -7 * s, -f * 17 * s, 13 * s];
+          if (phase === 1) {
+            // Follow through a cross-body arc instead of snapping to one point.
+            const start = this.aim - f * 1.35 * dir;
+            const finish = this.aim + f * 0.82 * dir;
+            const ang = lerp(start, finish, easeInOut(u));
+            hands = [Math.cos(ang) * 45 * s, Math.sin(ang) * 45 * s, -f * 16 * s, 13 * s];
+          } else {
+            const strike = [Math.cos(this.aim + f * 0.82 * dir) * 45 * s, Math.sin(this.aim + f * 0.82 * dir) * 45 * s, -f * 16 * s, 13 * s];
+            hands = phase === 0 ? poseLerp(guard, wind, easeInOut(u)) : poseLerp(strike, guard, easeInOut(u));
+          }
+          lean += f * (phase === 1 ? 6 : phase === 0 ? -2 : 0) * s;
+          break;
         }
         case 'cast': {
-          const h = phase === 0 ? [-ax * 18 * s, -ay * 18 * s - 14 * s, f * 8 * s, 14 * s] : [ax * 50 * s, ay * 50 * s, -f * 18 * s, 6 * s];
-          hands = blend(h); break;
+          // Ranged casts gather both arms, then release with the off-hand bracing.
+          const wind = [-f * 8 * s, -7 * s, -f * 18 * s, 5 * s];
+          const strike = [...front(43 * s, 8 * s), ...front(29 * s, -9 * s)];
+          hands = actionPose(wind, strike);
+          const charge = phase === 0 ? Math.sin(u * Math.PI) * 2.2 : phase === 1 ? Math.sin(u * Math.PI * 2) * 1.2 : 0;
+          hands[1] += charge * s;
+          hands[3] -= charge * s * 0.55;
+          lean += f * (phase === 1 ? 2.5 : 0) * s;
+          break;
         }
         case 'channel': {
-          const px = -ay * 7 * s, py = ax * 7 * s;
-          hands = blend([ax * 48 * s + px, ay * 48 * s + py, ax * 46 * s - px, ay * 46 * s - py]); lean -= f * 4 * s; break;
+          const pulse = Math.sin(t * 12) * 1.7 * s;
+          const spread = 8 * s + pulse;
+          hands = [...front(40 * s, spread), ...front(36 * s, -spread)];
+          lean -= f * 2.5 * s;
+          break;
         }
         case 'raise': {
-          hands = blend(phase === 0 ? [f * 8 * s, -30 * s, -f * 8 * s, -28 * s] : [f * 14 * s, -48 * s, -f * 12 * s, -47 * s]); break;
+          const wind = [f * 8 * s, -24 * s, -f * 8 * s, -22 * s];
+          const strike = [f * 14 * s, -43 * s, -f * 12 * s, -40 * s];
+          hands = phase === 0 ? poseLerp(guard, wind, easeInOut(u)) :
+            phase === 1 ? poseLerp(wind, strike, easeOut(clamp(u / 0.45, 0, 1))) :
+            poseLerp(strike, guard, easeInOut(u));
+          break;
         }
         case 'nova': {
-          hands = blend(phase === 0 ? [f * 6 * s, 16 * s, f * 2 * s, 18 * s] : [f * 46 * s, -6 * s, -f * 46 * s, -6 * s]);
-          crouch += phase === 0 ? 8 * s : 0; break;
+          const wind = [f * 7 * s, 13 * s, -f * 6 * s, 16 * s];
+          const strike = [f * 36 * s, -8 * s, -f * 36 * s, -8 * s];
+          hands = actionPose(wind, strike);
+          crouch += phase === 0 ? 6 * s : 0;
+          break;
         }
         case 'dash': {
-          hands = blend([-f * 32 * s, 14 * s, -f * 26 * s, 20 * s]); lean += f * 14 * s; break;
+          const tuck = [-f * 29 * s, 12 * s, -f * 24 * s, 18 * s];
+          const launch = [-f * 36 * s, 8 * s, -f * 30 * s, 14 * s];
+          hands = phase === 2 ? poseLerp(launch, guard, easeInOut(u)) :
+            poseLerp(tuck, launch, phase === 1 ? easeOut(u) : easeInOut(u));
+          lean += f * 12 * s;
+          break;
         }
         default: break;
       }
