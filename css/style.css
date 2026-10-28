@@ -116,15 +116,23 @@ kbd { display: inline-block; font-family: var(--font); font-weight: 800; font-si
 #home { padding: 0; }
 .home-panel {
   position: absolute; left: 0; top: 0; bottom: 0;
-  /* Give the menu a wider, more deliberate dark backing before it fades into the arena. */
+  /* Keep the menu's usable width stable, but carry its dark backdrop much farther into the arena. */
+  isolation: isolate;
   width: min(calc(470px + var(--safe-l)), 78vw);
   display: flex; flex-direction: column; justify-content: center; gap: 18px;
   padding: calc(20px + var(--safe-t)) 34px calc(20px + var(--safe-b)) calc(34px + var(--safe-l));
+  background: rgba(9, 11, 17, 0.97);
+}
+.home-panel::after {
+  content: "";
+  position: absolute; top: 0; bottom: 0; left: 100%;
+  width: clamp(240px, 38vw, 650px);
+  pointer-events: none; z-index: -1;
   background: linear-gradient(90deg,
     rgba(9, 11, 17, 0.97) 0%,
-    rgba(9, 11, 17, 0.96) 62%,
-    rgba(9, 11, 17, 0.84) 82%,
-    rgba(9, 11, 17, 0.42) 94%,
+    rgba(9, 11, 17, 0.88) 24%,
+    rgba(9, 11, 17, 0.64) 52%,
+    rgba(9, 11, 17, 0.28) 78%,
     rgba(9, 11, 17, 0) 100%);
 }
 .title { display: flex; flex-direction: column; align-items: flex-start; line-height: 0.92; font-weight: 900; letter-spacing: -0.01em; }
@@ -188,10 +196,29 @@ kbd { display: inline-block; font-family: var(--font); font-weight: 800; font-si
 .el-pill:hover { background: var(--ink-3); }
 .el-pill .hex { width: 32px; height: 32px; border-radius: 6px; }
 .el-pill.active {
+  /* Two matching cut-corner layers create a continuous angled outline without bare corner gaps. */
+  isolation: isolate;
+  background: transparent;
+  clip-path: var(--cut-s);
+  box-shadow: none;
+}
+.el-pill.active::before,
+.el-pill.active::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.el-pill.active::before {
+  inset: 0;
+  background: var(--c);
+  clip-path: var(--cut-s);
+  z-index: -2;
+}
+.el-pill.active::after {
+  inset: 2px;
   background: color-mix(in srgb, var(--c) 22%, var(--ink-2));
-  /* Keep selected-state emphasis continuous right into all four corners. */
-  clip-path: none;
-  box-shadow: inset 0 0 0 2px var(--c);
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  z-index: -1;
 }
 .el-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .el-pill .price { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #cdf4ff; overflow: visible; }
@@ -545,6 +572,7 @@ body.touch .combo span { font-size: 11px; }
   .forge { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stage-grid.nine { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .home-panel { width: 100%; background: rgba(9, 11, 17, 0.82); }
+  .home-panel::after { display: none; }
 }
 
 /* ----------------------------------------------- fill the space on big screens */
