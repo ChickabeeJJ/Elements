@@ -23,6 +23,7 @@ const Game = (() => {
   let islands = [], player = null, enemies = [];
   let projectiles = [], zones = [], waves = [], strikes = [], spawns = [], pickups = [];
   let eruptions = [], walls = [], mines = [], resonances = [], dragons = [];
+  let vineSwing = null;
   let dummyTimer = 0;
   let time = 0, timeScale = 1, slowmo = 0, hitstop = 0, shake = 0, hurtFlash = 0, healFlash = 0, acc = 0, endTimer = 0, realmFlash = 0;
   let run = null, pStats = Save.playerStats(), pickupTimer = 8;
@@ -133,7 +134,7 @@ const Game = (() => {
     eruptions = []; walls = []; mines = []; resonances = []; dragons = [];
     timeScale = 1; slowmo = 0; hitstop = 0; shake = 0; hurtFlash = 0; healFlash = 0; acc = 0;
     combo.n = 0; combo.t = 0; combo.best = 0;
-    input.attack = false; input.queued = {};
+    input.attack = false; input.queued = {}; vineSwing = null;
   }
 
   /* menu backdrop: the hero shows off moves against a sparring dummy */
@@ -1829,6 +1830,47 @@ const Game = (() => {
     return autoTarget() || { x: c.x + player.facing * 300, y: c.y };
   }
 
+  function attachVine(f, aim) {
+    const hand = f.hand();
+    const dx = aim.x - hand.x, dy = aim.y - hand.y;
+    const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+    // Ray-step toward the aim and latch onto the first solid island surface.
+    for (let d = 28; d <= 620; d += 10) {
+      const x = hand.x + ux * d, y = hand.y + uy * d;
+      for (const isl of islands) {
+        if (x < isl.left || x > isl.right) continue;
+        if (isl.solidAt(x, y) || (Math.abs(y - isl.top) < 12 && uy > 0)) {
+          vineSwing = { x, y: Math.min(y, isl.top), isl, length: Math.max(90, dist(f.root, {x,y})), age: 0 };
+          f.action = null;
+          fx.burst(x, vineSwing.y, '#9ae66e', 8, 110, { life: 0.25 });
+          return;
+        }
+      }
+    }
+  }
+
+  function updateVineSwing(f, dt) {
+    if (!vineSwing || !input.attack || !f || f.el !== 'nature' || !f.alive) { vineSwing = null; return; }
+    const v = vineSwing, r = f.root;
+    v.age += dt;
+    const dx = r.x - v.x, dy = r.y - v.y;
+    const d = Math.hypot(dx, dy) || 1;
+    // Constrain the ragdoll root to the rope length, retaining tangential velocity
+    // so gravity and momentum produce a pendulum rather than a hard reel-in.
+    const nx = dx / d, ny = dy / d;
+    if (d > v.length) {
+      r.x = v.x + nx * v.length;
+      r.y = v.y + ny * v.length;
+      const radial = r.vx * nx + r.vy * ny;
+      if (radial > 0) { r.vx -= radial * nx; r.vy -= radial * ny; }
+    }
+    r.grounded = false; r.plat = null;
+    r.vy += 520 * dt;
+    r.vx += -ny * (f.input.x || 0) * 1150 * dt;
+    r.vy += nx * (f.input.x || 0) * 1150 * dt;
+    if (Math.random() < dt * 18) fx.add({x:v.x+rand(-4,4),y:v.y+rand(-4,4),vx:rand(-18,18),vy:rand(-18,18),color:'#9ae66e',size:rand(2,4),life:0.25});
+  }
+
   function playerControl(dt) {
     const f = player;
     if (!f) return;
@@ -1860,7 +1902,12 @@ const Game = (() => {
       if (tryMove(f, mv, a.x, a.y)) count(mv);
       else if ((f.cds[mv.id] || 0) > 0.15) Sfx.denied();
     }
-    if (input.attack || q.attack) { if (tryMove(f, kit[0], a.x, a.y)) count(kit[0]); q.attack = false; }
+    if (f.el === 'nature' && kit[0].vineSwing) {
+      if (input.attack || q.attack) {
+        if (!vineSwing) attachVine(f, a);
+        q.attack = false;
+      } else if (vineSwing) vineSwing = null;
+    } else if (input.attack || q.attack) { if (tryMove(f, kit[0], a.x, a.y)) count(kit[0]); q.attack = false; }
   }
 
   function press(action) {
@@ -1952,6 +1999,7 @@ const Game = (() => {
         if (f.hp <= 0) kill(f, null, 0, -200, P.PELVIS);
       }
       f.update(dt, islands, zoneForce);
+      if (f.isPlayer && vineSwing) updateVineSwing(f, dt);
       if (f.decor) {
         f.hp = f.maxHp;
         if (f.mode === 'active' && mode !== 'tutorial') f.root.x = clamp(f.root.x, islands[0].left + 60, islands[0].right - 60);
@@ -2047,6 +2095,12 @@ const Game = (() => {
 
     for (const w of waves) drawWave(c, w);
     for (const p of projectiles) drawProjectile(c, p);
+    if (vineSwing && player && input.attack) {
+      const h = player.hand();
+      c.strokeStyle = '#9ae66e'; c.lineWidth = 4; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(h.x, h.y); c.quadraticCurveTo((h.x+vineSwing.x)/2+Math.sin(time*9)*9, (h.y+vineSwing.y)/2, vineSwing.x, vineSwing.y); c.stroke();
+      c.fillStyle = '#d8ffb7'; c.beginPath(); c.arc(vineSwing.x, vineSwing.y, 6, 0, TAU); c.fill();
+    }
     for (const f of player ? enemies.concat([player]) : enemies) {
       const a = f.action;
       if (a && a.beam && a.move.kind === 'beam' && a.t < a.move.windup + a.move.active) drawBeam(c, a.beam);
@@ -2159,6 +2213,14 @@ const Game = (() => {
     }
     c.save(); c.translate(p.x, p.y);
     switch (st) {
+      case 'bubble': {
+        const pulse = 0.85 + Math.sin(time * 12 + p.rot) * 0.12;
+        c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#7cc8ff', 0, 0, p.r * 2.5, 0.45); c.globalCompositeOperation = 'source-over';
+        c.fillStyle = 'rgba(124,200,255,0.42)'; c.strokeStyle = '#d9f5ff'; c.lineWidth = 2;
+        c.beginPath(); c.arc(0, 0, p.r * pulse, 0, TAU); c.fill(); c.stroke();
+        c.fillStyle = 'rgba(255,255,255,0.9)'; c.beginPath(); c.arc(-p.r*0.3, -p.r*0.35, p.r*0.24, 0, TAU); c.fill();
+        break;
+      }
       case 'dragonfire': {
         const a = clamp(p.life / (p.mv.life || 1), 0, 1);
         c.globalCompositeOperation = 'lighter';
