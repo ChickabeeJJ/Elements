@@ -74,14 +74,7 @@ b, h1, h2, h3, h4, p { margin: 0; font-weight: inherit; }
 .round:hover { background: var(--ink-4); }
 .round .ic { width: 20px; height: 20px; }
 
-.pill {
-  display: inline-flex; align-items: center; gap: 7px; height: 38px;
-  padding: 0 14px 0 10px;
-  /* Keep the dark fill under the entire badge; the corner cut was leaving tiny bare slivers. */
-  clip-path: none; border-radius: 0; background: var(--panel);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.045);
-  font-weight: 800; font-size: 15px; letter-spacing: 0.03em; white-space: nowrap;
-}
+.pill { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 10px; clip-path: var(--cut-s); background: var(--panel); font-weight: 800; font-size: 15px; letter-spacing: 0.03em; white-space: nowrap; }
 .pill .ic { width: 18px; height: 18px; }
 .pill.user { cursor: pointer; font-size: 13px; }
 .pill.user img { width: 22px; height: 22px; border-radius: 4px; }
@@ -194,7 +187,12 @@ kbd { display: inline-block; font-family: var(--font); font-weight: 800; font-si
 .el-pill { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; clip-path: var(--cut-s); background: var(--ink-2); font-weight: 800; font-size: 12px; letter-spacing: 0.03em; text-align: left; min-width: 0; transition: background 0.12s; }
 .el-pill:hover { background: var(--ink-3); }
 .el-pill .hex { width: 32px; height: 32px; border-radius: 6px; }
-.el-pill.active { background: color-mix(in srgb, var(--c) 22%, var(--ink-2)); box-shadow: inset 0 0 0 2px var(--c); }
+.el-pill.active {
+  background: color-mix(in srgb, var(--c) 22%, var(--ink-2));
+  /* Keep selected-state emphasis continuous right into all four corners. */
+  clip-path: none;
+  box-shadow: inset 0 0 0 2px var(--c);
+}
 .el-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .el-pill .price { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #cdf4ff; overflow: visible; }
 .el-pill .price .ic { width: 12px; height: 12px; }
