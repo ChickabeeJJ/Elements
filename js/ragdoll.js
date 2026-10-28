@@ -281,8 +281,7 @@ class Fighter {
     let crouch = (this.landT || 0) * 14 * s;
     let hands = null;   // [fx, fy, bx, by] relative to neck
     let elbowDownPose = false;
-    let straightPunch = false;
-    let straightShot = false;
+    let straightAttack = false;
     const act = this.action;
     if (act) {
       const mv = act.move;
@@ -334,7 +333,7 @@ class Fighter {
             // Extend the lead hand almost straight on the impact frames, while
             // keeping the rear fist in guard and the elbow bent slightly downward.
             const strike = [...front(44 * s), -f * 11 * s, 8 * s];
-            straightPunch = phase === 1;
+
             hands = actionPose(wind, strike);
             lean += f * (phase === 1 ? 7 : -3) * s;
           }
@@ -416,11 +415,11 @@ class Fighter {
         default: break;
       }
 
-      // On the firing frames, put the lead hand directly on the shot vector.
-      // Use near-full arm reach and no sideways spread so the hand points where
-      // the projectile actually travels, independent of the wind-up pose.
-      if (isRanged && phase === 1) {
-        straightShot = true;
+      // On active frames, both melee strikes and ranged shots extend the lead arm
+      // almost straight along aim. This takes priority over move-specific strike
+      // poses so the arm never points somewhere different from the attack direction.
+      if (phase === 1 && (mv.kind === 'melee' || isRanged)) {
+        straightAttack = true;
         if (!hands) hands = [f * 23 * s, 20 * s + bob, -f * 13 * s, 18 * s + bob];
         hands[0] = ax * 47.5 * s;
         hands[1] = ay * 47.5 * s;
@@ -464,7 +463,7 @@ class Fighter {
       // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
       const rawLen = Math.hypot(hx, hy) || 1;
       // Keep a little bend in the elbows; full extension makes the hands look detached.
-      const maxReach = straightShot && hi === P.FHAND ? 47.5 * s : straightPunch && hi === P.FHAND ? 46 * s : 41 * s;
+      const maxReach = straightAttack && hi === P.FHAND ? 47.5 * s : 41 * s;
       if (rawLen > maxReach) { const k = maxReach / rawLen; hx *= k; hy *= k; }
       T[hi].x = nx + hx; T[hi].y = ny + hy;
       const mx = nx + hx / 2, my = ny + hy / 2;
@@ -481,7 +480,7 @@ class Fighter {
       if (bx * preferredX + by * preferredY < 0) { bx = -bx; by = -by; }
       const armLen = 24 * s;
       const half = Math.min(armLen, l / 2);
-      const bend = straightShot && hi === P.FHAND ? 1.5 * s : Math.sqrt(Math.max(0, armLen * armLen - half * half));
+      const bend = straightAttack && hi === P.FHAND ? 1.5 * s : Math.sqrt(Math.max(0, armLen * armLen - half * half));
       T[ei].x = mx + bx * bend; T[ei].y = my + by * bend;
     };
     setArm(P.FHAND, P.FELB, hands[0], hands[1]);
