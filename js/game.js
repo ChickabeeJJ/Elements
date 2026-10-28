@@ -775,7 +775,7 @@ const Game = (() => {
       fx.text(o.px + rand(-12, 12), o.py - 40, Math.max(1, Math.round(dmg)), t.isPlayer ? '#ff8a8a' : tag ? '#ffe066' : mul > 1 ? '#ffd166' : '#ffffff', dmg >= 20 ? 32 : 24);
       if (mul > 1 && !o.quiet) fx.text(o.px + 34, o.py - 70, 'WEAK!', '#ffe066', 18, { dur: 0.8 });
       if (mul < 1 && !o.quiet) fx.text(o.px + 34, o.py - 70, 'RESIST', '#a7adbd', 16, { dur: 0.8 });
-      if (tag) fx.text(o.px, o.py - 96, tag, '#ffe066', 26, { dur: 1 });
+      if (tag && !(t.tagCd > 0)) { fx.text(o.px, o.py - 96, tag, '#ffe066', 26, { dur: 1 }); t.tagCd = 0.6; }   // one label per foe at a time
     }
     if (!o.quiet) {
       hitstop = Math.max(hitstop, K > 700 ? 0.07 : 0.035);
@@ -1830,6 +1830,7 @@ const Game = (() => {
     const fighters = player ? enemies.concat([player]) : enemies;
     for (const f of fighters) {
       if (f.gone) continue;
+      if (f.tagCd > 0) f.tagCd -= dt;
       updateAction(f, dt);
       if (f.status.burn > 0 && f.alive && !f.decor) {
         f.hp -= f.status.burnDps * dt * (f.isPlayer ? pStats.armor : 1);
@@ -2437,6 +2438,8 @@ const Game = (() => {
     islands: () => islands,
     spawnPickup: () => spawnPickup(),
     setEl: id => { setPlayerElement(player, id, true); for (const k in player.cds) player.cds[k] = 0; },
+    spawn: (spec, x, y) => spawnEnemyAt(Object.assign({ type: 'grunt', element: realm.element, d: 0.3 }, spec), x, y, true),
+    hold: () => { waveTimer = 1e9; spawns = []; },   // stop the stage's own waves (staged scenes)
   };
 
   return {

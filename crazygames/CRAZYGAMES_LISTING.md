@@ -56,8 +56,10 @@ Suggested (pick the ones the portal offers):
 | `cover-landscape-1920x1080.png` | 1920×1080 (16:9) | Landscape cover |
 | `cover-portrait-800x1200.png` | 800×1200 (2:3) | Portrait cover |
 | `cover-square-800x800.png` | 800×800 (1:1) | Square cover |
-| `preview-landscape-1920x1080.mp4` | 1920×1080, 20 s, H.264, no audio | Landscape gameplay preview |
-| `preview-portrait-1080x1920.mp4` | 1080×1920, 20 s, H.264, no audio | Portrait gameplay preview |
+| `trailer-landscape-1920x1080.mp4` | 1920×1080, 19 s, 30 fps, H.264, no audio | Landscape trailer (hard cuts, real gameplay) |
+| `trailer-portrait-1080x1680.mp4` | 1080×1680, 19 s, 30 fps, H.264, no audio | Portrait trailer (hard cuts, real gameplay) |
+
+The cover PNGs predate the Element Rag redesign (old enemy colours, old UI); replace them with the new banners.
 
 The covers come from real gameplay. The only text on them is the game title, with no borders, logos or UI. The videos are raw, unedited gameplay.
 
