@@ -1849,7 +1849,7 @@ const Game = (() => {
         const ax = hit.px, ay = hit.py;
         vineSwing = {
           x: ax, y: ay, target, ox: ax - target.root.x, oy: ay - target.root.y,
-          length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0, hitCooldown: new Map(), hitCooldown: new Map()
+          length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0, hitCooldown: new Map()
         };
         f.action = null;
         fx.burst(ax, ay, '#9ae66e', 10, 130, { life: 0.28 });
@@ -1861,7 +1861,7 @@ const Game = (() => {
           const ax = x, ay = Math.min(y, isl.top);
           vineSwing = {
             x: ax, y: ay, isl,
-            length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0
+            length: Math.max(40, Math.hypot(hand.x - ax, hand.y - ay)), age: 0, hitCooldown: new Map()
           };
           f.action = null;
           fx.burst(ax, ay, '#9ae66e', 8, 110, { life: 0.25 });
@@ -1875,14 +1875,18 @@ const Game = (() => {
   function updateVineSwing(f, dt) {
     if (!vineSwing || !input.attack || !f || f.el !== 'nature' || !f.alive) { vineSwing = null; return; }
     const v = vineSwing, r = f.root;
+    const hand = f.hand();
+    if (!v.hitCooldown) v.hitCooldown = new Map();
+
     if (v.target) {
       if (!v.target.alive || v.target.gone) { vineSwing = null; return; }
       v.x = v.target.root.x + v.ox;
       v.y = v.target.root.y + v.oy;
     }
     v.age += dt;
-    // The vine itself is a damaging rope: anything crossing its length takes a heavy hit,
-    // with a short per-target cooldown so sustained contact hurts without deleting health instantly.
+
+    // The rope is damaging. Initialise cooldown state for every latch type and
+    // obtain the hand before using it, avoiding crashes on enemy and terrain hooks.
     for (const target of opponents(f)) {
       if (!target.alive || target.gone || blocked(target)) continue;
       const hit = target.hitCapsule(hand.x, hand.y, v.x, v.y, 13);
@@ -1895,19 +1899,55 @@ const Game = (() => {
       });
       fx.burst(hit.px, hit.py, '#9ae66e', 12, 240, { life: 0.3 });
     }
-    // Enforce the rope length at the hand itself, translating the entire ragdoll together.
-    // This keeps a taut, straight rope without limb/body drift or artificial stretching.
-    const hand = f.hand();
+
+    if (v.target) {
+      // Enemy latch: the player is NOT constrained to the target. If player movement
+      // stretches the rope past its latched length, move the vine tip via the target.
+      const target = v.target;
+      if (!target.alive || target.gone) { vineSwing = null; return; }
+      let dx = hand.x - v.x, dy = hand.y - v.y;
+      const d = Math.hypot(dx, dy);
+      if (d > v.length && d > 0.001) {
+        const nx = dx / d, ny = dy / d;
+        const dragScale = target.kind === 'boss' ? 0.32 : target.kind === 'brute' ? 0.62 : 1;
+
+        // Physical pull, scaled for heavier enemies.
+        target.root.vx = clamp(target.root.vx + nx * 1180 * dragScale * dt, -1250, 1250);
+        target.root.vy = clamp(target.root.vy + ny * 1180 * dragScale * dt, -1050, 1050);
+
+        // Correct stretch at the endpoint, not at the player's body. Cap this
+        // per-step correction to avoid teleporting an enemy after a large displacement.
+        let correctionX = hand.x - nx * v.length - v.x;
+        let correctionY = hand.y - ny * v.length - v.y;
+        const correctionLen = Math.hypot(correctionX, correctionY);
+        const maxCorrection = 280 * dt;
+        if (correctionLen > maxCorrection && correctionLen > 0) {
+          const scale = maxCorrection / correctionLen;
+          correctionX *= scale;
+          correctionY *= scale;
+        }
+        target.root.x += correctionX;
+        target.root.y += correctionY;
+        for (let i = 0; i < target.pts.length; i++) {
+          target.pts[i].x += correctionX; target.pts[i].y += correctionY;
+          target.pts[i].px += correctionX; target.pts[i].py += correctionY;
+          target.T[i].x += correctionX; target.T[i].y += correctionY;
+          target.Tp[i].x += correctionX; target.Tp[i].y += correctionY;
+        }
+        v.x = target.root.x + v.ox;
+        v.y = target.root.y + v.oy;
+      }
+
+      // Enemy-hook mode is a pull, not a player swing: preserve normal player movement.
+      if (Math.random() < dt * 18) fx.add({x:v.x+rand(-4,4),y:v.y+rand(-4,4),vx:rand(-18,18),vy:rand(-18,18),color:'#9ae66e',size:rand(2,4),life:0.25});
+      return;
+    }
+
+    // Terrain latch: keep the taut-rope swing behaviour.
     let dx = hand.x - v.x, dy = hand.y - v.y;
     let d = Math.hypot(dx, dy);
     if (d < 0.001) { dx = 1; dy = 0; d = 1; }
     const nx = dx / d, ny = dy / d;
-    if (v.target) {
-      // Tension in the taut vine drags the caught enemy toward the player.
-      const dragScale = v.target.kind === 'boss' ? 0.32 : v.target.kind === 'brute' ? 0.62 : 1;
-      v.target.root.vx = clamp(v.target.root.vx + nx * 1180 * dragScale * dt, -1250, 1250);
-      v.target.root.vy = clamp(v.target.root.vy + ny * 1180 * dragScale * dt, -1050, 1050);
-    }
     const correctionX = v.x + nx * v.length - hand.x;
     const correctionY = v.y + ny * v.length - hand.y;
     if (Math.abs(correctionX) > 0.001 || Math.abs(correctionY) > 0.001) {
@@ -1919,7 +1959,7 @@ const Game = (() => {
         f.Tp[i].x += correctionX; f.Tp[i].y += correctionY;
       }
     }
-    // Keep only tangential velocity so momentum swings around the anchor instead of stretching through it.
+    // Keep only tangential velocity so momentum swings around the anchor.
     const radial = r.vx * nx + r.vy * ny;
     if (radial > 0) { r.vx -= radial * nx; r.vy -= radial * ny; }
     r.grounded = false; r.plat = null;
