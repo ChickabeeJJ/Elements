@@ -7,7 +7,7 @@
 const REALMS = [
   {
     id: 'verdant', name: 'Verdant Vale', element: 'nature',
-    sky: ['#86cfe0', '#d9efd9', '#ffe7b8'], sun: '#fff6cf', sunPos: [0.78, 0.2], showSun: true, clouds: true,
+    sky: ['#86cfe0', '#d9efd9', '#ffe7b8'], sun: '#fff6cf', sunPos: [0.78, 0.2], showSun: true,
     hills: ['#a7d3b8', '#73b08f', '#4d8a6d'], fog: '#e9f6e6',
     top: '#8fd46b', topDark: '#5fae4c', rock: '#6b5848', rockDark: '#4a3b31',
     ambient: 'leaf', tint: '#9ae66e',
