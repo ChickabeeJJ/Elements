@@ -665,3 +665,47 @@ body.touch .combo span { font-size: 11px; }
 .toggle:hover, .seg button:hover, .pill.user:hover, .tut-skip:hover { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--acc) 24%, transparent)); }
 button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transform 0.08s ease, filter 0.14s ease; }
 @media (prefers-reduced-motion: reduce) { button, .btn { transition: none; } }
+
+/* Subtle animated trace around the main Play button. */
+@property --play-trace-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+#btnPlay {
+  isolation: isolate;
+}
+#btnPlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1.5px;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--play-trace-angle),
+    transparent 0deg 296deg,
+    color-mix(in srgb, #fff 35%, var(--acc)) 312deg,
+    color-mix(in srgb, #fff 92%, var(--acc)) 322deg,
+    #fff 327deg,
+    color-mix(in srgb, #fff 55%, var(--acc)) 336deg,
+    transparent 350deg 360deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--acc) 45%, transparent));
+}
+#btnPlay:hover::after,
+#btnPlay:focus-visible::after {
+  opacity: 1;
+  animation: playTrace 2.2s linear infinite;
+}
+@keyframes playTrace {
+  to { --play-trace-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #btnPlay:hover::after,
+  #btnPlay:focus-visible::after { animation: none; }
+}
