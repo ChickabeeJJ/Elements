@@ -292,9 +292,10 @@ const UI = (() => {
         <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span><span>Swap element</span>
         <span><kbd>${key('KeyP')}</kbd></span><span>Pause</span>
       </div>`}
-      <button class="link-btn" id="setPrivacy">Privacy &amp; Terms</button>
+      ${Platform.hasSdk ? '<button class="link-btn" id="setPrivacy">Privacy &amp; Terms</button>' : ''}
       <div class="actions"><button class="btn primary" id="setBack"><b>${fromPause ? 'BACK' : 'DONE'}</b></button><button class="btn danger" id="setReset"><b>RESET</b></button></div>`, s => {
-      s.querySelector('#setPrivacy').onclick = () => { Sfx.click(); openPrivacy(fromPause); };
+      const pv = s.querySelector('#setPrivacy');
+      if (pv) pv.onclick = () => { Sfx.click(); openPrivacy(fromPause); };   // only on CrazyGames (SDK present)
       s.querySelectorAll('.toggle').forEach(t => t.onclick = () => {
         const k = t.dataset.k;
         st[k] = !st[k];
