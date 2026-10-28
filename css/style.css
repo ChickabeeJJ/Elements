@@ -424,7 +424,7 @@ body.touch .combo span { font-size: 11px; }
 .toggle .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 3px; background: #c6ccdc; transition: transform 0.12s; }
 .toggle.on .sw { background: var(--green); }
 .toggle.on .sw::after { transform: translateX(20px); background: #fff; }
-.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; font-size: 14px; font-weight: 500; color: var(--muted); }
+.keys { display: grid; grid-template-columns: max-content max-content; width: fit-content; max-width: 100%; margin-inline: auto; gap: 6px 12px; align-items: center; font-size: 14px; font-weight: 500; color: var(--muted); }
 .keys > span:nth-child(odd) { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
 .pause-stack { display: flex; flex-direction: column; gap: 8px; width: min(300px, 100%); margin: 0 auto; }
 .pause-stack .btn { width: 100%; }
