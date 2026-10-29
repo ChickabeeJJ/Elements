@@ -817,3 +817,79 @@ body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; p
   body.touch .sheet.result .stat-tiles b { font-size: 18px; }
   body.touch .sheet.result .unlock p { display: none; }
 }
+
+
+/* ---------------------------------------------------- mobile stage selection
+   Desktop stage selection keeps its existing wide grid. On phones, keep realm
+   tabs in one swipeable row and present the nine stages in a tidy 3x3 grid. */
+@media (max-width: 600px) {
+  #map {
+    padding: calc(10px + var(--safe-t)) calc(10px + var(--safe-r)) calc(12px + var(--safe-b)) calc(10px + var(--safe-l));
+  }
+  #map .bar {
+    gap: 7px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  #map .bar > .round {
+    width: 38px;
+    height: 38px;
+  }
+  #map .bar > .seg {
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: none;
+    touch-action: pan-x;
+  }
+  #map .bar > .seg::-webkit-scrollbar { display: none; }
+  #map .bar > .seg button {
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    font-size: 10px;
+  }
+  #map .bar > .btn.small {
+    min-height: 34px;
+    padding: 5px 8px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  #map .realm-head {
+    margin-top: 4px;
+    gap: 6px;
+  }
+  #map .realm-head h3 {
+    font-size: clamp(20px, 6vw, 27px);
+    line-height: 1.05;
+    margin-bottom: 2px;
+  }
+  #map .realm-head .tag {
+    gap: 5px;
+    padding: 4px 7px 4px 4px;
+    font-size: 10px;
+  }
+  #map .realm-head .hex { width: 22px; height: 22px; }
+  #map .stage-grid,
+  #map .stage-grid.nine {
+    width: 100%;
+    max-width: 430px;
+    margin: 14px auto 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  #map .stage-card {
+    min-height: 0;
+    aspect-ratio: 1 / 0.88;
+    gap: 5px;
+    padding: 9px 4px 7px;
+  }
+  #map .stage-card .n { font-size: clamp(25px, 7vw, 32px); }
+  #map .stage-card .stars { gap: 1px; }
+  #map .stage-card .stars .ic { width: clamp(10px, 3vw, 13px); height: clamp(10px, 3vw, 13px); }
+  #map .stage-card small { display: block; font-size: 9px; line-height: 1; }
+  #map .stage-card .reward { top: 4px; right: 4px; width: 19px; height: 19px; border-radius: 4px; }
+  #map .stage-card.zero .zero-ic { width: 16px; height: 16px; }
+}

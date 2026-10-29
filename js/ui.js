@@ -358,9 +358,10 @@ const UI = (() => {
       s.querySelector('#pSettings').onclick = () => openSettings(true);
       s.querySelector('#pQuit').onclick = () => {
         Sfx.click(); closeModal();
-        const m = Game.mode;
+        // Quit always returns to the actual home screen, not back to stage selection.
         Game.quit();
-        m === 'stage' ? openMap(lastStart.r) : (Game.idleScene(0), show('home'));
+        Game.idleScene(0);
+        show('home');
       };
     }, 'pause');
   }
