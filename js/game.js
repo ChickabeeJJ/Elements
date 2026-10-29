@@ -1893,61 +1893,136 @@ const Game = (() => {
     rope[last].px = tip.x; rope[last].py = tip.y;
   }
 
+  function setVineTravelRope(v, hand) {
+    const tip = { x: v.x, y: v.y };
+    const d = Math.hypot(tip.x - hand.x, tip.y - hand.y);
+    v.length = Math.max(1, d);
+    v.rope = makeVineRope(hand, tip, v.length);
+    // A little sag keeps the travelling/retracting vine organic without changing its path.
+    const sag = Math.min(18, d * 0.045);
+    for (let i = 1; i < v.rope.length - 1; i++) {
+      const p = v.rope[i], t = i / (v.rope.length - 1);
+      p.y += Math.sin(t * Math.PI) * sag;
+      p.py = p.y;
+    }
+  }
+
+  function latchVineEnemy(f, v, target, hit, hand) {
+    const tip = { x: hit.px ?? v.x, y: hit.py ?? v.y };
+    v.phase = 'attached';
+    v.x = tip.x; v.y = tip.y;
+    v.target = target;
+    v.isl = null;
+    v.ox = tip.x - target.root.x;
+    v.oy = tip.y - target.root.y;
+    v.length = vineRopeLength(hand, tip);
+    v.rope = makeVineRope(hand, tip, v.length);
+    v.age = 0;
+    f.action = null;
+
+    // Only this first contact deals damage. The attached rope never deals repeat hits.
+    const move = ELEMENT_BY_ID.nature.moves[0];
+    const dmg = move.dmg || 8, knock = move.knock || 160, lift = move.lift || 0.1;
+    applyHit(f, target, {
+      mv: { dmg, knock, lift }, el: 'nature', dmg, knock, lift,
+      dirX: Math.sign(target.root.x - f.root.x) || f.facing, dirY: -0.08,
+      idx: hit.idx, head: hit.head, px: tip.x, py: tip.y
+    });
+    fx.burst(tip.x, tip.y, '#9ae66e', 7, 100, { life: 0.24 });
+  }
+
+  function latchVineTerrain(v, isl, x, y, hand) {
+    const tip = { x, y };
+    v.phase = 'attached';
+    v.target = null;
+    v.isl = isl;
+    v.x = x; v.y = y;
+    v.length = vineRopeLength(hand, tip);
+    v.rope = makeVineRope(hand, tip, v.length);
+    v.age = 0;
+    fx.burst(x, y, '#9ae66e', 8, 110, { life: 0.25 });
+  }
+
   function attachVine(f, aim) {
     const hand = f.hand();
     const dx = aim.x - hand.x, dy = aim.y - hand.y;
-    const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
-    let px = hand.x, py = hand.y;
-    // The first enemy hit becomes the vine tip. Damage is dealt only on this
-    // initial contact; the attached rope itself is not a repeating damage hitbox.
-    for (let d = 10; d <= 620; d += 10) {
-      const x = hand.x + ux * d, y = hand.y + uy * d;
-      let enemyHit = null;
-      for (const target of opponents(f)) {
-        if (!target.alive || target.gone || blocked(target)) continue;
-        const hit = target.hitCapsule(px, py, x, y, 15);
-        if (hit) { enemyHit = { target, hit }; break; }
-      }
-      if (enemyHit) {
-        const target = enemyHit.target, hit = enemyHit.hit;
-        const tip = { x: hit.px, y: hit.py };
-        const ropeLength = vineRopeLength(hand, tip);
-        vineSwing = {
-          x: tip.x, y: tip.y, target, ox: tip.x - target.root.x, oy: tip.y - target.root.y,
-          length: ropeLength, rope: makeVineRope(hand, tip, ropeLength), age: 0
-        };
-        f.action = null;
-        const dmg = 8, knock = 160, lift = 0.1;
-        applyHit(f, target, {
-          mv: { dmg, knock, lift }, el: 'nature', dmg, knock, lift,
-          dirX: Math.sign(target.root.x - f.root.x) || f.facing, dirY: -0.08,
-          idx: hit.idx, px: hit.px, py: hit.py
-        });
-        fx.burst(tip.x, tip.y, '#9ae66e', 7, 100, { life: 0.24 });
-        return;
-      }
-      for (const isl of islands) {
-        if (x < isl.left || x > isl.right) continue;
-        if (isl.solidAt(x, y) || (Math.abs(y - isl.top) < 12 && uy > 0)) {
-          const tip = { x, y: Math.min(y, isl.top) };
-          const ropeLength = vineRopeLength(hand, tip);
-          vineSwing = {
-            x: tip.x, y: tip.y, isl,
-            length: ropeLength, rope: makeVineRope(hand, tip, ropeLength), age: 0
-          };
-          f.action = null;
-          fx.burst(tip.x, tip.y, '#9ae66e', 8, 110, { life: 0.25 });
-          return;
-        }
-      }
-      px = x; py = y;
-    }
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    // Launch a real travelling vine. Collision checks happen as the tip advances,
+    // so it grabs the first enemy or terrain it actually reaches instead of ray-latching instantly.
+    const maxRange = 620;
+    const startX = hand.x, startY = hand.y;
+    vineSwing = {
+      phase: 'shooting',
+      x: startX, y: startY,
+      startX, startY, dirX: ux, dirY: uy,
+      travelled: 0, maxRange, shotSpeed: 1500, retractSpeed: 2800,
+      length: 1, rope: makeVineRope(hand, { x: startX + ux, y: startY + uy }, 1),
+      age: 0
+    };
+    f.action = null;
   }
 
   function updateVineSwing(f, dt) {
     if (!vineSwing || !input.attack || !f || f.el !== 'nature' || !f.alive) { vineSwing = null; return; }
     const v = vineSwing, r = f.root;
     const hand = f.hand();
+
+    if (v.phase === 'shooting') {
+      const remaining = Math.max(0, v.maxRange - v.travelled);
+      const advance = Math.min(v.shotSpeed * dt, remaining);
+      const frameStartX = v.x, frameStartY = v.y;
+      const samples = Math.max(1, Math.ceil(advance / 8));
+      let prevX = frameStartX, prevY = frameStartY;
+
+      // Sweep in short steps so the moving tip catches the first thing along its path.
+      for (let i = 1; i <= samples; i++) {
+        const fraction = i / samples;
+        const x = frameStartX + v.dirX * advance * fraction;
+        const y = frameStartY + v.dirY * advance * fraction;
+        let best = null, bestDistance = Infinity;
+        for (const target of opponents(f)) {
+          if (!target.alive || target.gone || blocked(target)) continue;
+          const hit = target.hitCapsule(prevX, prevY, x, y, 15);
+          if (!hit) continue;
+          const hitDistance = Math.hypot((hit.px ?? x) - prevX, (hit.py ?? y) - prevY);
+          if (hitDistance < bestDistance) { best = { target, hit }; bestDistance = hitDistance; }
+        }
+        if (best) {
+          latchVineEnemy(f, v, best.target, best.hit, hand);
+          return;
+        }
+        for (const isl of islands) {
+          if (x < isl.left || x > isl.right) continue;
+          if (isl.solidAt(x, y) || (Math.abs(y - isl.top) < 12 && v.dirY > 0)) {
+            latchVineTerrain(v, isl, x, Math.min(y, isl.top), hand);
+            return;
+          }
+        }
+        prevX = x; prevY = y;
+      }
+
+      v.travelled += advance;
+      v.x = frameStartX + v.dirX * advance;
+      v.y = frameStartY + v.dirY * advance;
+      setVineTravelRope(v, hand);
+      if (v.travelled >= v.maxRange - 0.001) v.phase = 'retracting';
+      return;
+    }
+
+    if (v.phase === 'retracting') {
+      const dx = hand.x - v.x, dy = hand.y - v.y;
+      const d = Math.hypot(dx, dy);
+      const step = v.retractSpeed * dt;
+      if (d <= step + 12) {
+        vineSwing = null;
+        return;
+      }
+      v.x += dx / d * step;
+      v.y += dy / d * step;
+      setVineTravelRope(v, hand);
+      return;
+    }
 
     if (v.target) {
       if (!v.target.alive || v.target.gone) { vineSwing = null; return; }

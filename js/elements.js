@@ -110,8 +110,8 @@ const ELEMENTS = [
         speed: 760, grav: 1300, radius: 12, dmg: 6, knock: 120, lift: 0.1,
         zone: { r: 115, dur: 3.2, dps: 11, root: 1.2, style: 'thorns' }, style: 'seed' },
       { slot: 'p2', id: 'bloom', name: 'Bloom', type: 'power', icon: 'heal', kind: 'heal', pose: 'raise',
-        desc: 'Heal 30% over 2.5s, cleanse effects and push foes back.', cd: 14, windup: 0.12, active: 0.1, recover: 0.15,
-        heal: 0.3, dur: 2.5, radius: 120, knock: 520, lift: 0.4, dmg: 6, style: 'nature' },
+        desc: 'Heal 30% over 2.5s, cleanse effects, push foes back and leech half of Bloom damage as health.', cd: 14, windup: 0.12, active: 0.1, recover: 0.15,
+        heal: 0.3, dur: 2.5, radius: 120, knock: 520, lift: 0.4, dmg: 6, leech: 0.5, style: 'nature' },
     ],
   },
   {
