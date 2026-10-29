@@ -281,6 +281,7 @@ class Fighter {
     let crouch = (this.landT || 0) * 14 * s;
     let hands = null;   // [fx, fy, bx, by] relative to neck
     let elbowDownPose = false;
+    let uppercutPose = false;
     let straightAttack = false;
     let rangedRelaxBack = false;
     const act = this.action;
@@ -320,6 +321,7 @@ class Fighter {
             // Aimed-high punches become an uppercut: load low, then drive the
             // lead fist up in front of the face while the rear hand stays guarding.
             elbowDownPose = true;
+            uppercutPose = true;
             const wind = [f * 10 * s, 18 * s, -f * 15 * s, 17 * s];
             // Punch up through the target: the lead fist finishes high and forward,
             // with the elbow kept below/in front of the shoulder rather than behind the head.
@@ -357,19 +359,13 @@ class Fighter {
           break;
         }
         case 'swing': {
+          // Original weapon swing: sweep the lead hand through a broad arc.
+          // This stays move-specific instead of becoming a straight punch.
           const dir = act.alt ? -1 : 1;
-          const wind = [-f * 18 * s, -7 * s, -f * 17 * s, 13 * s];
-          if (phase === 1) {
-            // Follow through a cross-body arc instead of snapping to one point.
-            const start = this.aim - f * 1.35 * dir;
-            const finish = this.aim + f * 0.82 * dir;
-            const ang = lerp(start, finish, easeInOut(u));
-            hands = [Math.cos(ang) * 45 * s, Math.sin(ang) * 45 * s, -f * 16 * s, 13 * s];
-          } else {
-            const strike = [Math.cos(this.aim + f * 0.82 * dir) * 45 * s, Math.sin(this.aim + f * 0.82 * dir) * 45 * s, -f * 16 * s, 13 * s];
-            hands = phase === 0 ? poseLerp(guard, wind, easeInOut(u)) : poseLerp(strike, guard, easeInOut(u));
-          }
-          lean += f * (phase === 1 ? 6 : phase === 0 ? -2 : 0) * s;
+          const a0 = this.aim - f * 1.6 * dir, a1 = this.aim + f * 0.9 * dir;
+          const ang = phase === 0 ? a0 : lerp(a0, a1, easeOut(Math.min(1, phase === 1 ? u : 1)));
+          hands = [Math.cos(ang) * 50 * s, Math.sin(ang) * 50 * s, -f * 14 * s, 12 * s];
+          lean += f * (phase === 1 ? 5 : 0) * s;
           break;
         }
         case 'cast': {
@@ -416,10 +412,11 @@ class Fighter {
         default: break;
       }
 
-      // On active frames, both melee strikes and ranged shots extend the lead arm
-      // almost straight along aim. This takes priority over move-specific strike
-      // poses so the arm never points somewhere different from the attack direction.
-      if (phase === 1 && (mv.kind === 'melee' || isRanged)) {
+      // Keep ranged firing hands aligned with their shots. Only Gale's ordinary
+      // palm strike gets the straight extension; swords and heavy melee retain
+      // their own sweeping / loaded poses. High Gale punches stay uppercuts.
+      const galePalm = act.el === 'wind' && mv.id === 'gust_palm' && !uppercutPose;
+      if (phase === 1 && (isRanged || galePalm)) {
         straightAttack = true;
         if (!hands) hands = [f * 23 * s, 20 * s + bob, -f * 13 * s, 18 * s + bob];
         hands[0] = ax * 47.5 * s;
@@ -470,10 +467,12 @@ class Fighter {
         : [f * 23 * s + sw, 20 * s + bob, -f * 13 * s - sw * 0.45, 18 * s + bob];
     }
     const setArm = (hi, ei, hx, hy) => {
-      // Keep visual hand targets inside the reach of the 24 + 24 unit arm bones.
+      // Keep visual hand targets within arm reach, but allow real sweep distance
+      // for weapon swings and heavy strikes.
       const rawLen = Math.hypot(hx, hy) || 1;
-      // Keep a little bend in the elbows; full extension makes the hands look detached.
-      const maxReach = straightAttack && hi === P.FHAND ? 47.5 * s : 41 * s;
+      const move = this.action && this.action.move;
+      const meleeReach = move && move.kind === 'melee' && move.pose !== 'punch';
+      const maxReach = straightAttack && hi === P.FHAND ? 47.5 * s : meleeReach ? 47.5 * s : 41 * s;
       if (rawLen > maxReach) { const k = maxReach / rawLen; hx *= k; hy *= k; }
       T[hi].x = nx + hx; T[hi].y = ny + hy;
       const mx = nx + hx / 2, my = ny + hy / 2;

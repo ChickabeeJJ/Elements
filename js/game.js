@@ -625,16 +625,24 @@ const Game = (() => {
   function meleeTick(f, act) {
     const mv = act.move;
     const n = f.pts[P.NECK], h = f.hand();
-    // The fist is still travelling through its wind-up on the first active frame.
-    // Aim the actual hit and its wind effect at the locked target, never along the
-    // temporary wind-up hand position (which can point backwards).
-    let dx = (act.tx ?? f.root.x + Math.cos(f.aim) * mv.reach) - n.x;
-    let dy = (act.ty ?? f.root.y + Math.sin(f.aim) * mv.reach) - n.y;
+
+    // The hit tip follows the animated hand. This is important for the arc of
+    // sword-style swings: it restores the moving slash trail instead of turning
+    // every melee hit into a fixed straight line along aim.
+    let dx = h.x - n.x, dy = h.y - n.y;
     let l = Math.hypot(dx, dy);
     if (l < 1) { dx = Math.cos(f.aim); dy = Math.sin(f.aim); l = 1; }
-    const ux = dx / l, uy = dy / l;
-    const tx = n.x + ux * mv.reach * f.s;
-    const ty = n.y + uy * mv.reach * f.s;
+    const ext = Math.max(0, mv.reach * f.s - l);
+    const tx = h.x + dx / l * ext;
+    const ty = h.y + dy / l * ext;
+
+    // Keep Gale's crescent VFX aligned with the chosen target, independently
+    // of where its palm is during the wind-up.
+    let aimDx = (act.tx ?? f.root.x + Math.cos(f.aim) * mv.reach) - n.x;
+    let aimDy = (act.ty ?? f.root.y + Math.sin(f.aim) * mv.reach) - n.y;
+    let aimLen = Math.hypot(aimDx, aimDy);
+    if (aimLen < 1) { aimDx = Math.cos(f.aim); aimDy = Math.sin(f.aim); aimLen = 1; }
+    const ux = aimDx / aimLen, uy = aimDy / aimLen;
     act.tip = { x: tx, y: ty, nx: n.x, ny: n.y };
     act.trail = act.trail || [];
     if (!act.gust && act.el === 'wind') {
@@ -2336,8 +2344,8 @@ const Game = (() => {
 
     for (const e of enemies) if (!e.alive && !e.gone) e.draw(c, time);
     for (const e of enemies) if (e.alive) e.draw(c, time);
-    if (player && !player.gone) { player.draw(c, time); drawSwipe(c, player); }
-    for (const e of enemies) if (e.alive) drawSwipe(c, e);
+    if (player && !player.gone) { player.draw(c, time); drawSwipe(c, player); drawMeleeWeapon(c, player); }
+    for (const e of enemies) if (e.alive) { drawSwipe(c, e); drawMeleeWeapon(c, e); }
 
     for (const w of waves) drawWave(c, w);
     for (const p of projectiles) drawProjectile(c, p);
@@ -2468,6 +2476,81 @@ const Game = (() => {
       c.quadraticCurveTo((h.x + t.x) / 2, (h.y + t.y) / 2 + 12, t.x, t.y);
       c.stroke();
     }
+  }
+
+  // Visible weapon silhouettes for sword-style melee; their angle follows the live forearm.
+  function drawMeleeWeapon(c, f) {
+    const act = f.action;
+    if (!act || act.move.kind !== 'melee' || act.move.pose !== 'swing') return;
+    const mv = act.move;
+    const style = mv.style || (mv.id === 'blade_arc' ? 'steel' : mv.id === 'radiant_blade' ? 'light' : act.el);
+    const palettes = {
+      steel:  { blade: '#d7e0ec', edge: '#f8fbff', core: '#8797ac', hilt: '#39485b', guard: '#9aa8bb', glow: null },
+      light:  { blade: '#ffe88d', edge: '#fffbe5', core: '#fff6c0', hilt: '#94651c', guard: '#f6c64a', glow: '#ffe58a' },
+      arcane: { blade: '#bd8aff', edge: '#f4e7ff', core: '#e9caff', hilt: '#513078', guard: '#a76aff', glow: '#a96cff' }
+    };
+    const pal = palettes[style];
+    if (!pal) return;
+    const u = (act.t - mv.windup) / Math.max(0.001, mv.active);
+    if (u < -0.7 || u > 1.8) return;
+
+    const hand = f.pts[P.FHAND], elbow = f.pts[P.FELB];
+    const dx = hand.x - elbow.x, dy = hand.y - elbow.y;
+    const angle = Math.hypot(dx, dy) > 1 ? Math.atan2(dy, dx) : f.aim;
+    const s = f.s, length = (style === 'steel' ? 46 : 41) * s;
+    c.save();
+    c.translate(hand.x, hand.y);
+    c.rotate(angle);
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+
+    // Glow first, followed by the crisp blade so it stays readable on every realm.
+    if (pal.glow) {
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      c.shadowColor = pal.glow;
+      c.shadowBlur = 10 * s;
+      c.fillStyle = pal.blade;
+      c.beginPath();
+      c.moveTo(0, -3.2 * s);
+      c.lineTo(length * 0.76, -3.2 * s);
+      c.lineTo(length, 0);
+      c.lineTo(length * 0.76, 3.2 * s);
+      c.lineTo(0, 3.2 * s);
+      c.closePath();
+      c.fill();
+      c.restore();
+    }
+
+    // Hilt and crossguard.
+    c.strokeStyle = pal.hilt;
+    c.lineWidth = 4.5 * s;
+    c.beginPath(); c.moveTo(-12 * s, 0); c.lineTo(1.5 * s, 0); c.stroke();
+    c.strokeStyle = pal.guard;
+    c.lineWidth = 3 * s;
+    c.beginPath(); c.moveTo(-1.5 * s, -7 * s); c.lineTo(2.5 * s, 7 * s); c.stroke();
+
+    // Tapered blade, with a bright edge and a centre ridge.
+    c.fillStyle = pal.blade;
+    c.beginPath();
+    c.moveTo(0, -3.2 * s);
+    c.lineTo(length * 0.78, -2.7 * s);
+    c.lineTo(length, 0);
+    c.lineTo(length * 0.78, 2.7 * s);
+    c.lineTo(0, 3.2 * s);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = pal.edge;
+    c.lineWidth = 1.1 * s;
+    c.beginPath();
+    c.moveTo(1 * s, -2.2 * s);
+    c.lineTo(length * 0.78, -1.7 * s);
+    c.lineTo(length * 0.96, 0);
+    c.stroke();
+    c.strokeStyle = pal.core;
+    c.lineWidth = 1 * s;
+    c.beginPath(); c.moveTo(4 * s, 0); c.lineTo(length * 0.78, 0); c.stroke();
+    c.restore();
   }
 
   function drawStrikeMarkers(c) {
