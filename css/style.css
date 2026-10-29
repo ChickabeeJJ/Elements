@@ -893,3 +893,8 @@ body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; p
   #map .stage-card .reward { top: 4px; right: 4px; width: 19px; height: 19px; border-radius: 4px; }
   #map .stage-card.zero .zero-ic { width: 16px; height: 16px; }
 }
+
+/* Give the reward a clear visual separation from the result stat tiles on touch screens. */
+body.touch .sheet.result .payout {
+  margin-top: 8px;
+}
