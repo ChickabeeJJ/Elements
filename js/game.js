@@ -2259,6 +2259,45 @@ const Game = (() => {
         c.moveTo(h.x, h.y); c.lineTo(vineSwing.x, vineSwing.y);
       }
       c.stroke();
+
+      // Small stylised leaves grow from alternating sides of the flexible vine.
+      // They follow the simulated rope particles, so they bend and sag with it.
+      if (rope && rope.length > 3) {
+        const stride = Math.max(2, Math.floor(rope.length / 7));
+        c.save();
+        c.lineWidth = 1.15;
+        for (let i = stride, leafIndex = 0; i < rope.length - 1; i += stride, leafIndex++) {
+          const prev = rope[Math.max(0, i - 1)];
+          const p = rope[i];
+          const next = rope[Math.min(rope.length - 1, i + 1)];
+          const tangent = Math.atan2(next.y - prev.y, next.x - prev.x);
+          const side = leafIndex % 2 === 0 ? -1 : 1;
+          const angle = tangent + side * 0.92;
+          const size = 0.82 + (leafIndex % 3) * 0.12;
+
+          c.save();
+          c.translate(p.x, p.y);
+          c.rotate(angle);
+          c.scale(size, size);
+          c.fillStyle = leafIndex % 2 === 0 ? '#8ed957' : '#63b844';
+          c.strokeStyle = '#397f35';
+          c.beginPath();
+          c.moveTo(-1, 0);
+          c.quadraticCurveTo(1, -4.5, 9, -5.5);
+          c.quadraticCurveTo(8.5, 0.5, -1, 0);
+          c.fill();
+          c.stroke();
+          c.strokeStyle = '#c2ee86';
+          c.lineWidth = 0.8;
+          c.beginPath();
+          c.moveTo(0, -0.2);
+          c.quadraticCurveTo(4, -2, 8, -5);
+          c.stroke();
+          c.restore();
+        }
+        c.restore();
+      }
+
       c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#9ae66e', vineSwing.x, vineSwing.y, 15, 0.55); c.globalCompositeOperation = 'source-over';
       c.fillStyle = '#d8ffb7'; c.beginPath(); c.arc(vineSwing.x, vineSwing.y, 6, 0, TAU); c.fill();
     }
