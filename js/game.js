@@ -2279,20 +2279,13 @@ const Game = (() => {
           c.translate(p.x, p.y);
           c.rotate(angle);
           c.scale(size, size);
-          c.fillStyle = leafIndex % 2 === 0 ? '#8ed957' : '#63b844';
-          c.strokeStyle = '#397f35';
+          // Match the stem exactly: one flat vine-green fill, with no contrast outline or vein.
+          c.fillStyle = '#6ebd51';
           c.beginPath();
           c.moveTo(-1, 0);
           c.quadraticCurveTo(1, -4.5, 9, -5.5);
           c.quadraticCurveTo(8.5, 0.5, -1, 0);
           c.fill();
-          c.stroke();
-          c.strokeStyle = '#c2ee86';
-          c.lineWidth = 0.8;
-          c.beginPath();
-          c.moveTo(0, -0.2);
-          c.quadraticCurveTo(4, -2, 8, -5);
-          c.stroke();
           c.restore();
         }
         c.restore();
