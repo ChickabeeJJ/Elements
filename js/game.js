@@ -1011,6 +1011,13 @@ const Game = (() => {
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.trail.push(p.x, p.y); if (p.trail.length > 20) p.trail.splice(0, 2);
       emitTrail(p);
+      // Check the complete movement segment before a fighter collision can consume the projectile.
+      // Bubble Beam can collect a nearby orb even on the same frame its bubble hits an enemy.
+      if (p.team === 'player') {
+        for (const pk of pickups) {
+          if (!pk.dead && segPointDist(p.px, p.py, p.x, p.y, pk.x, pk.y).d < p.r + 24) collectPickup(pk);
+        }
+      }
       // prism walls send enemy shots back the way they came
       for (const w of walls) {
         if (w.team === p.team) continue;
@@ -1049,7 +1056,7 @@ const Game = (() => {
         if (!mv.pierce) { p.dead = true; detonate(p, hit.px, hit.py); break; }
       }
       if (p.dead) continue;
-      if (p.team === 'player') for (const pk of pickups) if (!pk.dead && segPointDist(p.px, p.py, p.x, p.y, pk.x, pk.y).d < p.r + 24) collectPickup(pk);
+
       if (!mv.ghost) {
         for (const isl of islands) {
           if (p.x < isl.left || p.x > isl.right) continue;
@@ -1893,6 +1900,13 @@ const Game = (() => {
     rope[last].px = tip.x; rope[last].py = tip.y;
   }
 
+  function collectVinePickups(x1, y1, x2, y2) {
+    // Use the same swept-segment pickup radius as ordinary player projectiles.
+    for (const pk of pickups) {
+      if (!pk.dead && segPointDist(x1, y1, x2, y2, pk.x, pk.y).d < 15 + 24) collectPickup(pk);
+    }
+  }
+
   function setVineTravelRope(v, hand) {
     const tip = { x: v.x, y: v.y };
     const d = Math.hypot(tip.x - hand.x, tip.y - hand.y);
@@ -1980,6 +1994,7 @@ const Game = (() => {
         const fraction = i / samples;
         const x = frameStartX + v.dirX * advance * fraction;
         const y = frameStartY + v.dirY * advance * fraction;
+        collectVinePickups(prevX, prevY, x, y);
         let best = null, bestDistance = Infinity;
         for (const target of opponents(f)) {
           if (!target.alive || target.gone || blocked(target)) continue;
@@ -2018,8 +2033,10 @@ const Game = (() => {
         vineSwing = null;
         return;
       }
+      const previousX = v.x, previousY = v.y;
       v.x += dx / d * step;
       v.y += dy / d * step;
+      collectVinePickups(previousX, previousY, v.x, v.y);
       setVineTravelRope(v, hand);
       return;
     }
