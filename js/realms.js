@@ -89,13 +89,17 @@ const ENEMY_TYPES = {
 /* stat curve shared by campaign and endless; d runs 0..1 (and past 1 in endless) */
 function enemyStats(type, d) {
   const t = ENEMY_TYPES[type];
+  const regular = type !== 'boss' && type !== 'brute';
   return {
-    // Rebalance durability only: regular enemies -20%, bosses +30%.
-    hp: Math.round(37 * (1 + d * 2.6) * t.hp * (type === 'boss' ? 1.3 : 0.8)),
-    // Caster and brute attacks deal 25% less damage; all other enemy damage is unchanged.
-    dmgMul: (0.75 + d * 1.3) * t.dmg * (type === 'caster' || type === 'brute' ? 0.75 : 1),
-    cdMul: lerp(1.3, 0.8, Math.min(d, 1.2)) * t.cd,
-    think: lerp(0.32, 0.12, Math.min(d, 1.2)),
+    // Keep the existing difficulty curve, then give regular Grunts/Casters +10% HP.
+    hp: Math.round(37 * (1 + d * 2.6) * t.hp * (type === 'boss' ? 1.3 : 0.8) * (regular ? 1.1 : 1)),
+    // Caster and brute attacks retain their existing damage reduction; regular enemies
+    // get +10% damage relative to their previous value.
+    dmgMul: (0.75 + d * 1.3) * t.dmg * (type === 'caster' || type === 'brute' ? 0.75 : 1) * (regular ? 1.1 : 1),
+    // Lower cooldown + decision intervals makes enemies attack more often, without
+    // shortening their existing readable attack wind-ups.
+    cdMul: lerp(1.3, 0.8, Math.min(d, 1.2)) * t.cd * 0.85,
+    think: lerp(0.32, 0.12, Math.min(d, 1.2)) * 0.85,
     aimErr: lerp(0.14, 0.04, Math.min(d, 1.1)),
     windupMul: lerp(2.5, 1.5, Math.min(d, 1)),
   };
