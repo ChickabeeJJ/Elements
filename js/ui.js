@@ -391,9 +391,11 @@ const UI = (() => {
     if (res.mode === 'endless') {
       modal(`
         <h2 class="${res.best ? 'win' : ''}">${res.best ? 'NEW RECORD!' : 'RUN OVER'}</h2>
-        <p class="sub">${res.kills} DEFEATED · BEST ${res.bestKills}</p>
-        ${tiles}${reward}${adRow}
-        <div class="actions"><button class="btn" id="rMenu"><b>HOME</b></button><button class="btn primary" id="rAgain"><b>AGAIN</b></button></div>`, s => {
+        <div class="result-content">
+          <p class="sub">${res.kills} DEFEATED · BEST ${res.bestKills}</p>
+          ${tiles}${reward}${adRow}
+        </div>
+        <div class="actions result-actions"><button class="btn" id="rMenu"><b>HOME</b></button><button class="btn primary" id="rAgain"><b>AGAIN</b></button></div>`, s => {
         bindAds(s);
         s.querySelector('#rMenu').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(0); show('home'); };
         s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless()); };
@@ -409,12 +411,14 @@ const UI = (() => {
       const u = res.unlocked;
       modal(`
         <h2 class="win">${boss ? 'REALM CONQUERED!' : 'VICTORY!'}</h2>
-        <div class="big-stars">${[1, 2, 3].map(k => `<span class="ic${k <= res.stars ? ' on' : ''}" data-icon="star"></span>`).join('')}</div>
-        <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
-        ${tiles}${reward}${adRow}
-        ${u ? `<div class="unlock" style="--c:${u.color}">${hex(u.id)}<div><small>NEW ELEMENT UNLOCKED</small><b>${u.name.toUpperCase()}</b><p>${u.blurb}</p></div></div>` : ''}
-        ${boss && res.firstClear && hasNext ? `<p class="sub">${REALMS[nextR].name.toUpperCase()} IS NOW OPEN</p>` : ''}
-        <div class="actions">
+        <div class="result-content">
+          <div class="big-stars">${[1, 2, 3].map(k => `<span class="ic${k <= res.stars ? ' on' : ''}" data-icon="star"></span>`).join('')}</div>
+          <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
+          ${tiles}${reward}${adRow}
+          ${u ? `<div class="unlock" style="--c:${u.color}">${hex(u.id)}<div><small>NEW ELEMENT UNLOCKED</small><b>${u.name.toUpperCase()}</b><p>${u.blurb}</p></div></div>` : ''}
+          ${boss && res.firstClear && hasNext ? `<p class="sub">${REALMS[nextR].name.toUpperCase()} IS NOW OPEN</p>` : ''}
+        </div>
+        <div class="actions result-actions">
           <button class="btn" id="rMenu"><b>MENU</b></button>
           <button class="btn" id="rRetry"><b>RETRY</b></button>
           ${hasNext ? '<button class="btn primary" id="rNext"><b>NEXT</b></button>' : ''}
@@ -428,10 +432,12 @@ const UI = (() => {
     } else {
       modal(`
         <h2 class="lose">DEFEATED</h2>
-        <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
-        ${tiles}${reward}${adRow}
-        <p class="tip">${pick(TIPS)}</p>
-        <div class="actions">
+        <div class="result-content">
+          <p class="sub">${REALMS[r].name.toUpperCase()} · STAGE ${stageLabel(r, s)}</p>
+          ${tiles}${reward}${adRow}
+          <p class="tip">${pick(TIPS)}</p>
+        </div>
+        <div class="actions result-actions">
           <button class="btn" id="rMenu"><b>MENU</b></button>
           <button class="btn" id="rForge"><b>UPGRADES</b></button>
           <button class="btn primary" id="rRetry"><b>RETRY</b></button>

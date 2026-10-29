@@ -736,3 +736,84 @@ button, .btn { transition: background-color 0.14s ease, color 0.14s ease, transf
 @media (prefers-reduced-motion: reduce) {
   .orb, .orb.ready-flash { animation: none !important; }
 }
+
+
+/* ------------------------------------------------------ touch result layouts
+   Keep the result content and its actions in explicit regions. This avoids
+   CSS grid auto-placement scattering level text when no unlock card exists. */
+body.touch .sheet.result {
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100dvh - 20px - var(--safe-t) - var(--safe-b));
+  padding: clamp(12px, 2.2vh, 20px) clamp(14px, 2.4vw, 22px);
+  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(150px, 0.8fr);
+  grid-template-areas: "heading heading" "content actions";
+  align-content: center;
+  align-items: center;
+}
+body.touch .sheet.result > h2 { grid-area: heading; min-width: 0; line-height: 1.05; }
+body.touch .sheet.result > .result-content {
+  grid-area: content;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+  gap: 10px;
+}
+body.touch .sheet.result > .result-actions {
+  grid-area: actions;
+  min-width: 0;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+body.touch .sheet.result > .result-actions .btn {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+body.touch .sheet.result .big-stars .ic { width: clamp(28px, 5vh, 40px); height: clamp(28px, 5vh, 40px); }
+body.touch .sheet.result .stat-tiles { gap: 5px; }
+body.touch .sheet.result .stat-tiles div { min-width: 0; padding: 7px 3px; }
+body.touch .sheet.result .stat-tiles b { font-size: clamp(17px, 3.2vh, 22px); }
+body.touch .sheet.result .stat-tiles small { font-size: clamp(8px, 1.7vh, 11px); }
+body.touch .sheet.result .payout { gap: 4px 7px; font-size: clamp(16px, 3vh, 21px); }
+body.touch .sheet.result .payout small { font-size: clamp(9px, 1.7vh, 11px); text-align: center; }
+body.touch .sheet.result .unlock { gap: 8px; padding: 8px; min-width: 0; }
+body.touch .sheet.result .unlock .hex { width: 38px; height: 38px; }
+body.touch .sheet.result .unlock b { font-size: 15px; }
+body.touch .sheet.result .unlock small { font-size: 9px; }
+body.touch .sheet.result .unlock p { font-size: 11px; line-height: 1.2; }
+body.touch .sheet.result .tip { font-size: 12px; }
+body.touch .sheet.result .revive-row { gap: 6px; }
+body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; padding: 6px 8px; }
+
+@media (max-width: 600px), (orientation: portrait) and (max-width: 900px) {
+  body.touch .sheet.result {
+    width: min(500px, calc(100vw - 20px));
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "heading" "content" "actions";
+    align-content: start;
+    align-items: stretch;
+    gap: 9px;
+    padding: 12px 14px;
+  }
+  body.touch .sheet.result > .result-content { gap: 8px; }
+  body.touch .sheet.result > .result-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    width: 100%;
+  }
+  body.touch .sheet.result > .result-actions .btn { min-height: 42px; padding: 7px 8px; font-size: 12px; }
+  body.touch .sheet.result > .result-actions #rNext,
+  body.touch .sheet.result > .result-actions #rRetry.primary { grid-column: 1 / -1; }
+  body.touch .sheet.result .big-stars .ic { width: 30px; height: 30px; }
+  body.touch .sheet.result .stat-tiles b { font-size: 18px; }
+  body.touch .sheet.result .unlock p { display: none; }
+}
