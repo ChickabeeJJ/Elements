@@ -1212,7 +1212,14 @@ const Game = (() => {
       fx.chunks(e.x, e.y, '#5c3b37', 6, 420, 7);
       for (const t of opponents(e.owner)) {
         if (!t.alive || blocked(t)) continue;
-        if (Math.abs(t.root.x - e.x) > mv.radius + 10 * t.s || t.root.y < e.y - 230 || t.root.y > e.y + 30) continue;
+        // The visible flame beam spans from the top of the playfield to the ground.
+        // Test the actual ragdoll points against that full column instead of testing
+        // only the fighter's feet/root (which made the upper pillar look harmless).
+        const withinPillar = t.pts.some(p =>
+          Math.abs(p.x - e.x) <= mv.radius + 10 * t.s &&
+          p.y >= -200 - 12 * t.s && p.y <= e.y + 30
+        );
+        if (!withinPillar) continue;
         const c = t.center();
         applyHit(e.owner, t, { mv, el: e.el, dmg: mv.dmg, knock: mv.knock, lift: mv.lift, dirX: Math.sign(t.root.x - e.owner.root.x) || 1, dirY: -1, idx: P.PELVIS, px: c.x, py: c.y });
       }
