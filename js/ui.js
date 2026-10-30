@@ -56,7 +56,8 @@ const UI = (() => {
     for (const id of ['home', 'map', 'codex', 'forge']) $(id).classList.toggle('hidden', id !== name);
     $('hud').classList.toggle('hidden', name !== null);
     document.body.classList.toggle('playing', name === null);
-    if (name === 'home') refreshHome();
+    if (name === 'home') { Sfx.setMusicPaused(true); refreshHome(); }
+    else if (name === null) Sfx.setMusicPaused(false);
     homeShift();
     if (name) Platform.gameplayStop();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });

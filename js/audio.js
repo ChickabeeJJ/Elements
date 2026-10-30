@@ -6,7 +6,7 @@
 
 const Sfx = (() => {
   let ac = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null;
-  let sfxOn = true, musicOn = true, adMuted = false, platMuted = false;
+  let sfxOn = true, musicOn = true, musicPaused = false, adMuted = false, platMuted = false;
   let musicTimer = null, musicRealm = 0, step = 0, soundtrack = null, soundtrackFailed = false;
 
   function ensure() {
@@ -16,7 +16,7 @@ const Sfx = (() => {
     ac = new AC();
     master = ac.createGain(); master.gain.value = 0.8; master.connect(ac.destination);
     sfxBus = ac.createGain(); sfxBus.gain.value = sfxOn ? 0.55 : 0; sfxBus.connect(master);
-    musicBus = ac.createGain(); musicBus.gain.value = musicOn ? 0.3 : 0; musicBus.connect(master);
+    musicBus = ac.createGain(); musicBus.gain.value = musicOn && !musicPaused && !adMuted && !platMuted ? 0.3 : 0; musicBus.connect(master);
     noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -185,7 +185,7 @@ const Sfx = (() => {
       startProceduralMusic();
       return;
     }
-    if (musicOn && !adMuted && !platMuted) {
+    if (musicOn && !musicPaused && !adMuted && !platMuted) {
       soundtrack.volume = 0.3;
       const playback = soundtrack.play();
       if (playback && typeof playback.catch === 'function') playback.catch(() => {});
@@ -196,7 +196,7 @@ const Sfx = (() => {
   function applyGains() {
     if (!ac) return;
     const t = ac.currentTime;
-    const musicAudible = musicOn && !adMuted && !platMuted;
+    const musicAudible = musicOn && !musicPaused && !adMuted && !platMuted;
     sfxBus.gain.setTargetAtTime(sfxOn && !adMuted && !platMuted ? 0.55 : 0, t, 0.05);
     musicBus.gain.setTargetAtTime(musicAudible && soundtrackFailed ? 0.3 : 0, t, 0.2);
     if (soundtrack && !soundtrackFailed) {
@@ -211,13 +211,14 @@ const Sfx = (() => {
   }
   function setSfx(on) { sfxOn = on; applyGains(); }
   function setMusic(on) { musicOn = on; applyGains(); }
+  function setMusicPaused(paused) { musicPaused = !!paused; applyGains(); }
   function setAdMuted(m) { adMuted = m; applyGains(); }
   function setPlatformMute(m) { platMuted = m; applyGains(); }
   function suspend(s) {
     if (ac) s ? ac.suspend() : ac.resume();
     if (!soundtrack || soundtrackFailed) return;
     if (s) soundtrack.pause();
-    else if (musicOn && !adMuted && !platMuted) {
+    else if (musicOn && !musicPaused && !adMuted && !platMuted) {
       const playback = soundtrack.play();
       if (playback && typeof playback.catch === 'function') playback.catch(() => {});
     }
@@ -226,6 +227,6 @@ const Sfx = (() => {
   return {
     ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
     telegraph, portal, ringout, swap, thud, zap, boom, hurt, kill, jump, pickup, beam, thunder, click,
-    win, lose, unlock, denied, setRealm, setSfx, setMusic, setAdMuted, setPlatformMute, suspend,
+    win, lose, unlock, denied, setRealm, setSfx, setMusic, setMusicPaused, setAdMuted, setPlatformMute, suspend,
   };
 })();

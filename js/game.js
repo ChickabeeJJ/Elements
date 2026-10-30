@@ -1671,6 +1671,7 @@ const Game = (() => {
   function lose() {
     if (state !== 'play') return;
     state = 'lost'; endTimer = 2.0; slowmo = 1.2;
+    Sfx.setMusicPaused(true);
     Sfx.lose();
   }
 
@@ -1711,6 +1712,7 @@ const Game = (() => {
     f.hp = f.maxHp * 0.5; f.invuln = 2.5;
     for (const k in f.status) f.status[k] = 0;
     state = 'play'; slowmo = 0; timeScale = 1;
+    Sfx.setMusicPaused(false);
     Platform.gameplayStart();
     return true;
   }
