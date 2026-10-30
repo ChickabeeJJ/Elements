@@ -898,3 +898,28 @@ body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; p
 body.touch .sheet.result .payout {
   margin-top: 8px;
 }
+
+
+/* Result screens: tighten the heading transition and give the gem payout its own breathing room. */
+.sheet.result {
+  gap: 8px;
+}
+.sheet.result > h2 {
+  align-self: center;
+  width: 100%;
+  text-align: center;
+}
+.sheet.result > .result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sheet.result .payout {
+  margin-top: 14px;
+}
+body.touch .sheet.result {
+  gap: 8px;
+}
+body.touch .sheet.result > .result-content {
+  gap: 8px;
+}
