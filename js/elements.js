@@ -250,6 +250,33 @@ const ELEMENTS = [
     ],
   },
 ];
+
+// Apply the global combat balance pass once to the move data.
+// Main ranged attacks gain 5%; non-Gale main melee attacks gain 15%.
+// Every non-main ability gets an additional 5% multiplier on top of its
+// attack-type multiplier. Damage-over-time and nested blast/zone damage scale too.
+const DAMAGE_FIELDS = new Set(['dmg', 'dps', 'airDmg']);
+function scaleMoveDamage(node, multiplier) {
+  if (!node || typeof node !== 'object' || multiplier <= 1) return;
+  for (const [key, value] of Object.entries(node)) {
+    if (DAMAGE_FIELDS.has(key) && typeof value === 'number') {
+      node[key] = Math.ceil(value * multiplier - 1e-9);
+    } else if (value && typeof value === 'object') {
+      scaleMoveDamage(value, multiplier);
+    }
+  }
+}
+for (const element of ELEMENTS) {
+  for (const move of element.moves) {
+    const attackMultiplier = move.type === 'ranged'
+      ? 1.05
+      : move.type === 'melee' && element.id !== 'wind'
+        ? 1.15
+        : 1;
+    const abilityMultiplier = move.slot === 'main' ? 1 : 1.05;
+    scaleMoveDamage(move, attackMultiplier * abilityMultiplier);
+  }
+}
 const ELEMENT_BY_ID = Object.fromEntries(ELEMENTS.map(e => [e.id, e]));
 
 /* plain brawlers and basic enemy strikes */
