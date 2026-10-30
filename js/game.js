@@ -2541,13 +2541,15 @@ const Game = (() => {
     } else c.drawImage(bg, 0, 0, canvas.width, canvas.height);
     const sk = shake > 0 && Save.data.settings.shake ? shake * 0.6 : 0;
     const k = cam.k * dpr;
-    c.setTransform(k, 0, 0, k, (cam.ox + rand(-sk, sk)) * dpr, (cam.oy + rand(-sk, sk)) * dpr);
+    const shakeX = rand(-sk, sk), shakeY = rand(-sk, sk);
+    const worldTop = -(cam.oy + shakeY) / cam.k;
+    c.setTransform(k, 0, 0, k, (cam.ox + shakeX) * dpr, (cam.oy + shakeY) * dpr);
 
     amb.drawBack(c, view, time);
     for (const z of zones) drawZone(c, z, true);
     for (const isl of islands) isl.draw(c, realm, time);
     for (const z of zones) drawZone(c, z, false);
-    for (const s of spawns) drawPortal(c, s);
+    for (const s of spawns) drawPortal(c, s, worldTop);
     for (const p of pickups) drawPickup(c, p);
 
     c.globalCompositeOperation = 'lighter';
@@ -2997,7 +2999,7 @@ const Game = (() => {
     }
   }
 
-  function drawPortal(c, s) {
+  function drawPortal(c, s, worldTop) {
     const x = s.isl.x + s.ox, y = s.isl.top;
     const k = 1 - s.t;
     c.globalCompositeOperation = 'lighter';
@@ -3005,9 +3007,12 @@ const Game = (() => {
     c.globalCompositeOperation = 'source-over';
     c.strokeStyle = AURA[s.el]; c.lineWidth = 3;
     c.beginPath(); c.ellipse(x, y - 2, 40 * (0.5 + k * 0.5), 8, 0, 0, TAU); c.stroke();
+    // Convert the actual viewport top to world space so the spawn beam always
+    // meets the top edge, regardless of camera zoom, vertical offset or shake.
+    const beamTop = Math.min(worldTop, y);
     c.globalAlpha = 0.25 + k * 0.4;
     c.fillStyle = AURA[s.el];
-    c.fillRect(x - 3, y - 600, 6, 600);
+    c.fillRect(x - 3, beamTop, 6, Math.max(0, y - beamTop));
     c.globalAlpha = 1;
   }
 
