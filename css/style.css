@@ -923,3 +923,6 @@ body.touch .sheet.result {
 body.touch .sheet.result > .result-content {
   gap: 8px;
 }
+body.touch .sheet.result .payout {
+  margin-top: 14px;
+}
