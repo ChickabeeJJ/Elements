@@ -23,7 +23,7 @@ const Game = (() => {
   let islands = [], player = null, enemies = [];
   let projectiles = [], zones = [], waves = [], strikes = [], spawns = [], pickups = [];
   let eruptions = [], walls = [], mines = [], resonances = [], dragons = [];
-  let vineSwing = null;
+  let vineSwing = null, enemyVines = [];
   let dummyTimer = 0;
   let time = 0, timeScale = 1, slowmo = 0, hitstop = 0, shake = 0, hurtFlash = 0, healFlash = 0, acc = 0, endTimer = 0, realmFlash = 0;
   let run = null, pStats = Save.playerStats(), pickupTimer = 8;
@@ -134,7 +134,7 @@ const Game = (() => {
     eruptions = []; walls = []; mines = []; resonances = []; dragons = [];
     timeScale = 1; slowmo = 0; hitstop = 0; shake = 0; hurtFlash = 0; healFlash = 0; acc = 0;
     combo.n = 0; combo.t = 0; combo.best = 0;
-    input.attack = false; input.queued = {}; vineSwing = null;
+    input.attack = false; input.queued = {}; vineSwing = null; enemyVines = [];
   }
 
   /* menu backdrop: the hero shows off moves against a sparring dummy */
@@ -209,12 +209,33 @@ const Game = (() => {
   }
 
   const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance']);
-  function enemyKit(el, type) {
+  function enemyKit(el, type, realmId) {
     const E = ELEMENT_BY_ID[el];
     if (!E) return { melee: type === 'caster' ? null : ENEMY_PUNCH, ranged: type === 'grunt' ? null : ENEMY_ROCK, powers: [] };
     const [main, p1, p2] = E.moves;
     const melee = main.type === 'melee' ? main : ENEMY_PUNCH;
-    const ranged = main.type === 'ranged' ? (main.vineSwing ? ENEMY_ROCK : main) : [p1, p2].find(m => m.kind === 'projectile') || ENEMY_ROCK;
+    const verdantThorn = realmId === 'verdant' && el === 'nature' && main.vineSwing;
+    const ranged = main.type === 'ranged'
+      ? (main.vineSwing
+        ? (verdantThorn ? Object.assign({}, main, {
+            id: 'enemy_vine_lash',
+            name: 'Thorn Vine Lash',
+            // A visible telegraph and longer cooldown make this a deliberate enemy attack,
+            // not the player's rapid hold-to-fire input.
+            cd: type === 'boss' ? 3.0 : type === 'brute' ? 3.35 : 3.8,
+            windup: type === 'boss' ? 0.32 : 0.4,
+            active: 0.08,
+            recover: 0.28,
+            speed: 1120,
+            reach: 580,
+            radius: 16,
+            dmg: type === 'boss' ? 13 : type === 'brute' ? 11 : 10,
+            knock: 210,
+            lift: 0.14,
+            enemyVine: true,
+          }) : ENEMY_ROCK)
+        : main)
+      : [p1, p2].find(m => m.kind === 'projectile') || ENEMY_ROCK;
     let powers = [];
     if (type === 'brute') powers = [p1, p2].filter(m => AI_KINDS.has(m.kind) && m !== ranged).slice(0, 1);
     if (type === 'boss') powers = [p1, p2].filter(m => AI_KINDS.has(m.kind));
@@ -236,7 +257,7 @@ const Game = (() => {
       hp: Math.round(stats.hp * (spec.hpMul || 1)),
     });
     f.team = 'enemy';
-    f.ai = { stats, thinkT: 0.6, kit: enemyKit(spec.element, spec.type), boss: spec.boss || null, summoned: 0, d: spec.d, jumpCd: 0 };
+    f.ai = { stats, thinkT: 0.6, kit: enemyKit(spec.element, spec.type, realm.id), boss: spec.boss || null, summoned: 0, d: spec.d, jumpCd: 0 };
     if (instant) { f.root.grounded = true; f.root.plat = islands.find(i => x >= i.left && x <= i.right && Math.abs(i.top - y) < 4) || null; }
     else { f.root.grounded = false; f.root.vy = 600; f.root.ghostTo = isl || null; }
     enemies.push(f);
@@ -408,6 +429,11 @@ const Game = (() => {
         if (f.root.grounded) f.root.vx += f.facing * (mv.pose === 'heavy' ? 260 : 150);
         break;
       case 'projectile': {
+        if (mv.enemyVine && f.team === 'enemy') {
+          launchEnemyVine(f, mv);
+          Sfx.cast(el);
+          break;
+        }
         const n = mv.count || 1;
         for (let i = 0; i < n; i++) {
           const a = f.aim + (i - (n - 1) / 2) * (mv.spread || 0);
@@ -2125,6 +2151,134 @@ const Game = (() => {
     if (Math.random() < dt * 12) fx.add({x:v.x+rand(-4,4),y:v.y+rand(-4,4),vx:rand(-18,18),vy:rand(-18,18),color:'#9ae66e',size:rand(2,4),life:0.25});
   }
 
+  // Verdant Vale Thorn enemies use the same flexible travelling vine as the player,
+  // but as a finite AI attack: shoot, latch once, tug briefly, then retract.
+  function launchEnemyVine(f, mv) {
+    const hand = f.hand();
+    const dx = Math.cos(f.aim), dy = Math.sin(f.aim);
+    const tip = { x: hand.x + dx, y: hand.y + dy };
+    enemyVines.push({
+      owner: f, move: mv, phase: 'shooting',
+      x: hand.x, y: hand.y, dirX: dx, dirY: dy,
+      travelled: 0, maxRange: mv.reach || 580,
+      shotSpeed: mv.speed || 1120, retractSpeed: 2500,
+      length: 1, rope: makeVineRope(hand, tip, 1),
+      age: 0, attachFor: 0.62,
+    });
+  }
+
+  function updateEnemyVines(dt) {
+    const keep = [];
+    for (const v of enemyVines) {
+      const owner = v.owner;
+      if (!owner || !owner.alive || owner.gone) continue;
+      const hand = owner.hand();
+
+      if (v.phase === 'shooting') {
+        const remaining = Math.max(0, v.maxRange - v.travelled);
+        const advance = Math.min(v.shotSpeed * dt, remaining);
+        const frameStartX = v.x, frameStartY = v.y;
+        const samples = Math.max(1, Math.ceil(advance / 8));
+        let prevX = frameStartX, prevY = frameStartY;
+
+        for (let i = 1; i <= samples; i++) {
+          const fraction = i / samples;
+          const x = frameStartX + v.dirX * advance * fraction;
+          const y = frameStartY + v.dirY * advance * fraction;
+          let best = null, bestDistance = Infinity;
+          for (const target of opponents(owner)) {
+            if (!target.alive || target.gone || target.invuln > 0 || blocked(target)) continue;
+            const hit = target.hitCapsule(prevX, prevY, x, y, v.move.radius || 16);
+            if (!hit) continue;
+            const hitDistance = Math.hypot((hit.px ?? x) - prevX, (hit.py ?? y) - prevY);
+            if (hitDistance < bestDistance) { best = { target, hit }; bestDistance = hitDistance; }
+          }
+          if (best) {
+            const target = best.target, hit = best.hit;
+            const tip = { x: hit.px ?? x, y: hit.py ?? y };
+            v.phase = 'attached';
+            v.target = target;
+            v.x = tip.x; v.y = tip.y;
+            v.ox = tip.x - target.root.x;
+            v.oy = tip.y - target.root.y;
+            v.length = vineRopeLength(hand, tip);
+            v.rope = makeVineRope(hand, tip, v.length);
+            v.age = 0;
+            applyHit(owner, target, {
+              mv: v.move, el: 'nature', dmg: v.move.dmg,
+              knock: v.move.knock, lift: v.move.lift,
+              dirX: Math.sign(target.root.x - owner.root.x) || owner.facing,
+              dirY: -0.08, idx: hit.idx, head: hit.head,
+              px: tip.x, py: tip.y,
+            });
+            fx.burst(tip.x, tip.y, '#9ae66e', 7, 105, { life: 0.25 });
+            break;
+          }
+
+          let hitTerrain = false;
+          for (const isl of islands) {
+            if (x < isl.left || x > isl.right) continue;
+            if (isl.solidAt(x, y) || (Math.abs(y - isl.top) < 12 && v.dirY > 0)) {
+              v.x = x; v.y = Math.min(y, isl.top);
+              v.phase = 'retracting';
+              hitTerrain = true;
+              break;
+            }
+          }
+          if (hitTerrain) break;
+          prevX = x; prevY = y;
+        }
+
+        if (v.phase === 'shooting') {
+          v.travelled += advance;
+          v.x = frameStartX + v.dirX * advance;
+          v.y = frameStartY + v.dirY * advance;
+          setVineTravelRope(v, hand);
+          if (v.travelled >= v.maxRange - 0.001) v.phase = 'retracting';
+        }
+      } else if (v.phase === 'attached') {
+        const target = v.target;
+        if (!target || !target.alive || target.gone) {
+          v.phase = 'retracting';
+          v.target = null;
+        } else {
+          v.x = target.root.x + v.ox;
+          v.y = target.root.y + v.oy;
+          const dx = hand.x - v.x, dy = hand.y - v.y;
+          const d = Math.hypot(dx, dy);
+          if (d > v.length && d > 0.001 && target.mode === 'active') {
+            const nx = dx / d, ny = dy / d;
+            const extension = d - v.length;
+            const tug = (420 + Math.min(520, extension * 3)) * 0.46;
+            target.root.vx = clamp(target.root.vx + nx * tug * dt, -1050, 1050);
+            target.root.vy = clamp(target.root.vy + ny * tug * dt, -850, 850);
+            if (d > v.length + 8) { target.root.grounded = false; target.root.plat = null; }
+          }
+          updateVineRope(v, hand, { x: v.x, y: v.y }, dt);
+          v.age += dt;
+          if (v.age >= v.attachFor) {
+            v.phase = 'retracting';
+            v.target = null;
+          }
+        }
+      }
+
+      if (v.phase === 'retracting') {
+        const dx = hand.x - v.x, dy = hand.y - v.y;
+        const d = Math.hypot(dx, dy);
+        const step = v.retractSpeed * dt;
+        if (d <= step + 12) continue;
+        const safeD = Math.max(d, 0.001);
+        const oldX = v.x, oldY = v.y;
+        v.x += dx / safeD * step;
+        v.y += dy / safeD * step;
+        setVineTravelRope(v, hand);
+      }
+      keep.push(v);
+    }
+    enemyVines = keep;
+  }
+
   function playerControl(dt) {
     const f = player;
     if (!f) return;
@@ -2268,6 +2422,7 @@ const Game = (() => {
         } else ringOut(f);
       }
     }
+    updateEnemyVines(dt);
     for (let i = 0; i < fighters.length; i++) for (let j = i + 1; j < fighters.length; j++) {
       const a = fighters[i], b = fighters[j];
       if (!a.alive || !b.alive || a.mode !== 'active' || b.mode !== 'active') continue;
@@ -2314,6 +2469,61 @@ const Game = (() => {
   }
 
   /* ---------------------------------------------------------- render */
+  function drawVineRope(c, v, owner) {
+    if (!v || !owner || !owner.alive) return;
+    const hand = owner.hand();
+    const rope = v.rope;
+    c.save();
+    c.strokeStyle = '#6ebd51'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath();
+    if (rope && rope.length > 2) {
+      c.moveTo(hand.x, hand.y);
+      for (let i = 1; i < rope.length - 1; i++) {
+        const midX = (rope[i].x + rope[i + 1].x) * 0.5;
+        const midY = (rope[i].y + rope[i + 1].y) * 0.5;
+        c.quadraticCurveTo(rope[i].x, rope[i].y, midX, midY);
+      }
+      c.lineTo(v.x, v.y);
+    } else {
+      c.moveTo(hand.x, hand.y); c.lineTo(v.x, v.y);
+    }
+    c.stroke();
+
+    // The same small leaves used by the player's original vine grow along enemy lashes.
+    if (rope && rope.length > 3) {
+      const stride = Math.max(2, Math.floor(rope.length / 7));
+      c.save();
+      c.lineWidth = 1.15;
+      for (let i = stride, leafIndex = 0; i < rope.length - 1; i += stride, leafIndex++) {
+        const prev = rope[Math.max(0, i - 1)];
+        const p = rope[i];
+        const next = rope[Math.min(rope.length - 1, i + 1)];
+        const tangent = Math.atan2(next.y - prev.y, next.x - prev.x);
+        const side = leafIndex % 2 === 0 ? -1 : 1;
+        const angle = tangent + side * 0.92;
+        const size = 0.82 + (leafIndex % 3) * 0.12;
+        c.save();
+        c.translate(p.x, p.y);
+        c.rotate(angle);
+        c.scale(size, size);
+        c.fillStyle = '#6ebd51';
+        c.beginPath();
+        c.moveTo(-1, 0);
+        c.quadraticCurveTo(1, -4.5, 9, -5.5);
+        c.quadraticCurveTo(8.5, 0.5, -1, 0);
+        c.fill();
+        c.restore();
+      }
+      c.restore();
+    }
+    c.globalCompositeOperation = 'lighter';
+    Glow.draw(c, '#9ae66e', v.x, v.y, 15, 0.55);
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = '#d8ffb7';
+    c.beginPath(); c.arc(v.x, v.y, 6, 0, TAU); c.fill();
+    c.restore();
+  }
+
   function render() {
     const c = ctx;
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -2349,58 +2559,8 @@ const Game = (() => {
 
     for (const w of waves) drawWave(c, w);
     for (const p of projectiles) drawProjectile(c, p);
-    if (vineSwing && player && input.attack) {
-      const h = player.hand();
-      const rope = vineSwing.rope;
-      c.strokeStyle = '#6ebd51'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
-      c.beginPath();
-      if (rope && rope.length > 2) {
-        c.moveTo(h.x, h.y);
-        for (let i = 1; i < rope.length - 1; i++) {
-          const midX = (rope[i].x + rope[i + 1].x) * 0.5;
-          const midY = (rope[i].y + rope[i + 1].y) * 0.5;
-          c.quadraticCurveTo(rope[i].x, rope[i].y, midX, midY);
-        }
-        c.lineTo(vineSwing.x, vineSwing.y);
-      } else {
-        c.moveTo(h.x, h.y); c.lineTo(vineSwing.x, vineSwing.y);
-      }
-      c.stroke();
-
-      // Small stylised leaves grow from alternating sides of the flexible vine.
-      // They follow the simulated rope particles, so they bend and sag with it.
-      if (rope && rope.length > 3) {
-        const stride = Math.max(2, Math.floor(rope.length / 7));
-        c.save();
-        c.lineWidth = 1.15;
-        for (let i = stride, leafIndex = 0; i < rope.length - 1; i += stride, leafIndex++) {
-          const prev = rope[Math.max(0, i - 1)];
-          const p = rope[i];
-          const next = rope[Math.min(rope.length - 1, i + 1)];
-          const tangent = Math.atan2(next.y - prev.y, next.x - prev.x);
-          const side = leafIndex % 2 === 0 ? -1 : 1;
-          const angle = tangent + side * 0.92;
-          const size = 0.82 + (leafIndex % 3) * 0.12;
-
-          c.save();
-          c.translate(p.x, p.y);
-          c.rotate(angle);
-          c.scale(size, size);
-          // Match the stem exactly: one flat vine-green fill, with no contrast outline or vein.
-          c.fillStyle = '#6ebd51';
-          c.beginPath();
-          c.moveTo(-1, 0);
-          c.quadraticCurveTo(1, -4.5, 9, -5.5);
-          c.quadraticCurveTo(8.5, 0.5, -1, 0);
-          c.fill();
-          c.restore();
-        }
-        c.restore();
-      }
-
-      c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#9ae66e', vineSwing.x, vineSwing.y, 15, 0.55); c.globalCompositeOperation = 'source-over';
-      c.fillStyle = '#d8ffb7'; c.beginPath(); c.arc(vineSwing.x, vineSwing.y, 6, 0, TAU); c.fill();
-    }
+    if (vineSwing && player && input.attack) drawVineRope(c, vineSwing, player);
+    for (const v of enemyVines) drawVineRope(c, v, v.owner);
     for (const f of player ? enemies.concat([player]) : enemies) {
       const a = f.action;
       if (a && a.beam && a.move.kind === 'beam' && a.t < a.move.windup + a.move.active) drawBeam(c, a.beam);
