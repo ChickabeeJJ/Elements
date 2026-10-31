@@ -1047,3 +1047,8 @@ body:not(.touch) .lo-slots { grid-template-columns: repeat(3, 88px); gap: 4px; }
 /* touch controls: more room between the thumb buttons and between element tiles */
 body.touch { --og: clamp(13px, 3.6vh, 20px); }
 body.touch .dock { gap: 8px; }
+/* a little more room again between the thumb buttons */
+body.touch { --og: clamp(18px, 4.8vh, 26px); }
+/* fan the arc a little wider (jump at -6 deg, power 2 at 96 deg) so the outer buttons are as far apart as they are from attack */
+body.touch .orb-jump { right: calc(var(--om) / 2 + var(--arc) * 0.9945 - var(--ob) / 2); bottom: calc(var(--om) / 2 - var(--arc) * 0.1045 - var(--ob) / 2); }
+body.touch .orb-p2 { right: calc(var(--om) / 2 - var(--arc) * 0.1045 - var(--ob) / 2); bottom: calc(var(--om) / 2 + var(--arc) * 0.9945 - var(--ob) / 2); }
