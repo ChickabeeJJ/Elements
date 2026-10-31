@@ -1022,3 +1022,8 @@ body.rhythm canvas#stage { cursor: default; }
 @keyframes hintIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes hintBob { 50% { transform: translateY(3px); } }
 .screen .scroll-hint { grid-column: 1 / -1; }
+
+/* loadout sheet: a back arrow pinned to the top-left corner on touch screens (same as DONE) */
+.sheet-back { display: none; }
+body.touch .sheet-back { display: grid; position: sticky; top: 0; align-self: flex-start; z-index: 3; margin-bottom: -44px; width: 40px; height: 40px; background: var(--ink-3); }
+@media (max-height: 560px) { body.touch .sheet-back { margin-bottom: -38px; width: 36px; height: 36px; } }
