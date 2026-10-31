@@ -25,6 +25,7 @@ const Game = (() => {
   let eruptions = [], walls = [], mines = [], resonances = [], dragons = [];
   let vineSwing = null, enemyVines = [];
   let lavas = [], coils = [], links = [], pianos = [], blasts = [];   // newer element powers
+  let pads = [], grasps = [];
   let rhythmFreeze = false;   // Tempo's Encore: the world holds still while the song plays
   let dummyTimer = 0;
   let time = 0, timeScale = 1, slowmo = 0, hitstop = 0, shake = 0, hurtFlash = 0, healFlash = 0, acc = 0, endTimer = 0, realmFlash = 0;
@@ -133,7 +134,7 @@ const Game = (() => {
   function clearField() {
     fx.clear();
     enemies = []; projectiles = []; zones = []; waves = []; strikes = []; spawns = []; pickups = [];
-    eruptions = []; walls = []; mines = []; resonances = []; dragons = []; lavas = []; coils = []; links = []; pianos = []; blasts = []; rhythmFreeze = false;
+    eruptions = []; walls = []; mines = []; resonances = []; dragons = []; lavas = []; coils = []; links = []; pianos = []; blasts = []; rhythmFreeze = false; pads = []; grasps = [];
     timeScale = 1; slowmo = 0; hitstop = 0; shake = 0; hurtFlash = 0; healFlash = 0; acc = 0;
     combo.n = 0; combo.t = 0; combo.best = 0;
     input.attack = false; input.queued = {}; vineSwing = null; enemyVines = [];
@@ -729,6 +730,79 @@ const Game = (() => {
         Sfx.whoosh();
         break;
       }
+      case 'pad': {
+        const isl = f.root.plat || platformBelow(f.root.x, f.root.y - 5, 600) || nearestIsland(f.root.x);
+        const x = clamp(f.root.x + f.facing * 110, isl.left + 30, isl.right - 30);
+        pads.push({ owner: f, mv, el, isl, ox: x - isl.x, x, y: isl.top, t: 0, dur: mv.dur, squish: 0, cool: new Map() });
+        fx.burst(x, isl.top - 6, '#8dfc9a', 14, 240, { kind: 'drop', add: false });
+        Sfx.splash();
+        break;
+      }
+      case 'engulf': {
+        const c = f.center();
+        const t = opponents(f).filter(e => e.alive && !blocked(e) && !e.engulf && e.kind !== 'boss' && dist(e.center().x, e.center().y, c.x, c.y) < mv.range)
+          .sort((a, b) => dist(a.center().x, a.center().y, act.tx, act.ty) - dist(b.center().x, b.center().y, act.tx, act.ty))[0];
+        if (!t) { Sfx.denied(); f.cds[mv.id] = 0.5; break; }
+        t.engulf = { owner: f, mv, t: mv.dur, tick: 0.3, x: t.root.x, y0: t.root.y };
+        fx.arc(c.x, c.y, t.center().x, t.center().y, '#8dfc9a', 0.25);
+        Sfx.splash();
+        break;
+      }
+      case 'grasp': {
+        const c = f.center();
+        const foes = opponents(f).filter(e => e.alive && !blocked(e) && dist(e.center().x, e.center().y, c.x, c.y) < mv.range)
+          .sort((a, b) => dist(a.root.x, a.root.y, act.tx, act.ty) - dist(b.root.x, b.root.y, act.tx, act.ty)).slice(0, mv.n);
+        for (const t of foes) {
+          const gy = (t.root.plat && t.root.plat.top) || (platformBelow(t.root.x, t.root.y - 5, 400) || { top: t.root.y }).top;
+          grasps.push({ target: t, x: t.root.x, y: gy, t: 0, dur: mv.root });
+          if (t.mode === 'active') { t.root.vy = Math.max(t.root.vy, 600); t.root.vx *= 0.2; }
+          const tc = t.center();
+          applyHit(f, t, { mv, el, dmg: mv.dmg, knock: 80, lift: 0, dirX: 0, dirY: 1, idx: P.PELVIS, px: tc.x, py: tc.y });
+        }
+        if (!foes.length) Sfx.denied(); else Sfx.thorns();
+        break;
+      }
+      case 'gild': {
+        const c = f.center();
+        const t = opponents(f).filter(e => e.alive && !blocked(e) && dist(e.center().x, e.center().y, c.x, c.y) < mv.range)
+          .sort((a, b) => dist(a.center().x, a.center().y, act.tx, act.ty) - dist(b.center().x, b.center().y, act.tx, act.ty))[0];
+        if (!t) { Sfx.denied(); f.cds[mv.id] = 0.5; break; }
+        const k = t.kind === 'boss' ? 0.4 : t.kind === 'brute' ? 0.7 : 1;
+        t.status.gilded = mv.dur * k; t.status.freeze = Math.max(t.status.freeze, mv.dur * k); t.action = null;
+        const tc = t.center();
+        applyHit(f, t, { mv: null, el, dmg: mv.dmg, knock: 0, lift: 0, dirX: 0, dirY: 0, idx: P.PELVIS, px: tc.x, py: tc.y, quiet: true });
+        fx.arc(c.x, c.y, tc.x, tc.y, '#ffd34d', 0.3);
+        for (let i = 0; i < 16; i++) fx.add({ kind: 'star', x: tc.x + rand(-30, 30), y: tc.y + rand(-50, 40), vx: rand(-80, 80), vy: -rand(40, 160), vr: rand(-6, 6), color: pick(['#ffd34d', '#fff3b0']), size: rand(4, 7), life: 0.7, add: true });
+        Sfx.freeze();
+        break;
+      }
+      case 'rain': {
+        for (let i = 0; i < mv.n; i++) {
+          const x = act.tx + rand(-mv.spread, mv.spread), y = view.y0 - rand(20, 420);
+          projectiles.push({ owner: f, team: f.team, mv, el, x, y, px: x, py: y, vx: rand(-40, 40), vy: mv.speed, r: mv.radius, life: mv.life, hitSet: new Set(), tickT: new Map(), rot: rand(0, 6), trail: [], age: 0, bounces: 0 });
+        }
+        Sfx.charge();
+        break;
+      }
+      case 'haste':
+        f.baseSpeed = f.baseSpeed || f.speed;
+        f.speed = f.baseSpeed * mv.speed; f.haste = mv.dur;
+        fx.ring(f.center().x, f.center().y, '#ffe9a8', 100, 0.4, 8);
+        Sfx.charge();
+        break;
+      case 'timestop': {
+        const c = f.center();
+        let n = 0;
+        for (const t of opponents(f)) {
+          if (!t.alive || blocked(t) || dist(t.center().x, t.center().y, c.x, c.y) > mv.radius) continue;
+          t.stopT = mv.dur * (t.kind === 'boss' ? 0.6 : 1); t.stored = 0; t.stopBonus = mv.bonus; t.stopOwner = f;
+          t.status.freeze = t.stopT; t.action = null; n++;
+        }
+        for (let i = 0; i < 4; i++) blasts.push({ x: c.x, y: c.y, t: -i * 0.07, done: false, col: '#ffe9a8' });
+        realmFlash = Math.max(realmFlash, 0.25); shake = Math.max(shake, 8);
+        Sfx.freeze(); Sfx.charge();
+        break;
+      }
       case 'rhythm':
         if (f.isPlayer && state === 'play' && hooks.onRhythm) {
           rhythmFreeze = true;
@@ -967,6 +1041,13 @@ const Game = (() => {
       fx.burst(o.px, o.py, '#bfe6ff', 8, 160);
       if (t.shield <= 0) { t.shieldT = 0; fx.ring(t.center().x, t.center().y, '#7cc8ff', 100, 0.3); Sfx.splash(); }
     }
+    if (t.stopT > 0 && !o.release) {
+      t.stored = (t.stored || 0) + dmg;
+      t.storedDir = Math.sign(o.dirX) || t.storedDir || 1;
+      if (Save.data.settings.numbers && dmg >= 0.5) fx.text(o.px + rand(-12, 12), o.py - 40, Math.max(1, Math.round(dmg)), '#c9ccd6', 20);
+      fx.burst(o.px, o.py, '#ffe9a8', 6, 160);
+      return;
+    }
     t.hp -= dmg;
     t.flash = 1;
     if (att && att.pact > 0 && dmg > 0) heal(att, dmg * att.pactLeech);
@@ -984,6 +1065,7 @@ const Game = (() => {
     if (COMBO_MARKS[o.el] && t.alive) st[COMBO_MARKS[o.el]] = 2.5;
     if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.62); }
     if (mv.chill) st.chill = Math.max(st.chill, mv.chill);
+    if (mv.fear) st.fear = Math.max(st.fear, mv.fear * (t.kind === 'boss' ? 0.4 : 1));
     if (mv.confuse) st.confuse = Math.max(st.confuse, mv.confuse * (t.kind === 'boss' ? 0.5 : 1));
     if (mv.soak) st.soak = Math.max(st.soak, mv.soak);
     if (mv.root) st.root = Math.max(st.root, mv.root * bossy);
@@ -1057,7 +1139,7 @@ const Game = (() => {
     if (run) {
       run.kills++;
       Save.data.stats.kills++;
-      const reward = t.kind === 'boss' ? 25 : t.kind === 'brute' ? 4 : 2;
+      const reward = (t.kind === 'boss' ? 25 : t.kind === 'brute' ? 4 : 2) + (t.status.gilded > 0 ? 5 : 0);   // golden foes pay out
       const at = ringout && player ? player.center() : c;
       grantEssence(reward + (ringout ? 1 : 0), clamp(at.x, 60, W - 60), clamp(at.y - 80, 60, H - 60));
     }
@@ -1242,6 +1324,15 @@ const Game = (() => {
 
   function detonate(p, x, y) {
     const mv = p.mv;
+    if (mv.split) {
+      const S = mv.split, base = Math.atan2(p.vy, p.vx) + Math.PI;
+      for (let i = 0; i < S.n; i++) {
+        const a = -Math.PI / 2 + (i - (S.n - 1) / 2) * 1.1;
+        const sm = Object.assign({ id: mv.id + '_blob', kind: 'projectile', type: 'ranged' }, S);
+        projectiles.push({ owner: p.owner, team: p.team, mv: sm, el: p.el, x, y: y - 6, px: x, py: y - 6, vx: Math.cos(a) * S.speed, vy: Math.sin(a) * S.speed, r: S.radius, life: S.life, hitSet: new Set(p.hitSet), tickT: new Map(), rot: 0, trail: [], age: 0, bounces: 0 });
+      }
+      fx.burst(x, y, '#8dfc9a', 12, 260, { kind: 'drop', add: false });
+    }
     const blast = mv.explode || mv.endBlast;
     if (blast) {
       nova(p.owner, x, y, { radius: blast.r, dmg: blast.dmg, knock: blast.knock, lift: blast.lift != null ? blast.lift : 0.5 }, p.el);
@@ -1393,7 +1484,31 @@ const Game = (() => {
   }
 
   function updateNewPowers(dt) {
-    for (const b of blasts) { b.t += dt; if (!b.done && b.t >= 0) { b.done = true; fx.ring(b.x, b.y, pick(['#b9a8ff', '#ff3d9a']), 260 + Math.random() * 380, 0.55, 10); } }
+    for (const pd of pads) {
+      pd.t += dt; pd.squish = Math.max(0, pd.squish - dt * 4);
+      pd.x = pd.isl.x + pd.ox; pd.y = pd.isl.top;
+      const all = player ? enemies.concat([player]) : enemies;
+      for (const t of all) {
+        if (!t.alive || t.gone || t.decor || (pd.cool.get(t) || 0) > pd.t) continue;
+        if (Math.abs(t.root.x - pd.x) > 44 || Math.abs(t.root.y - pd.y) > 12 || t.root.vy < -100) continue;
+        pd.cool.set(t, pd.t + 0.5); pd.squish = 1;
+        const foe = t.team !== pd.owner.team;
+        if (foe && blocked(t)) continue;
+        if (t.mode === 'active') { t.root.vy = -pd.mv.launch * (foe ? 1 : 0.85); t.root.grounded = false; t.root.plat = null; if (foe) t.knockT = Math.max(t.knockT || 0, 0.6); }
+        else t.impulse(P.PELVIS, 0, -pd.mv.launch * 0.8, 1);
+        if (foe) { const c = t.center(); applyHit(pd.owner, t, { mv: null, el: 'slime', dmg: pd.mv.dmg, knock: 0, lift: 0, dirX: 0, dirY: -1, idx: P.PELVIS, px: c.x, py: c.y, quiet: true }); }
+        fx.burst(pd.x, pd.y - 8, '#8dfc9a', 10, 260, { kind: 'drop', add: false });
+        Sfx.jump();
+      }
+    }
+    pads = pads.filter(pd => pd.t < pd.dur);
+    for (const g of grasps) {
+      g.t += dt;
+      const t = g.target;
+      if (t.alive && t.mode === 'active' && g.t < g.dur) { t.root.vx *= 0.5; t.status.root = Math.max(t.status.root, 0.1); }
+    }
+    grasps = grasps.filter(g => g.t < g.dur + 0.3);
+    for (const b of blasts) { b.t += dt; if (!b.done && b.t >= 0) { b.done = true; fx.ring(b.x, b.y, b.col || pick(['#b9a8ff', '#ff3d9a']), 260 + Math.random() * 380, 0.55, 10); } }
     blasts = blasts.filter(b => !b.done);
     for (const l of lavas) {
       l.t += dt; l.tick -= dt;
@@ -1749,6 +1864,34 @@ const Game = (() => {
   }
 
   function drawNewPowers(c) {
+    for (const pd of pads) {
+      const a = Math.min(1, pd.t * 6, (pd.dur - pd.t) * 3), sq = pd.squish;
+      c.globalAlpha = a;
+      c.fillStyle = '#1f9e5a'; c.beginPath(); c.ellipse(pd.x, pd.y - 2, 46, 9 - sq * 4, 0, 0, TAU); c.fill();
+      c.fillStyle = '#8dfc9a'; c.beginPath(); c.ellipse(pd.x, pd.y - 8 + sq * 4, 40, 10 - sq * 5, 0, Math.PI, TAU); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.6)'; c.beginPath(); c.ellipse(pd.x - 14, pd.y - 12 + sq * 4, 9, 2.5, 0, 0, TAU); c.fill();
+      c.globalAlpha = 1;
+    }
+    for (const g of grasps) {
+      const k = Math.min(1, g.t * 8) * (g.t > g.dur ? Math.max(0, 1 - (g.t - g.dur) / 0.3) : 1);
+      const t = g.target, x = t.alive ? t.root.x : g.x;
+      c.globalAlpha = k;
+      for (const side of [-1, 1]) {
+        const bx = x + side * 14, h = 70 * k;
+        c.fillStyle = '#1a1328';
+        c.beginPath(); c.moveTo(bx - 9, g.y); c.quadraticCurveTo(bx - side * 6, g.y - h * 0.6, bx + side * 4, g.y - h); c.lineTo(bx + side * 14, g.y - h + 6); c.quadraticCurveTo(bx + side * 2, g.y - h * 0.5, bx + 9, g.y); c.closePath(); c.fill();
+        c.strokeStyle = '#9b8cc4'; c.lineWidth = 1.5; c.stroke();
+        for (let f2 = 0; f2 < 3; f2++) { c.beginPath(); c.moveTo(bx + side * (4 + f2 * 4), g.y - h + 2); c.lineTo(bx + side * (10 + f2 * 5), g.y - h - 10 + f2 * 3); c.lineWidth = 3; c.strokeStyle = '#1a1328'; c.stroke(); }
+      }
+      c.globalAlpha = 1;
+    }
+    for (const e of enemies) if (e.engulf && e.alive) {
+      const q = e.center(), r = 58 * e.s + Math.sin(time * 6) * 3;
+      c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#1f9e5a', q.x, q.y, r * 1.4, 0.4); c.globalCompositeOperation = 'source-over';
+      c.fillStyle = 'rgba(141,252,154,0.28)'; c.strokeStyle = 'rgba(200,255,210,0.9)'; c.lineWidth = 2.5;
+      c.beginPath(); c.ellipse(q.x, q.y, r, r * 1.08, 0, 0, TAU); c.fill(); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.ellipse(q.x - r * 0.4, q.y - r * 0.5, r * 0.16, r * 0.08, -0.6, 0, TAU); c.fill();
+    }
     for (const l of lavas) {
       const isl = l.isl, a = Math.min(1, l.t * 6, (l.dur - l.t) * 3);
       c.globalCompositeOperation = 'lighter';
@@ -2004,6 +2147,14 @@ const Game = (() => {
     if (e.decor || e.dummy) { e.input.x = 0; return; }
     ai.jumpCd = Math.max(0, ai.jumpCd - dt);
     if (e.mode !== 'active') { e.input.x = 0; return; }
+    if (e.engulf || e.stopT > 0) { e.input.x = 0; return; }
+    if (e.status.fear > 0 && me.grounded && player) {
+      // panic: run from the hero, but not over the edge
+      let w = -Math.sign(player.root.x - me.x) || 1;
+      if (!groundAt(me.x + w * 50, me.y, 10)) w = 0;
+      e.input.x = w;
+      return;
+    }
     if (e.status.confuse > 0 && me.grounded) {
       // lost in smoke: wander, never attack, but still refuse to walk off an edge
       if (!ai.wander || Math.random() < dt * 1.5) ai.wander = pick([-1, -0.5, 0, 0.5, 1]);
@@ -2718,6 +2869,42 @@ const Game = (() => {
       if (f.gone) continue;
       if (f.tagCd > 0) f.tagCd -= dt;
       if (f.pact > 0) { f.pact -= dt; if (Math.random() < dt * 20) { const q = f.center(); fx.add({ x: q.x + rand(-20, 20), y: q.y + rand(-40, 30), vy: -rand(40, 120), color: pick(['#ff6f86', '#a3173a']), size: rand(3, 6), life: 0.5 }); } }
+      if (f.haste > 0) {
+        f.haste -= dt;
+        for (const k in f.cds) if (f.cds[k] > 0 && f.cds[k] < 900) f.cds[k] -= dt;   // cooldowns run twice as fast
+        if (Math.random() < dt * 25) { const q = f.center(); fx.add({ x: q.x - f.facing * rand(10, 30), y: q.y + rand(-40, 40), vx: -f.facing * rand(80, 200), color: pick(['#ffe9a8', '#ffffff']), size: rand(3, 6), life: 0.3 }); }
+        if (f.haste <= 0) f.speed = f.baseSpeed;
+      }
+      if (f.stopT > 0) {
+        f.stopT -= dt;
+        if (f.stopT <= 0) {
+          f.status.freeze = 0;
+          const c = f.center(), dmg = (f.stored || 0) * (f.stopBonus || 1);
+          fx.ring(c.x, c.y, '#ffe9a8', 90, 0.35, 8);
+          if (dmg > 0 && f.alive) {
+            applyHit(f.stopOwner, f, { mv: null, el: 'time', dmg, knock: 300 + Math.min(900, dmg * 14), lift: 0.5, dirX: f.storedDir || 1, dirY: 0, idx: P.PELVIS, px: c.x, py: c.y, release: true });
+            fx.text(c.x, c.y - 100, 'TIME RESUMES!', '#ffe9a8', 22, { dur: 0.9 });
+          }
+          f.stored = 0;
+        } else f.status.freeze = Math.max(f.status.freeze, 0.1);
+      }
+      if (f.engulf) {
+        const E = f.engulf;
+        E.t -= dt; E.tick -= dt;
+        f.status.freeze = 0;
+        const by = E.y0 - 130 - Math.sin(time * 3) * 8;
+        teleport(f, E.x + Math.sin(time * 2) * 10, by + 60 * f.s);
+        f.action = null;
+        if (E.tick <= 0) { E.tick = 0.3; applyHit(E.owner, f, { mv: null, el: 'slime', dmg: E.mv.dps * 0.3, knock: 0, lift: 0, dirX: 0, dirY: 0, idx: P.PELVIS, px: f.center().x, py: f.center().y, quiet: true }); }
+        if (E.t <= 0 || !f.alive) {
+          f.engulf = null;
+          const c = f.center();
+          fx.burst(c.x, c.y, '#8dfc9a', 30, 420, { kind: 'drop', add: false });
+          fx.ring(c.x, c.y, '#8dfc9a', 90, 0.35, 8);
+          if (f.alive) applyHit(E.owner, f, { mv: E.mv, el: 'slime', dmg: E.mv.dmg, knock: E.mv.knock, lift: E.mv.lift, dirX: Math.sign(c.x - E.owner.root.x) || 1, dirY: 0, idx: P.PELVIS, px: c.x, py: c.y });
+          Sfx.splash();
+        }
+      }
       if (f.rebirth > 0) { f.rebirth -= dt; if (Math.random() < dt * 14) { const q = f.center(); fx.add({ kind: 'ember', x: q.x + rand(-18, 18), y: q.y + rand(-30, 30), vy: -rand(60, 140), color: pick(['#ffb05a', '#d62f5a']), size: rand(4, 7), life: 0.4 }); } }
       updateAction(f, dt);
       if (f.status.burn > 0 && f.alive && !f.decor) {
@@ -3067,7 +3254,7 @@ const Game = (() => {
       c.strokeStyle = rgba('#b9a6ff', 0.85); c.lineWidth = 3; c.setLineDash([8, 6]);
       c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(p.x, p.y); c.stroke(); c.setLineDash([]);
     }
-    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble', 'soundwave'].includes(st)) {
+    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble', 'soundwave', 'coin'].includes(st)) {
       c.globalCompositeOperation = 'lighter';
       c.strokeStyle = rgba(el.deep, st === 'bolt' ? 0.9 : 0.4); c.lineWidth = st === 'bolt' ? 5 : p.r * 0.9; c.lineCap = 'round';
       c.beginPath(); c.moveTo(tr[0], tr[1]);
@@ -3191,6 +3378,20 @@ const Game = (() => {
       case 'seed':
         c.fillStyle = '#6b4a2b'; c.beginPath(); c.arc(0, 0, p.r * 0.8, 0, TAU); c.fill();
         c.fillStyle = '#9ae66e'; c.beginPath(); c.ellipse(4, -8, 7, 3.5, -0.6, 0, TAU); c.fill(); break;
+      case 'slime': {
+        c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#1f9e5a', 0, 0, p.r * 2.2, 0.5); c.globalCompositeOperation = 'source-over';
+        const sq = 1 + Math.sin(time * 18 + p.rot) * 0.12;
+        c.fillStyle = '#8dfc9a'; c.beginPath(); c.ellipse(0, 0, p.r * sq, p.r / sq, ang, 0, TAU); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.7)'; c.beginPath(); c.arc(-p.r * 0.3, -p.r * 0.35, p.r * 0.25, 0, TAU); c.fill();
+        break;
+      }
+      case 'coin': {
+        const w = Math.abs(Math.cos(time * 10 + p.rot));
+        c.fillStyle = '#b07a10'; c.beginPath(); c.ellipse(0, 1.5, p.r * Math.max(0.15, w), p.r, 0, 0, TAU); c.fill();
+        c.fillStyle = '#ffd34d'; c.beginPath(); c.ellipse(0, 0, p.r * Math.max(0.15, w), p.r, 0, 0, TAU); c.fill();
+        c.fillStyle = '#fff3b0'; c.beginPath(); c.ellipse(-p.r * 0.25 * w, -p.r * 0.3, p.r * 0.2 * w + 0.5, p.r * 0.25, 0, 0, TAU); c.fill();
+        break;
+      }
       case 'soundwave': {
         c.rotate(ang);
         c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#ff3d9a', 0, 0, p.r * 2.4, 0.5); c.globalCompositeOperation = 'source-over';

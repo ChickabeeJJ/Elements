@@ -400,6 +400,67 @@ const ELEMENTS = [
         dmg: 70, knock: 1050, lift: 0.6, dur: 15 },
     ],
   },
+  {
+    id: 'slime', name: 'Slime', color: '#8dfc9a', deep: '#1f9e5a', price: 360,
+    blurb: 'Splitting goo, bounce pads that fling foes sky-high and a bubble that swallows them whole.',
+    moves: [
+      { slot: 'main', id: 'slime_ball', name: 'Slime Ball', type: 'ranged', icon: 'slimeball', kind: 'projectile', pose: 'cast',
+        desc: 'Lob a ball of goo that splits into two blobs on impact. Slows what it hits.', cd: 0.55, windup: 0.08, active: 0.05, recover: 0.15,
+        speed: 880, grav: 900, radius: 15, dmg: 10, knock: 300, lift: 0.3, chill: 1, style: 'slime',
+        split: { n: 2, speed: 520, radius: 9, dmg: 5, knock: 220, lift: 0.4, chill: 0.8, grav: 1200, life: 0.9, style: 'slime' } },
+      { slot: 'p1', id: 'bounce_pad', name: 'Bounce Pad', type: 'power', icon: 'bouncepad', kind: 'pad', pose: 'cast',
+        desc: 'Splat a springy pad on the ground. Any foe that touches it is flung high into the air. You can bounce on it too.', cd: 7, windup: 0.12, active: 0.05, recover: 0.15,
+        dur: 7, launch: 1750, dmg: 8 },
+      { slot: 'p2', id: 'engulf', name: 'Engulf', type: 'power', icon: 'engulf', kind: 'engulf', pose: 'raise',
+        desc: 'Trap the foe nearest your aim in a floating slime bubble. It is helpless for 2.5s, then the bubble bursts.', cd: 9, windup: 0.14, active: 0.1, recover: 0.2,
+        range: 560, dur: 2.5, dps: 8, dmg: 14, knock: 620, lift: 0.8 },
+    ],
+  },
+  {
+    id: 'shadow', name: 'Shadow', color: '#9b8cc4', deep: '#2b2140', price: 620,
+    blurb: 'Draining claws, hands that rise from the dark to pin foes, and a nightmare that sends them running.',
+    moves: [
+      { slot: 'main', id: 'shadow_claw', name: 'Shadow Claw', type: 'melee', icon: 'claw', kind: 'melee', pose: 'swing',
+        desc: 'A raking claw that leaves foes drained.', cd: 0.4, windup: 0.06, active: 0.1, recover: 0.12,
+        reach: 86, radius: 28, dmg: 12, knock: 440, lift: 0.3 },
+      { slot: 'p1', id: 'umbral_grasp', name: 'Umbral Grasp', type: 'power', icon: 'grasp', kind: 'grasp', pose: 'channel',
+        desc: 'Shadow hands burst from the ground under up to three foes, pinning them in place.', cd: 8, windup: 0.16, active: 0.1, recover: 0.2,
+        range: 620, n: 3, dmg: 14, root: 1.8 },
+      { slot: 'p2', id: 'nightmare', name: 'Nightmare', type: 'power', icon: 'nightmare', kind: 'nova', pose: 'nova',
+        desc: 'Unleash a nightmare. Nearby foes panic and flee from you for 2.5s.', cd: 10, windup: 0.16, active: 0.1, recover: 0.2,
+        radius: 260, dmg: 10, knock: 260, lift: 0.2, fear: 2.5 },
+    ],
+  },
+  {
+    id: 'midas', name: 'Midas', color: '#ffd34d', deep: '#b07a10', price: 900,
+    blurb: 'Gilded fists, a touch that turns foes to gold and a rain of heavy coins. Golden foes drop extra gems.',
+    moves: [
+      { slot: 'main', id: 'gilded_fist', name: 'Gilded Fist', type: 'melee', icon: 'goldfist', kind: 'melee', pose: 'heavy',
+        desc: 'A heavy golden punch.', cd: 0.55, windup: 0.1, active: 0.1, recover: 0.18,
+        reach: 74, radius: 32, dmg: 15, knock: 600, lift: 0.4 },
+      { slot: 'p1', id: 'golden_touch', name: 'Golden Touch', type: 'power', icon: 'goldtouch', kind: 'gild', pose: 'cast',
+        desc: 'Turn the foe nearest your aim into a gold statue for 2.5s. Defeat it while golden for +5 gems.', cd: 8, windup: 0.1, active: 0.1, recover: 0.15,
+        range: 600, dur: 2.5, dmg: 12 },
+      { slot: 'p2', id: 'coin_rain', name: 'Coin Rain', type: 'power', icon: 'coins', kind: 'rain', pose: 'raise',
+        desc: 'Heavy gold coins pour down over a wide area around your aim.', cd: 9, windup: 0.22, active: 0.1, recover: 0.2,
+        n: 16, spread: 230, speed: 500, grav: 1600, radius: 10, dmg: 7, knock: 260, lift: 0.2, life: 2.2, style: 'coin' },
+    ],
+  },
+  {
+    id: 'time', name: 'Chrono', color: '#ffe9a8', deep: '#8a6a2a', price: 1150,
+    blurb: 'Clock-hand strikes, a burst of haste and Time Stop: frozen foes soak up every hit and take it all at once.',
+    moves: [
+      { slot: 'main', id: 'clock_hand', name: 'Clock Hand', type: 'melee', icon: 'clockhand', kind: 'melee', pose: 'swing',
+        desc: 'A precise strike with the hand of a clock that slows foes.', cd: 0.4, windup: 0.06, active: 0.1, recover: 0.12,
+        reach: 96, radius: 24, dmg: 12, knock: 460, lift: 0.3, chill: 0.8 },
+      { slot: 'p1', id: 'haste', name: 'Haste', type: 'power', icon: 'haste', kind: 'haste', pose: 'raise',
+        desc: 'Speed up your own time for 5s: move 40% faster and every cooldown runs twice as fast.', cd: 13, windup: 0.05, active: 0.1, recover: 0.1,
+        dur: 5, speed: 1.4 },
+      { slot: 'p2', id: 'time_stop', name: 'Time Stop', type: 'power', icon: 'timestop', kind: 'timestop', pose: 'nova',
+        desc: 'Stop time for every foe nearby for 2.5s. Damage you deal is stored and lands all at once, 25% stronger, when time resumes.', cd: 14, windup: 0.2, active: 0.1, recover: 0.25,
+        radius: 650, dur: 2.5, bonus: 1.25 },
+    ],
+  },
 ];
 
 // Apply the global combat balance pass once to the move data.
@@ -458,8 +519,8 @@ const AFFINITY = {
 /* element combos: set a foe up with one element, then hit it with the partner.
    a: element(s) that apply the setup status; b: element that cashes it in. */
 const COMBOS = [
-  { id: 'shatter', name: 'Shatter', a: ['frost'], b: 'earth', mul: 2, clear: 'freeze',
-    desc: 'Freeze a foe with Rime, then smash it with Stone for double damage.', when: (st, el) => el === 'earth' && st.freeze > 0 },
+  { id: 'shatter', name: 'Shatter', a: ['frost', 'midas'], b: 'earth', mul: 2, clear: 'freeze',
+    desc: 'Freeze a foe with Rime (or gild it with Midas), then smash it with Stone for double damage.', when: (st, el) => el === 'earth' && st.freeze > 0 },
   { id: 'overload', name: 'Overload', a: ['water'], b: 'lightning', mul: 1.6,
     desc: 'Soak foes with Tide and every Storm hit deals +60%.', when: (st, el) => el === 'lightning' && st.soak > 0 },
   { id: 'wildfire', name: 'Wildfire', a: ['nature'], b: 'fire', mul: 1.5,
@@ -476,7 +537,7 @@ const COMBOS = [
     desc: 'Crystal leaves foes glinting: Radiance refracts through them for +60%.', when: (st, el) => el === 'light' && st.glint > 0 },
   { id: 'eclipse', name: 'Eclipse', a: ['light', 'arcane'], b: 'void', mul: 1.6,
     desc: 'Foes dazzled by Radiance are swallowed by Void: +60%.', when: (st, el) => el === 'void' && st.dazzle > 0 },
-  { id: 'singularity', name: 'Singularity', a: ['void', 'spirit'], b: 'gravity', mul: 1.6,
+  { id: 'singularity', name: 'Singularity', a: ['void', 'spirit', 'shadow'], b: 'gravity', mul: 1.6,
     desc: 'Foes drained by Void or Spirit collapse under Gravity: +60%.', when: (st, el) => el === 'gravity' && st.drain > 0 },
   { id: 'inferno', name: 'Inferno', a: ['fire'], b: 'dragon', mul: 1.5,
     desc: 'Burning foes feed the Dragon: every Dragon hit deals +50%.', when: (st, el) => el === 'dragon' && st.burn > 0 },
@@ -492,23 +553,31 @@ const COMBOS = [
     desc: 'Burning foes feed the Phoenix: +50%.', when: (st, el) => el === 'phoenix' && st.burn > 0 },
   { id: 'smokescreen', name: 'Smokescreen', a: ['light', 'arcane'], b: 'smoke', mul: 1.6,
     desc: 'Foes dazzled by Radiance or Arcane never see Smoke coming: +60%.', when: (st, el) => el === 'smoke' && (st.dazzle > 0 || st.confuse > 0) },
-  { id: 'haunt', name: 'Haunt', a: ['moon', 'sand', 'frost'], b: 'spirit', mul: 1.5,
+  { id: 'haunt', name: 'Haunt', a: ['moon', 'sand', 'frost', 'slime', 'time'], b: 'spirit', mul: 1.5,
     desc: 'Slowed or chilled foes are haunted: Spirit deals +50%.', when: (st, el) => el === 'spirit' && st.chill > 0 },
   { id: 'bloodlust', name: 'Bloodlust', a: ['nature', 'sand'], b: 'crimson', mul: 1.5,
     desc: 'Rooted or sinking foes cannot escape the lash: Crimson deals +50%.', when: (st, el) => el === 'crimson' && st.root > 0 },
   { id: 'bloodmoon', name: 'Blood Moon', a: ['crimson', 'venom'], b: 'moon', mul: 1.5,
     desc: 'Bleeding foes fall under the Moon: +50%.', when: (st, el) => el === 'moon' && st.poison > 0 },
-  { id: 'landslide', name: 'Landslide', a: ['sand', 'smoke'], b: 'earth', mul: 1.4,
+  { id: 'landslide', name: 'Landslide', a: ['sand', 'smoke', 'slime', 'time'], b: 'earth', mul: 1.4,
     desc: 'Slowed foes cannot dodge the rockfall: Stone deals +40%.', when: (st, el) => el === 'earth' && st.chill > 0 },
-  { id: 'frostbite', name: 'Frostbite', a: ['frost'], b: 'crystal', mul: 1.5, clear: 'freeze',
+  { id: 'frostbite', name: 'Frostbite', a: ['frost', 'midas'], b: 'crystal', mul: 1.5, clear: 'freeze',
     desc: 'Frozen foes crystallise and crack: Crystal deals +50%.', when: (st, el) => el === 'crystal' && st.freeze > 0 },
+  { id: 'sticky', name: 'Sticky Situation', a: ['nature', 'sand'], b: 'slime', mul: 1.5,
+    desc: 'Rooted foes cannot wriggle free of the goo: Slime deals +50%.', when: (st, el) => el === 'slime' && st.root > 0 },
+  { id: 'ambush', name: 'Ambush', a: ['smoke', 'shadow'], b: 'shadow', mul: 1.6,
+    desc: 'Confused or terrified foes never see the claw coming: Shadow deals +60%.', when: (st, el) => el === 'shadow' && (st.confuse > 0 || st.fear > 0) },
+  { id: 'goldrush', name: 'Gold Rush', a: ['crystal', 'light'], b: 'midas', mul: 1.5,
+    desc: 'Glinting or dazzled foes are worth their weight in gold: Midas deals +50%.', when: (st, el) => el === 'midas' && (st.glint > 0 || st.dazzle > 0) },
+  { id: 'paradox', name: 'Paradox', a: ['echo', 'plasma', 'tempo'], b: 'time', mul: 1.5,
+    desc: 'Stunned foes are stuck between moments: Chrono deals +50%.', when: (st, el) => el === 'time' && st.shock > 0 },
   { id: 'conductor', name: 'Conductor', a: ['water'], b: 'plasma', mul: 1.6,
     desc: 'Plasma arcs through soaked foes for +60%.', when: (st, el) => el === 'plasma' && st.soak > 0 },
   { id: 'bigbang', name: 'Big Bang', a: ['gravity', 'moon', 'wind'], b: 'cosmos', mul: 1.6,
     desc: 'Foes flung airborne are blown apart by Cosmos: +60%.', when: (st, el, t) => el === 'cosmos' && t && (!t.root.grounded || t.mode !== 'active') },
 ];
 // hitting with these elements leaves a short mark that their combo partner cashes in
-const COMBO_MARKS = { crystal: 'glint', spirit: 'drain', light: 'dazzle', arcane: 'dazzle', void: 'drain' };
+const COMBO_MARKS = { crystal: 'glint', spirit: 'drain', shadow: 'drain', light: 'dazzle', arcane: 'dazzle', void: 'drain' };
 
 const WEAK_MUL = 1.6;
 const RESIST_MUL = 0.55;
@@ -557,6 +626,10 @@ const ICON_PATHS = {
   phoenix: '<path d="M12 21c-1-3-4-4-6.5-7.5C3.5 10.5 3.5 6 3 3c2.5 2 4 4 5.5 4.5C9.5 5 10.5 3.5 12 2c1.5 1.5 2.5 3 3.5 5.5C17 7 18.5 5 21 3c-.5 3-.5 7.5-2.5 10.5C16 17 13 18 12 21z" fill="currentColor"/>',
   cosmos: '<circle cx="12" cy="12" r="3.4" fill="currentColor"/><path d="m5 4 .8 1.8L7.6 6.6l-1.8.8L5 9.2l-.8-1.8L2.4 6.6l1.8-.8zM18.5 14.5l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7zM17.5 3.5l.5 1.1 1.1.5-1.1.5-.5 1.1-.5-1.1-1.1-.5 1.1-.5z" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.5 2.5"/>',
   tempo: '<path d="M9 18V5.5l11-2.5v12.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><ellipse cx="6.3" cy="18" rx="3.3" ry="2.6" fill="currentColor"/><ellipse cx="17.3" cy="15.5" rx="3.3" ry="2.6" fill="currentColor"/><path d="M9 9l11-2.5" stroke="currentColor" stroke-width="2.2"/>',
+  slime: '<path d="M4 19c-1.5 0-2-1.2-1-2.6C4.8 13.8 5.5 6 12 6s7.2 7.8 9 10.4c1 1.4.5 2.6-1 2.6z" fill="currentColor"/><circle cx="9.3" cy="13" r="1.4" fill="rgba(0,0,0,.4)"/><circle cx="14.7" cy="13" r="1.4" fill="rgba(0,0,0,.4)"/><path d="M8.5 9.5c.8-1.2 2-1.8 3.5-1.8" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.4" stroke-linecap="round"/>',
+  shadow: '<path d="M12 2.5c3 2.5 7 4 7 10.5 0 4.5-3.2 8.5-7 8.5s-7-4-7-8.5C5 6.5 9 5 12 2.5z" fill="currentColor"/><path d="M8.5 12.5l2.3 1.2M15.5 12.5l-2.3 1.2" stroke="rgba(255,255,255,.75)" stroke-width="1.8" stroke-linecap="round"/>',
+  midas: '<path d="M3.5 18.5h17l1-10-5 3.6L12 5l-4.5 7.1-5-3.6z" fill="currentColor"/><circle cx="12" cy="14.5" r="1.8" fill="rgba(0,0,0,.25)"/><path d="M3.5 21h17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  time: '<path d="M6.5 2.5h11M6.5 21.5h11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M7.5 3c0 4.5 4.5 6.5 4.5 9s-4.5 4.5-4.5 9h9c0-4.5-4.5-6.5-4.5-9s4.5-4.5 4.5-9z" fill="currentColor"/><path d="M9.5 19.5h5l-2.5-3z" fill="rgba(0,0,0,.3)"/>',
   none: '<path d="M7 10.5V7a1.5 1.5 0 0 1 3 0v3M10 10V5.5a1.5 1.5 0 0 1 3 0V10M13 10V6.5a1.5 1.5 0 0 1 3 0v5M7 10.5a1.5 1.5 0 0 0-3 0V13a7 7 0 0 0 7 7h1a6 6 0 0 0 6-6v-2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 };
 

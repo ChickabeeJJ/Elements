@@ -4,7 +4,7 @@
 Element Rag
 
 ## Short description (one line)
-A ragdoll brawler on floating islands. Wield 26 elements and knock every foe into the void.
+A ragdoll brawler on floating islands. Wield 30 elements and knock every foe into the void.
 
 ## Description
 Element Rag is a physics ragdoll brawler set across seven elemental realms of floating islands. Every fighter is an active ragdoll, so bodies wobble and flinch, and big hits send them tumbling. Knock enemies off the edge for an instant ring-out. Watch your own footing, though, because falling into the void ends your run.
@@ -15,7 +15,7 @@ Fight through 56 stages in 7 realms, each ending in an elemental boss. Upgrade y
 
 **Features**
 - Active ragdoll physics with knockback, tumbles and ring-outs
-- 26 elements, each with its own main attack and two unique powers, plus 24 element combos
+- 30 elements, each with its own main attack and two unique powers, plus 28 element combos
 - 56 campaign stages across 7 realms, with 7 bosses
 - Elemental weaknesses and combos (shatter frozen foes, shock soaked ones)
 - Endless mode with rotating realms and champion waves

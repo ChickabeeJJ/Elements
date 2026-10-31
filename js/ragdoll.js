@@ -56,7 +56,7 @@ class Fighter {
     this.input = { x: 0 };
     this.action = null;
     this.cds = {};
-    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0, glint: 0, dazzle: 0, drain: 0, confuse: 0 };
+    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0, glint: 0, dazzle: 0, drain: 0, confuse: 0, fear: 0, gilded: 0 };
     this.shield = 0; this.shieldT = 0;
     this.regen = 0; this.regenT = 0;
     this.invuln = 0;
@@ -159,7 +159,7 @@ class Fighter {
   /* ------------------------------------------------------------ update */
   update(dt, plats, forces) {
     const st = this.status;
-    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock', 'glint', 'dazzle', 'drain', 'confuse']) st[k] = Math.max(0, st[k] - dt);
+    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock', 'glint', 'dazzle', 'drain', 'confuse', 'fear', 'gilded']) st[k] = Math.max(0, st[k] - dt);
     if (st.freeze > 0) st.freeze = Math.max(0, st.freeze - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.flash = Math.max(0, this.flash - dt * 4);
@@ -717,9 +717,11 @@ class Fighter {
       x0 -= 16 * s; x1 += 16 * s; y0 -= 22 * s; y1 += 8 * s;
       const mx = (x0 + x1) / 2, ch = (x1 - x0) * 0.22;
       const poly = [[x0 + ch, y0], [mx + ch * 0.4, y0 - 8 * s], [x1, y0 + ch], [x1 - 4 * s, y1 - ch], [x1 - ch, y1], [x0 + ch * 0.6, y1], [x0, y1 - ch * 1.2], [x0 + 3 * s, y0 + ch * 1.4]];
-      ctx.globalAlpha = a * 0.45; ctx.fillStyle = '#bfeaff';
+      // the same shell reads as ice, as gold (Midas) or as stopped time (Chrono)
+      const shell = st.gilded > 0 ? ['#ffd34d', '#fff3b0', 0.75] : this.stopT > 0 ? ['#c9ccd6', '#ffffff', 0.5] : ['#bfeaff', '#f2fbff', 0.45];
+      ctx.globalAlpha = a * shell[2]; ctx.fillStyle = shell[0];
       ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha = a * 0.9; ctx.strokeStyle = '#f2fbff'; ctx.lineWidth = 2.2;
+      ctx.globalAlpha = a * 0.9; ctx.strokeStyle = shell[1]; ctx.lineWidth = 2.2;
       ctx.stroke();
       ctx.globalAlpha = a * 0.55; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); ctx.lineTo(mx, (y0 + y1) / 2); ctx.lineTo(poly[4][0], poly[4][1]);
