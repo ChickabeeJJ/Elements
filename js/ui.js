@@ -789,10 +789,6 @@ const UI = (() => {
 
   /* -------------------------------------------------------------- init */
   function init() {
-    // TESTING ONLY: clicking the title grants 999,999 gems. Remove before release.
-    const title = document.querySelector('#home .title');
-    title.style.cursor = 'pointer';
-    title.onclick = () => { Save.data.essence = 999999; Save.save(); show('home'); toast('TEST: 999,999 GEMS'); };
     Icons.hydrate();
     applyUiScale();
     loadKeyLayout();

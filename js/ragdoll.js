@@ -613,8 +613,8 @@ class Fighter {
   // flat, chunky mannequin: thick rounded limbs, no outlines, no faces
   draw(ctx, time) {
     const s = this.s, pts = this.pts, st = this.status;
-    const fade = this.mode === 'dead' ? clamp(1 - (this.deadT - 4) / 1.2, 0, 1) : 1;
-    if (fade <= 0) return;
+    const fade = (this.mode === 'dead' ? clamp(1 - (this.deadT - 4) / 1.2, 0, 1) : 1) * (this.vanish > 0 ? 0.25 : 1);   // New Moon: nearly invisible
+    if (fade <= 0 || this.hidden) return;
     ctx.globalAlpha = fade * (this.invuln > 0 && this.isPlayer && !this.dash ? 0.55 + Math.sin(time * 30) * 0.25 : 1);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (this.cape) this.drawCape(ctx);
