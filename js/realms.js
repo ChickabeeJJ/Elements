@@ -153,11 +153,18 @@ function capRoles(wave, realm) {
   return wave;
 }
 
+// hand-tuned stages that played far harder than their neighbours
+// d: difficulty override, noBrutes: brutes become regular warriors
+const STAGE_EASE = {
+  '6-5': { d: 0.88, noBrutes: true },   // Void Rift 7-6
+};
+
 /* Campaign stage: deterministic arena + list of waves. */
 function buildStage(r, s) {
   const realm = REALMS[r];
   const g = r * STAGES_PER_REALM + s;
-  const d = r < 7 ? g / (CLASSIC_STAGES - 1) : lerp(0.72, 0.92, s / (STAGES_PER_REALM - 1));
+  const ease = STAGE_EASE[r + '-' + s];
+  const d = ease && ease.d != null ? ease.d : r < 7 ? g / (CLASSIC_STAGES - 1) : lerp(0.72, 0.92, s / (STAGES_PER_REALM - 1));
   const rng = mulberry32(9137 + g * 7919);
   const mix = r === 6 ? 0.3 : 0;   // the Void Rift mixes in other elements
   const waves = [];
@@ -176,7 +183,7 @@ function buildStage(r, s) {
     const wave = [];
     // from Toxic Mire on, foes get sturdier and hit harder chapter by chapter
     const tier = Math.max(0, r - 4);
-    for (let i = 0; i < n; i++) wave.push({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d, hpMul: 1 + tier * 0.08, dmgBoost: 1 + tier * 0.07 });
+    for (let i = 0; i < n; i++) wave.push({ type: ease && ease.noBrutes ? rollType(rng, r, s).replace('brute', 'grunt') : rollType(rng, r, s), element: rollElement(rng, realm, mix), d, hpMul: 1 + tier * 0.08, dmgBoost: 1 + tier * 0.07 });
     waves.push(capRoles(capElements(wave), realm));
   }
   return { realm: r, stage: s, arena, waves, d, boss: false };
