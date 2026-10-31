@@ -130,6 +130,19 @@ function capElements(wave) {
   return wave;
 }
 
+// Stormspire (lightning brutes) and the Void Rift (ranged void orbs) stack up badly:
+// one brute and one caster per wave at most there, and one fewer foe overall.
+const TOUGH_REALMS = { lightning: 1, void: 1 };
+function capRoles(wave, realm) {
+  if (!TOUGH_REALMS[realm.element]) return wave;
+  let brutes = 0, casters = 0;
+  for (const spec of wave) {
+    if (spec.type === 'brute' && ++brutes > 1) spec.type = 'grunt';
+    if (spec.type === 'caster' && ++casters > 1) spec.type = 'grunt';
+  }
+  return wave;
+}
+
 /* Campaign stage: deterministic arena + list of waves. */
 function buildStage(r, s) {
   const realm = REALMS[r];
@@ -140,19 +153,19 @@ function buildStage(r, s) {
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: 6 + r * 1.1 }]);
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + r * 1.1) * 0.95 }]);
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
   // at most three waves; early stages are short and gentle
   // at most three waves of at most three foes; individual foes carry the difficulty
-  const total = Math.min(9, 2 + Math.floor(s * 0.7) + Math.floor(r * 0.8));
+  const total = Math.min(TOUGH_REALMS[realm.element] ? 8 : 9, 2 + Math.floor(s * 0.7) + Math.floor(r * 0.8));
   const nW = Math.min(3, Math.ceil(total / 3));
   for (let w = 0; w < nW; w++) {
     const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);
     const wave = [];
     for (let i = 0; i < n; i++) wave.push({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d });
-    waves.push(capElements(wave));
+    waves.push(capRoles(capElements(wave), realm));
   }
   return { realm: r, stage: s, arena, waves, d, boss: false };
 }
@@ -169,7 +182,7 @@ function endlessWave(kills, waveNo) {
   const n = 1 + Math.floor(Math.random() * conc);
   const wave = [];
   for (let i = 0; i < n; i++) wave.push({ type: rollType(Math.random, Math.min(4, 1 + Math.floor(kills / 8)), 3), element: rollElement(Math.random, realm, 0.25), d });
-  return { realm: r, d, wave: capElements(wave) };
+  return { realm: r, d, wave: capRoles(capElements(wave), realm) };
 }
 
 function stageKey(r, s) { return r + '-' + s; }

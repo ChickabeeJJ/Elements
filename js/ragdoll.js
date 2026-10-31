@@ -56,7 +56,7 @@ class Fighter {
     this.input = { x: 0 };
     this.action = null;
     this.cds = {};
-    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0, glint: 0, dazzle: 0, drain: 0 };
+    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0, glint: 0, dazzle: 0, drain: 0, confuse: 0 };
     this.shield = 0; this.shieldT = 0;
     this.regen = 0; this.regenT = 0;
     this.invuln = 0;
@@ -159,7 +159,7 @@ class Fighter {
   /* ------------------------------------------------------------ update */
   update(dt, plats, forces) {
     const st = this.status;
-    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock', 'glint', 'dazzle', 'drain']) st[k] = Math.max(0, st[k] - dt);
+    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock', 'glint', 'dazzle', 'drain', 'confuse']) st[k] = Math.max(0, st[k] - dt);
     if (st.freeze > 0) st.freeze = Math.max(0, st.freeze - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.flash = Math.max(0, this.flash - dt * 4);

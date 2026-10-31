@@ -988,3 +988,11 @@ body.touch .orb.cooling .cd-num { background: rgba(8, 10, 16, 0.55); border-radi
 body.touch { --ob: clamp(56px, 14.1vh, 80px); --om: clamp(84px, 21.95vh, 122px); }
 body.touch .dock { top: calc(12px + var(--safe-t)); bottom: auto; right: calc(14px + var(--safe-r) + 44px + 8px); padding: 7px; gap: 6px; }
 @media (max-height: 560px) { body.touch .dock { right: calc(14px + var(--safe-r) + 38px + 8px); } }
+
+/* ------------------------------------------------ Tempo: Encore rhythm game */
+#rhythm { position: fixed; inset: 0; z-index: 4; display: none; touch-action: none; }
+#rhythm.on { display: block; }
+#rhythm canvas { width: 100%; height: 100%; display: block; }
+/* only the pause button stays while the lanes are up */
+body.rhythm #hud > :not(.hud-right) { display: none !important; }
+body.rhythm canvas#stage { cursor: default; }

@@ -817,6 +817,7 @@ const UI = (() => {
 
     Game.hooks.onEnd = res => showResult(res);
     Game.hooks.onCombo = onCombo;
+    Game.hooks.onRhythm = mv => Rhythm.start(mv, pct => Game.endRhythm(pct));
     Game.hooks.onBoss = e => banner(e.ai.boss.name.toUpperCase(), 'boss');
     Game.hooks.onToast = (t, big) => (big ? banner(t.toUpperCase()) : toast(t.toUpperCase()));
     Game.hooks.onWave = (i, n, boss) => { if (!boss && Game.mode === 'stage' && i > 0) banner(i === n - 1 ? 'FINAL WAVE' : `WAVE ${i + 1}`); };

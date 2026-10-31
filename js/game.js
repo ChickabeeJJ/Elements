@@ -24,6 +24,8 @@ const Game = (() => {
   let projectiles = [], zones = [], waves = [], strikes = [], spawns = [], pickups = [];
   let eruptions = [], walls = [], mines = [], resonances = [], dragons = [];
   let vineSwing = null, enemyVines = [];
+  let lavas = [], coils = [], links = [], pianos = [], blasts = [];   // newer element powers
+  let rhythmFreeze = false;   // Tempo's Encore: the world holds still while the song plays
   let dummyTimer = 0;
   let time = 0, timeScale = 1, slowmo = 0, hitstop = 0, shake = 0, hurtFlash = 0, healFlash = 0, acc = 0, endTimer = 0, realmFlash = 0;
   let run = null, pStats = Save.playerStats(), pickupTimer = 8;
@@ -131,7 +133,7 @@ const Game = (() => {
   function clearField() {
     fx.clear();
     enemies = []; projectiles = []; zones = []; waves = []; strikes = []; spawns = []; pickups = [];
-    eruptions = []; walls = []; mines = []; resonances = []; dragons = [];
+    eruptions = []; walls = []; mines = []; resonances = []; dragons = []; lavas = []; coils = []; links = []; pianos = []; blasts = []; rhythmFreeze = false;
     timeScale = 1; slowmo = 0; hitstop = 0; shake = 0; hurtFlash = 0; healFlash = 0; acc = 0;
     combo.n = 0; combo.t = 0; combo.best = 0;
     input.attack = false; input.queued = {}; vineSwing = null; enemyVines = [];
@@ -253,7 +255,7 @@ const Game = (() => {
     const f = new Fighter({
       x, y: instant ? y : y - 520, facing: player && x > player.root.x ? -1 : 1, scale: spec.scale || T.scale,
       kind: spec.type, el: spec.element, body, shade, accent: AURA[spec.element], weight: T.weight,
-      speed: T.speed * (1 + Math.min(spec.d, 1.2) * 0.3), jumpV: 1000, maxJumps: 2,
+      speed: T.speed * (1 + Math.min(spec.d, 1.2) * 0.3), jumpV: 1000, maxJumps: spec.type === 'boss' ? 3 : 2,
       hp: Math.round(stats.hp * (spec.hpMul || 1)),
     });
     f.team = 'enemy';
@@ -436,10 +438,11 @@ const Game = (() => {
         }
         const n = mv.count || 1;
         for (let i = 0; i < n; i++) {
-          const a = f.aim + (i - (n - 1) / 2) * (mv.spread || 0);
+          const a = mv.radial ? i / n * TAU : f.aim + (i - (n - 1) / 2) * (mv.spread || 0);
           let x = o.x + Math.cos(a) * 34 * s, y = o.y + Math.sin(a) * 34 * s;
           let vx = Math.cos(a) * mv.speed, vy = Math.sin(a) * mv.speed;
           if (mv.flat) { x = f.root.x + f.facing * 40; y = f.root.y - 60; vx = f.facing * mv.speed; vy = 0; }
+          if (mv.radial) { const c = f.center(); x = c.x + Math.cos(a) * 30; y = c.y + Math.sin(a) * 30; }
           const pr = { owner: f, team: f.team, mv, el, x, y, px: x, py: y, vx, vy, r: mv.radius, life: mv.life || 3, hitSet: new Set(), tickT: new Map(), rot: rand(0, 6), trail: [], age: 0, bounces: 0 };
           if (mv.spreadTargets) {
             const foes = opponents(f).filter(t => t.alive && !blocked(t)).sort((a, b) => Math.abs(a.root.x - f.root.x) - Math.abs(b.root.x - f.root.x));
@@ -485,6 +488,7 @@ const Game = (() => {
         break;
       case 'heal': {
         f.regen = (f.maxHp * mv.heal) / mv.dur; f.regenT = mv.dur;
+        if (mv.rebirth) f.rebirth = mv.rebirth;
         const st = f.status; st.burn = st.poison = st.chill = st.soak = st.root = st.shock = 0;
         nova(f, f.center().x, f.center().y, mv, el);
         if (el === 'nature') for (let i = 0; i < 16; i++) fx.add({ kind: 'leaf', x: f.center().x + rand(-40, 40), y: f.center().y + rand(-40, 40), vx: rand(-80, 80), vy: -rand(60, 200), g: 200, vr: rand(-6, 6), color: pick(['#9ae66e', '#c3f08e', '#ffd6e8']), size: rand(4, 7), life: rand(0.8, 1.4), add: false });
@@ -645,6 +649,92 @@ const Game = (() => {
       }
       case 'beam':
         Sfx.beam();
+        break;
+      case 'lavafloor': {
+        const isl = platformBelow(act.tx, act.ty - 60, 700) || f.root.plat || nearestIsland(act.tx);
+        lavas = lavas.filter(l => l.isl !== isl);
+        lavas.push({ owner: f, mv, el, isl, t: 0, dur: mv.dur, tick: 0 });
+        fx.chunks(isl.x, isl.top, '#ff8a4c', 16, 420, 8);
+        shake = Math.max(shake, 10); Sfx.rumble(); Sfx.boom(0.6);
+        break;
+      }
+      case 'backstab': {
+        const c = f.center();
+        const t = opponents(f).filter(e => e.alive && !blocked(e) && dist(e.root.x, e.root.y, c.x, c.y) < mv.range).sort((a, b) => dist(a.root.x, a.root.y, act.tx, act.ty) - dist(b.root.x, b.root.y, act.tx, act.ty))[0];
+        for (let i = 0; i < 14; i++) fx.add({ kind: 'smoke', x: c.x + rand(-30, 30), y: c.y + rand(-40, 30), vy: -rand(20, 60), color: '#7a7488', size: rand(16, 26), life: rand(0.5, 0.8), add: false });
+        if (!t) { Sfx.whoosh(); break; }
+        const side = t.facing || 1;
+        const isl = t.root.plat || platformBelow(t.root.x, t.root.y - 5, 400);
+        let bx = t.root.x - side * 60;
+        if (isl) bx = clamp(bx, isl.left + 20, isl.right - 20);
+        teleport(f, bx, t.root.y);
+        f.facing = Math.sign(t.root.x - bx) || side;
+        const tc = t.center();
+        applyHit(f, t, { mv, el, dmg: mv.dmg, knock: mv.knock, lift: mv.lift, dirX: f.facing, dirY: 0, idx: P.NECK, px: tc.x, py: tc.y });
+        fx.text(tc.x, tc.y - 90, 'CRITICAL!', '#ffe066', 26, { dur: 0.9 });
+        fx.ring(tc.x, tc.y, '#c9c3d8', 80, 0.3, 6);
+        for (let i = 0; i < 10; i++) fx.add({ kind: 'smoke', x: bx + rand(-20, 20), y: t.root.y - rand(20, 90), vy: -rand(20, 50), color: '#9c96aa', size: rand(14, 22), life: rand(0.4, 0.7), add: false });
+        Sfx.dash(el);
+        break;
+      }
+      case 'link': {
+        const c = f.center();
+        const foes = opponents(f).filter(e => e.alive && !blocked(e) && dist(e.center().x, e.center().y, c.x, c.y) < mv.range)
+          .sort((a, b) => dist(a.root.x, a.root.y, act.tx, act.ty) - dist(b.root.x, b.root.y, act.tx, act.ty)).slice(0, mv.n);
+        if (foes.length < 2) { if (foes[0]) applyHit(f, foes[0], { mv, el, dmg: mv.dmg * 2, knock: 200, lift: 0.2, dirX: f.facing, dirY: 0, idx: P.PELVIS, px: foes[0].center().x, py: foes[0].center().y }); Sfx.cast(el); break; }
+        for (const e of foes) { e.link = true; const ec = e.center(); fx.arc(c.x, c.y, ec.x, ec.y, '#b8f5ff', 0.3); applyHit(f, e, { mv, el, dmg: mv.dmg, knock: 120, lift: 0.1, dirX: Math.sign(ec.x - c.x) || 1, dirY: 0, idx: P.PELVIS, px: ec.x, py: ec.y, quiet: true }); }
+        links.push({ owner: f, foes, t: mv.dur, share: mv.share });
+        Sfx.charge();
+        break;
+      }
+      case 'pact': {
+        const cost = f.maxHp * mv.cost;
+        f.hp = Math.max(1, f.hp - cost);
+        f.pact = mv.dur; f.pactMul = mv.mul; f.pactLeech = mv.leech;
+        const c = f.center();
+        fx.ring(c.x, c.y, '#ff6f86', 110, 0.45, 10);
+        for (let i = 0; i < 24; i++) { const a = rand(0, TAU); fx.add({ kind: 'drop', x: c.x + Math.cos(a) * 70, y: c.y + Math.sin(a) * 70, vx: -Math.cos(a) * 260, vy: -Math.sin(a) * 260, color: pick(['#ff6f86', '#a3173a']), size: rand(3, 6), life: 0.35, add: false }); }
+        if (Save.data.settings.numbers) fx.text(c.x, c.y - 80, '-' + Math.round(cost), '#ff8a8a', 22);
+        hurtFlash = Math.min(1, hurtFlash + 0.3);
+        Sfx.charge();
+        break;
+      }
+      case 'turret': {
+        const isl = f.root.plat || platformBelow(f.root.x, f.root.y - 5, 600) || nearestIsland(f.root.x);
+        const x = clamp(f.root.x + f.facing * 50, isl.left + 20, isl.right - 20);
+        coils.push({ owner: f, mv, el, isl, ox: x - isl.x, x, y: isl.top, t: 0, dur: mv.dur, zap: 0.35 });
+        fx.burst(x, isl.top - 30, '#7affea', 16, 260);
+        Sfx.zap();
+        break;
+      }
+      case 'swap': {
+        const c = f.center();
+        const t = opponents(f).filter(e => e.alive && !blocked(e) && e.kind !== 'boss' && dist(e.center().x, e.center().y, c.x, c.y) < mv.range)
+          .sort((a, b) => dist(a.center().x, a.center().y, act.tx, act.ty) - dist(b.center().x, b.center().y, act.tx, act.ty))[0];
+        if (!t) { Sfx.denied(); f.cds[mv.id] = 0.5; break; }
+        const a = { x: f.root.x, y: f.root.y }, b = { x: t.root.x, y: t.root.y };
+        fx.ring(c.x, c.y, '#dfe1ff', 70, 0.35, 6); fx.ring(t.center().x, t.center().y, '#dfe1ff', 70, 0.35, 6);
+        teleport(f, b.x, b.y - 4);
+        teleport(t, a.x, a.y - 4);
+        t.status.chill = Math.max(t.status.chill, mv.chill);
+        const tc = t.center();
+        applyHit(f, t, { mv, el, dmg: mv.dmg, knock: mv.knock, lift: mv.lift, dirX: Math.sign(tc.x - f.root.x) || 1, dirY: 0, idx: P.PELVIS, px: tc.x, py: tc.y });
+        fx.arc(f.center().x, f.center().y, tc.x, tc.y, '#6b6fd6', 0.35);
+        Sfx.blink();
+        break;
+      }
+      case 'piano': {
+        const isl = platformBelow(act.tx, act.ty - 40, 900);
+        pianos.push({ owner: f, mv, el, x: act.tx, y: view.y0 - 160, vy: 300, ground: isl ? isl.top : null, t: 0, landed: false, rot: rand(-0.08, 0.08) });
+        Sfx.whoosh();
+        break;
+      }
+      case 'rhythm':
+        if (f.isPlayer && state === 'play' && hooks.onRhythm) {
+          rhythmFreeze = true;
+          f.cds[mv.id] = 999;   // the real cooldown starts when the song ends
+          hooks.onRhythm(mv);
+        } else soundBlast(f, mv, 0.75);
         break;
       default: break;
     }
@@ -810,7 +900,7 @@ const Game = (() => {
 
   function addZone(f, el, z, x, y) {
     let gy = y, isl = null;
-    if (z.style === 'thorns') {
+    if (z.style === 'thorns' || z.style === 'quicksand') {
       isl = islands.filter(i => x >= i.left && x <= i.right && i.top >= y - 40).sort((a, b) => a.top - b.top)[0] || null;
       if (isl) gy = isl.top;
     }
@@ -856,6 +946,7 @@ const Game = (() => {
     if (att && att.isPlayer && enemyTarget) o = Object.assign({}, o, { knock: o.knock * pStats.knockDealtMul });
     let dmg = o.dmg;
     if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * (att.kind === 'boss' ? 0.5 : 0.66) : 1;   // enemy hit scaling (bosses much gentler)
+    if (att && att.pact > 0) dmg *= att.pactMul;
     let mul = 1, tag = null;
     if (enemyTarget) mul = affinityMul(t.el, o.el);
     dmg *= mul;
@@ -878,6 +969,14 @@ const Game = (() => {
     }
     t.hp -= dmg;
     t.flash = 1;
+    if (att && att.pact > 0 && dmg > 0) heal(att, dmg * att.pactLeech);
+    // spirit link: part of the hit echoes into every other linked foe
+    if (t.link && !o.linked) for (const L of links) if (L.foes.includes(t)) for (const u of L.foes) {
+      if (u === t || !u.alive || u.gone) continue;
+      const c = u.center();
+      fx.arc(t.center().x, t.center().y, c.x, c.y, '#b8f5ff', 0.2);
+      applyHit(L.owner, u, { mv: null, el: 'spirit', dmg: dmg * L.share / Math.max(0.01, (att && att.pact > 0 ? att.pactMul : 1) * (att && att.isPlayer ? pStats.dmgMul : 1)), knock: 80, lift: 0.1, dirX: Math.sign(c.x - t.root.x) || 1, dirY: 0, idx: P.PELVIS, px: c.x, py: c.y, quiet: true, linked: true });
+    }
 
     const st = t.status;
     const bossy = t.kind === 'boss' ? 0.4 : t.kind === 'brute' ? 0.7 : 1;
@@ -885,6 +984,7 @@ const Game = (() => {
     if (COMBO_MARKS[o.el] && t.alive) st[COMBO_MARKS[o.el]] = 2.5;
     if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.62); }
     if (mv.chill) st.chill = Math.max(st.chill, mv.chill);
+    if (mv.confuse) st.confuse = Math.max(st.confuse, mv.confuse * (t.kind === 'boss' ? 0.5 : 1));
     if (mv.soak) st.soak = Math.max(st.soak, mv.soak);
     if (mv.root) st.root = Math.max(st.root, mv.root * bossy);
     if (mv.freeze) { st.freeze = Math.max(st.freeze, mv.freeze * bossy); t.action = null; }
@@ -896,12 +996,18 @@ const Game = (() => {
     let K = o.knock;
     K *= enemyTarget ? 1 + (1 - clamp(t.hp / t.maxHp, 0, 1)) * 0.9 : pStats.knockMul;
     K /= t.weight;
+    if (t.kind === 'boss' && t.root.plat) {
+      // bosses brace against the drop: knockback toward a nearby edge is softened
+      const p = t.root.plat, out = o.dirX > 0 ? p.right - t.root.x : t.root.x - p.left;
+      if (out < 220) K *= lerp(0.6, 0.85, clamp(out / 220, 0, 1));
+    }
     const dl = Math.hypot(o.dirX, o.dirY) || 1;
     const kx = (o.dirX / dl) * K;
     const ky = (o.dirY / dl) * K * 0.5 - (o.lift || 0) * K * 0.85;
     const dead = t.hp <= 0;
     let tumbleFor = 0;
     if (st.freeze <= 0 && (K > 620 || mv.stun || dead)) tumbleFor = mv.stun || clamp(K / 1150, 0.35, 1.1);
+    if (t.kind === 'boss' && !dead) tumbleFor *= 0.55;   // bosses get back on their feet fast
     t.knock(kx, ky, o.idx, tumbleFor);
 
     if (!o.quiet || Math.random() < 0.3) {
@@ -987,6 +1093,18 @@ const Game = (() => {
       teleport(f, sp.x, sp.y - 300);
       f.mode = 'active'; f.m = 1; f.stunT = 0; f.action = null;
       if (mode === 'tutorial') hooks.onToast && hooks.onToast('Careful! In battle, falling ends the run');
+      return;
+    }
+    if (f.isPlayer && f.rebirth > 0 && f.alive && state === 'play') {
+      // Rebirth: the phoenix rises from the void instead of falling
+      f.rebirth = 0;
+      const sp = spawnPoint();
+      teleport(f, sp.x, sp.y - 120);
+      f.mode = 'active'; f.m = 1; f.stunT = 0; f.action = null; f.invuln = Math.max(f.invuln, 1);
+      f.hp = Math.max(f.hp, f.maxHp * 0.3);
+      nova(f, f.center().x, f.center().y, { radius: 200, dmg: 14, knock: 700, lift: 0.8, burn: { dps: 5, dur: 2.5 } }, 'phoenix');
+      hooks.onToast && hooks.onToast('REBORN FROM THE ASHES!');
+      shake = 14; Sfx.boom(1.2);
       return;
     }
     if (f.isPlayer) {
@@ -1214,8 +1332,9 @@ const Game = (() => {
       for (const t of opponents(z.owner)) {
         if (!t.alive || blocked(t)) continue;
         const c = t.center();
-        const inside = z.style === 'thorns' ? Math.abs(t.root.x - z.x) < z.r && Math.abs(t.root.y - z.y) < 40 : dist(c.x, c.y, z.x, z.y) < z.r;
+        const inside = z.style === 'thorns' || z.style === 'quicksand' ? Math.abs(t.root.x - z.x) < z.r && Math.abs(t.root.y - z.y) < 40 : dist(c.x, c.y, z.x, z.y) < z.r;
         if (!inside) continue;
+        if (z.style === 'quicksand' && t.mode === 'active' && t.root.grounded) { t.root.vx *= 0.6; }
         if (z.style === 'antigrav') {
           if (t.mode === 'active') { t.root.vy = Math.min(lerp(t.root.vy, -260, 0.25), t.root.vy); t.root.vx *= 0.9; t.root.grounded = false; t.root.plat = null; t.knockT = Math.max(t.knockT, 0.2); }
           else t.impulse(P.PELVIS, 0, -60, 0.3);
@@ -1234,11 +1353,104 @@ const Game = (() => {
         if (z.t >= z.dur) { fx.ring(z.x, z.y, '#c08bff', 140, 0.4, 10); fx.burst(z.x, z.y, '#c08bff', 24, 320); }
       }
     }
+    for (const z of zones) if (z.t >= z.dur && z.endBlast && !z.blasted) {
+      z.blasted = true;
+      const B = z.endBlast, ZE = ELEMENT_BY_ID[z.el] || NEUTRAL;
+      for (const t of opponents(z.owner)) {
+        if (!t.alive || blocked(t)) continue;
+        const c = t.center();
+        const inside = z.style === 'quicksand' ? Math.abs(t.root.x - z.x) < z.r && Math.abs(t.root.y - z.y) < 60 : dist(c.x, c.y, z.x, z.y) < z.r * 1.15;
+        if (!inside) continue;
+        applyHit(z.owner, t, { mv: null, el: z.el, dmg: B.dmg, knock: B.knock, lift: B.lift, dirX: B.out ? Math.sign(c.x - z.x) || 1 : 0, dirY: B.out ? Math.sign(c.y - z.y) * 0.4 : -1, idx: P.PELVIS, px: c.x, py: c.y });
+      }
+      if (z.style === 'quicksand') { for (let i = 0; i < 40; i++) fx.add({ kind: 'drop', x: z.x + rand(-z.r * 0.6, z.r * 0.6), y: z.y, vx: rand(-120, 120), vy: -rand(500, 1100), g: 1500, color: pick(['#f2d28b', '#c2902f', '#e8c070']), size: rand(3, 7), life: rand(0.6, 1), add: false }); Sfx.rumble(); }
+      else { fx.ring(z.x, z.y, ZE.color, z.r * 1.4, 0.5, 14); fx.burst(z.x, z.y, ZE.color, 40, 600); realmFlash = Math.max(realmFlash, 0.2); Sfx.boom(1.3); }
+      shake = Math.max(shake, 14);
+    }
     zones = zones.filter(z => z.t < z.dur);
   }
 
   /* fire pillars, prism walls, geode mines, resonance tags, orbiting stars, rewind history */
+  // Tempo's Encore blast: damage scales with the share of notes hit
+  function soundBlast(f, mv, pct) {
+    const c = f.center();
+    for (const t of opponents(f)) {
+      if (!t.alive || blocked(t)) continue;
+      const tc = t.center();
+      applyHit(f, t, { mv: { shock: 0.6 * pct }, el: 'tempo', dmg: mv.dmg * pct, knock: mv.knock * (0.35 + 0.65 * pct), lift: mv.lift, dirX: Math.sign(tc.x - c.x) || 1, dirY: -0.2, idx: P.PELVIS, px: tc.x, py: tc.y });
+    }
+    for (let i = 0; i < 5; i++) blasts.push({ x: c.x, y: c.y, t: -i * 0.09, done: false });
+    for (let i = 0; i < 26; i++) { const a = rand(0, TAU); fx.add({ kind: 'star', x: c.x, y: c.y, vx: Math.cos(a) * rand(300, 700), vy: Math.sin(a) * rand(300, 700), vr: rand(-6, 6), color: pick(['#b9a8ff', '#ff3d9a', '#ffffff']), size: rand(5, 9), life: 0.7, drag: 2, add: true }); }
+    shake = Math.max(shake, 10 + pct * 10); realmFlash = Math.max(realmFlash, 0.15 + pct * 0.2);
+    Sfx.chord(0.6 + pct * 0.6); Sfx.boom(0.6 + pct * 0.8);
+  }
+  function endRhythm(pct) {
+    rhythmFreeze = false;
+    if (!player) return;
+    const mv = ELEMENT_BY_ID.tempo.moves[2];
+    player.cds[mv.id] = mv.cd * pStats.cdMul;
+    soundBlast(player, mv, clamp(pct, 0, 1));
+  }
+
+  function updateNewPowers(dt) {
+    for (const b of blasts) { b.t += dt; if (!b.done && b.t >= 0) { b.done = true; fx.ring(b.x, b.y, pick(['#b9a8ff', '#ff3d9a']), 260 + Math.random() * 380, 0.55, 10); } }
+    blasts = blasts.filter(b => !b.done);
+    for (const l of lavas) {
+      l.t += dt; l.tick -= dt;
+      const isl = l.isl;
+      if (Math.random() < dt * 30) fx.add({ kind: 'ember', x: rand(isl.left + 10, isl.right - 10), y: isl.top - 4, vx: rand(-20, 20), vy: -rand(120, 320), color: pick(['#ff8a4c', '#ffb347', '#ff5a1f']), size: rand(4, 8), life: rand(0.3, 0.6), drag: 2 });
+      if (l.tick > 0) continue;
+      l.tick = 0.35;
+      for (const t of opponents(l.owner)) {
+        if (!t.alive || blocked(t) || t.root.x < isl.left - 10 || t.root.x > isl.right + 10 || Math.abs(t.root.y - isl.top) > 14) continue;
+        const c = t.center();
+        applyHit(l.owner, t, { mv: { burn: l.mv.burn }, el: l.el, dmg: l.mv.dps * 0.35, knock: l.mv.knock, lift: l.mv.lift, dirX: rand(-0.3, 0.3), dirY: -1, idx: P.PELVIS, px: c.x, py: c.y, quiet: true });
+      }
+    }
+    lavas = lavas.filter(l => l.t < l.dur);
+    for (const k of coils) {
+      k.t += dt; k.zap -= dt;
+      k.x = k.isl.x + k.ox; k.y = k.isl.top;
+      if (k.zap > 0) continue;
+      k.zap = k.mv.rate;
+      const top = { x: k.x, y: k.y - 70 };
+      const t = opponents(k.owner).filter(e => e.alive && !blocked(e) && dist(e.center().x, e.center().y, top.x, top.y) < k.mv.range).sort((a, b) => dist(a.center().x, a.center().y, top.x, top.y) - dist(b.center().x, b.center().y, top.x, top.y))[0];
+      if (!t) continue;
+      const c = t.center();
+      fx.arc(top.x, top.y, c.x, c.y, '#7affea', 0.18); fx.arc(top.x, top.y, c.x, c.y, '#ffffff', 0.1);
+      applyHit(k.owner, t, { mv: k.mv, el: k.el, dmg: k.mv.dmg, knock: k.mv.knock, lift: k.mv.lift, dirX: Math.sign(c.x - k.x) || 1, dirY: 0, idx: P.NECK, px: c.x, py: c.y });
+      Sfx.zap();
+    }
+    coils = coils.filter(k => k.t < k.dur);
+    for (const L of links) { L.t -= dt; L.foes = L.foes.filter(e => e.alive && !e.gone); }
+    const live = links.filter(L => L.t > 0 && L.foes.length > 1);
+    for (const L of links) if (!live.includes(L)) for (const e of L.foes) if (!live.some(M => M.foes.includes(e))) e.link = false;
+    links = live;
+    for (const pn of pianos) {
+      pn.t += dt;
+      if (pn.landed) continue;
+      pn.vy += 3400 * dt; pn.y += pn.vy * dt;
+      let hit = null;
+      for (const t of opponents(pn.owner)) { if (!t.alive || blocked(t)) continue; const h = t.pts[P.HEAD]; if (Math.abs(h.x - pn.x) < pn.mv.radius * 0.8 && pn.y > h.y - 10 && pn.y < h.y + 80) { hit = t; break; } }
+      if (hit || (pn.ground != null && pn.y >= pn.ground)) {
+        pn.landed = true; pn.t = 0;
+        if (pn.ground != null && !hit) pn.y = pn.ground;
+        for (const t of opponents(pn.owner)) {
+          if (!t.alive || blocked(t)) continue;
+          const c = t.center();
+          if (Math.abs(c.x - pn.x) > pn.mv.radius + 30 * t.s || c.y < pn.y - 220 || c.y > pn.y + 60) continue;
+          applyHit(pn.owner, t, { mv: pn.mv, el: pn.el, dmg: pn.mv.dmg, knock: pn.mv.knock, lift: pn.mv.lift, dirX: Math.sign(c.x - pn.x) || 1, dirY: 0.3, idx: P.HEAD, px: c.x, py: c.y });
+        }
+        fx.chunks(pn.x, pn.y - 20, '#1c1a22', 20, 520, 10); fx.chunks(pn.x, pn.y - 20, '#f4f1ea', 10, 420, 6);
+        for (let i = 0; i < 10; i++) fx.add({ kind: 'star', x: pn.x + rand(-60, 60), y: pn.y - rand(20, 80), vx: rand(-200, 200), vy: -rand(200, 500), g: 900, vr: rand(-8, 8), color: pick(['#b9a8ff', '#ff3d9a', '#ffffff']), size: rand(5, 8), life: 0.8, add: true });
+        shake = Math.max(shake, 16); Sfx.chord(1); Sfx.boom(1.1);
+      }
+    }
+    pianos = pianos.filter(pn => (pn.landed ? pn.t < 0.9 : pn.y < view.y0 + view.h + 300));
+  }
+
   function updateSpecials(dt) {
+    updateNewPowers(dt);
     for (const e of eruptions) {
       e.t -= dt;
       e.x = e.isl.x + e.ox; e.y = e.isl.top;
@@ -1536,7 +1748,57 @@ const Game = (() => {
     for (let k = 0; k < 2; k++) fx.add({ kind: 'ember', x: mx, y: my, vx: fxh * rand(700, 1000) + rand(-80, 80), vy: fyh * rand(700, 1000) + rand(-80, 80), color: pick(['#ffcf5a', '#ff8a3d', '#ff5a1f']), size: rand(8, 13), life: rand(0.18, 0.3), drag: 2 });
   }
 
+  function drawNewPowers(c) {
+    for (const l of lavas) {
+      const isl = l.isl, a = Math.min(1, l.t * 6, (l.dur - l.t) * 3);
+      c.globalCompositeOperation = 'lighter';
+      for (let x = isl.left + 20; x < isl.right; x += 46) Glow.draw(c, '#ff5a1f', x, isl.top - 2, 46, 0.5 * a);
+      c.globalCompositeOperation = 'source-over';
+      const g = c.createLinearGradient(0, isl.top - 6, 0, isl.top + 12);
+      g.addColorStop(0, rgba('#ffd26a', 0.95 * a)); g.addColorStop(0.5, rgba('#ff6a2a', 0.9 * a)); g.addColorStop(1, rgba('#8a1f0a', 0));
+      c.fillStyle = g;
+      c.beginPath(); c.moveTo(isl.left, isl.top + 12);
+      for (let x = isl.left; x <= isl.right; x += 12) c.lineTo(x, isl.top - 3 - Math.sin(x * 0.07 + time * 6) * 3);
+      c.lineTo(isl.right, isl.top + 12); c.closePath(); c.fill();
+    }
+    for (const k of coils) {
+      const a = Math.min(1, (k.dur - k.t) * 3), x = k.x, y = k.y;
+      c.globalAlpha = a;
+      c.fillStyle = '#20343c'; c.fillRect(x - 12, y - 10, 24, 10);
+      c.fillStyle = '#3b5b66'; c.fillRect(x - 5, y - 62, 10, 54);
+      c.strokeStyle = '#7affea'; c.lineWidth = 3;
+      for (let i = 0; i < 5; i++) { c.beginPath(); c.ellipse(x, y - 18 - i * 10, 11, 3.5, 0, 0, TAU); c.stroke(); }
+      c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#1aa6c4', x, y - 70, 40 + Math.sin(time * 20) * 6, 0.9); c.globalCompositeOperation = 'source-over';
+      c.fillStyle = '#dffffa'; c.beginPath(); c.arc(x, y - 70, 8, 0, TAU); c.fill();
+      c.globalAlpha = 1;
+    }
+    for (const L of links) {
+      const pts = L.foes.map(e => e.center());
+      c.strokeStyle = rgba('#b8f5ff', 0.7); c.lineWidth = 3; c.setLineDash([10, 8]); c.lineDashOffset = -time * 60;
+      c.beginPath(); pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); c.setLineDash([]);
+      for (const q of pts) { c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#4aa9c9', q.x, q.y, 34, 0.6); c.globalCompositeOperation = 'source-over'; }
+    }
+    for (const pn of pianos) {
+      if (!pn.landed && pn.ground != null) { c.fillStyle = 'rgba(0,0,0,0.3)'; const k = clamp(1 - (pn.ground - pn.y) / 900, 0.2, 1); c.beginPath(); c.ellipse(pn.x, pn.ground, 80 * k, 9 * k, 0, 0, TAU); c.fill(); }
+      c.save(); c.translate(pn.x, pn.y); c.rotate(pn.rot); c.globalAlpha = pn.landed ? clamp(1 - (pn.t - 0.5) / 0.4, 0, 1) : 1;
+      drawPiano(c);
+      c.restore();
+    }
+  }
+  // a side-on grand piano, origin at the bottom centre of its legs
+  function drawPiano(c) {
+    c.fillStyle = '#16141c';
+    c.fillRect(-62, -26, 7, 26); c.fillRect(50, -26, 7, 26); c.fillRect(-4, -26, 6, 22);
+    c.beginPath(); c.moveTo(-74, -30); c.lineTo(-74, -58); c.lineTo(40, -58); c.bezierCurveTo(70, -58, 78, -46, 80, -30); c.closePath(); c.fill();
+    c.fillStyle = '#2a2633'; c.beginPath(); c.moveTo(-60, -58); c.lineTo(52, -96); c.lineTo(58, -92); c.lineTo(-48, -58); c.closePath(); c.fill();
+    c.strokeStyle = '#16141c'; c.lineWidth = 3; c.beginPath(); c.moveTo(20, -58); c.lineTo(28, -84); c.stroke();
+    c.fillStyle = '#f4f1ea'; c.fillRect(-90, -44, 18, 10);
+    c.fillStyle = '#16141c'; for (let i = 0; i < 4; i++) c.fillRect(-88 + i * 4.5, -44, 2, 6);
+    c.fillStyle = 'rgba(255,255,255,0.18)'; c.fillRect(-72, -55, 100, 3);
+  }
+
   function drawSpecials(c) {
+    drawNewPowers(c);
     for (const d of dragons) drawDragon(c, d);
     for (const e of eruptions) {
       if (e.done) continue;
@@ -1742,10 +2004,21 @@ const Game = (() => {
     if (e.decor || e.dummy) { e.input.x = 0; return; }
     ai.jumpCd = Math.max(0, ai.jumpCd - dt);
     if (e.mode !== 'active') { e.input.x = 0; return; }
+    if (e.status.confuse > 0 && me.grounded) {
+      // lost in smoke: wander, never attack, but still refuse to walk off an edge
+      if (!ai.wander || Math.random() < dt * 1.5) ai.wander = pick([-1, -0.5, 0, 0.5, 1]);
+      let w = ai.wander;
+      if (w && !groundAt(me.x + Math.sign(w) * 50, me.y, 10)) { w = -w; ai.wander = w; }
+      e.input.x = w;
+      return;
+    }
     if (!me.grounded && !platformBelow(me.x, me.y - 5, 900)) {
       const isl = nearestIsland(me.x);
       e.input.x = Math.sign(isl.x - me.x);
-      if (me.vy > 0 && me.y > isl.top - 40) e.jump();
+      if (e.kind === 'boss') {
+        // recover like a player: double/triple jump as soon as the fall starts, never at the last moment
+        if (me.vy > -60 && me.jumps < e.maxJumps && ai.jumpCd <= 0) { e.jump(); ai.jumpCd = 0.22; me.vx += Math.sign(isl.x - me.x) * 160; }
+      } else if (me.vy > 0 && me.y > isl.top - 40) e.jump();
       return;
     }
     if (!player || !player.alive || state !== 'play') { e.input.x = 0; return; }
@@ -1800,8 +2073,21 @@ const Game = (() => {
     // ---- navigation: chase the hero across islands
     const prefer = !kit.melee ? 300 : 30;
     const myIsl = me.grounded ? me.plat : null;
-    const goal = (player.root.grounded && player.root.plat) || platformBelow(pr.x, pr.y - 5, 900) || nearestIsland(pr.x);
+    let goal = (player.root.grounded && player.root.plat) || platformBelow(pr.x, pr.y - 5, 900) || nearestIsland(pr.x);
     let dir = 0;
+    if (e.kind === 'boss' && myIsl && goal && goal !== myIsl && goal.right - goal.left < 320) goal = myIsl;   // wait for the hero on solid ground
+    if (e.kind === 'boss' && myIsl && goal === myIsl) {
+      const margin = Math.min(150, (myIsl.right - myIsl.left) * 0.3);
+      const want = clamp(pr.x - Math.sign(dx || 1) * (kit.melee ? 40 : 260), myIsl.left + margin, myIsl.right - margin);
+      dir = Math.abs(want - me.x) > 24 ? Math.sign(want - me.x) : 0;
+      // keep the void behind the hero, not behind the boss: step around to the open side
+      const toEdge = Math.min(me.x - myIsl.left, myIsl.right - me.x);
+      if (toEdge < margin) dir = Math.sign(myIsl.x - me.x);
+      if (me.grounded && dy < -140 && adx < 200 && ai.jumpCd <= 0) { e.jump(); ai.jumpCd = 0.6; }
+      ai.nav = null;
+      e.input.x = dir;
+      return;
+    }
     if (myIsl && goal && myIsl !== goal) {
       const hop = nextHop(myIsl, goal);
       ai.nav = hop;
@@ -2313,9 +2599,12 @@ const Game = (() => {
     const count = mv => { if (run && run.tut) { if (mv === kit[0]) run.tut.attacks++; else run.tut.powers++; } };
     for (const [key, mv] of [['p1', kit[1]], ['p2', kit[2]]]) {
       if (!q[key]) continue;
-      q[key] = false;
-      if (tryMove(f, mv, a.x, a.y)) count(mv);
-      else if ((f.cds[mv.id] || 0) > 0.15) Sfx.denied();
+      // a power pressed while another move is still finishing waits briefly instead of being dropped
+      const held = (q[key + 'T'] || 0) + dt;
+      if (tryMove(f, mv, a.x, a.y)) { count(mv); q[key] = false; }
+      else if ((f.cds[mv.id] || 0) > 0.15) { Sfx.denied(); q[key] = false; }
+      else if (held > 0.45) q[key] = false;
+      q[key + 'T'] = q[key] ? held : 0;
     }
     if (f.el === 'nature' && kit[0].vineSwing) {
       if (input.attack || q.attack) {
@@ -2348,7 +2637,7 @@ const Game = (() => {
   /* ---------------------------------------------------------- update */
   function update(realDt) {
     time += realDt;
-    if (paused) return;
+    if (paused || rhythmFreeze) return;
     if (hitstop > 0) { hitstop -= realDt; return; }
     if (slowmo > 0) { slowmo -= realDt; timeScale = lerp(timeScale, 0.3, 0.2); } else timeScale = lerp(timeScale, 1, 0.1);
     shake = Math.max(0, shake - realDt * 40);
@@ -2428,6 +2717,8 @@ const Game = (() => {
     for (const f of fighters) {
       if (f.gone) continue;
       if (f.tagCd > 0) f.tagCd -= dt;
+      if (f.pact > 0) { f.pact -= dt; if (Math.random() < dt * 20) { const q = f.center(); fx.add({ x: q.x + rand(-20, 20), y: q.y + rand(-40, 30), vy: -rand(40, 120), color: pick(['#ff6f86', '#a3173a']), size: rand(3, 6), life: 0.5 }); } }
+      if (f.rebirth > 0) { f.rebirth -= dt; if (Math.random() < dt * 14) { const q = f.center(); fx.add({ kind: 'ember', x: q.x + rand(-18, 18), y: q.y + rand(-30, 30), vy: -rand(60, 140), color: pick(['#ffb05a', '#d62f5a']), size: rand(4, 7), life: 0.4 }); } }
       updateAction(f, dt);
       if (f.status.burn > 0 && f.alive && !f.decor) {
         f.hp -= f.status.burnDps * dt * (f.isPlayer ? pStats.armor : 1);
@@ -2776,7 +3067,7 @@ const Game = (() => {
       c.strokeStyle = rgba('#b9a6ff', 0.85); c.lineWidth = 3; c.setLineDash([8, 6]);
       c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(p.x, p.y); c.stroke(); c.setLineDash([]);
     }
-    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble'].includes(st)) {
+    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble', 'soundwave'].includes(st)) {
       c.globalCompositeOperation = 'lighter';
       c.strokeStyle = rgba(el.deep, st === 'bolt' ? 0.9 : 0.4); c.lineWidth = st === 'bolt' ? 5 : p.r * 0.9; c.lineCap = 'round';
       c.beginPath(); c.moveTo(tr[0], tr[1]);
@@ -2900,6 +3191,19 @@ const Game = (() => {
       case 'seed':
         c.fillStyle = '#6b4a2b'; c.beginPath(); c.arc(0, 0, p.r * 0.8, 0, TAU); c.fill();
         c.fillStyle = '#9ae66e'; c.beginPath(); c.ellipse(4, -8, 7, 3.5, -0.6, 0, TAU); c.fill(); break;
+      case 'soundwave': {
+        c.rotate(ang);
+        c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#ff3d9a', 0, 0, p.r * 2.4, 0.5); c.globalCompositeOperation = 'source-over';
+        for (let i = 0; i < 3; i++) {
+          const rr = p.r * (0.55 + i * 0.4) * (1 + p.age * 0.8);
+          c.strokeStyle = rgba(i % 2 ? '#ff3d9a' : '#b9a8ff', 0.95 - i * 0.22); c.lineWidth = 4 - i;
+          c.beginPath(); c.arc(-i * 6, 0, rr, -0.9, 0.9); c.stroke();
+        }
+        c.rotate(-ang);
+        c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(-6, 6, 5, 3.6, -0.4, 0, TAU); c.fill();
+        c.fillRect(-2, -12, 2.4, 18); c.fillRect(-2, -12, 8, 2.6);
+        break;
+      }
       case 'voidorb':
         c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#7a4ae0', 0, 0, p.r * 3.6, 0.9); c.globalCompositeOperation = 'source-over';
         c.fillStyle = '#0b0614'; c.beginPath(); c.arc(0, 0, p.r * 0.75, 0, TAU); c.fill();
@@ -2965,6 +3269,16 @@ const Game = (() => {
       c.strokeStyle = 'rgba(228,220,255,0.8)'; c.lineWidth = 2;
       for (let i = 0; i < 3; i++) { const u = ((time * 0.6 + i / 3) % 1); c.globalAlpha = 1 - u; c.beginPath(); c.arc(z.x, z.y, z.r * grow * u, 0, TAU); c.stroke(); }
       c.globalAlpha = 1;
+      return;
+    }
+    if (z.style === 'quicksand') {
+      if (!back) return;
+      const r = z.r * grow;
+      const g = c.createRadialGradient(z.x, z.y, 0, z.x, z.y, r);
+      g.addColorStop(0, 'rgba(120,80,30,0.85)'); g.addColorStop(0.6, 'rgba(194,144,47,0.7)'); g.addColorStop(1, 'rgba(242,210,139,0)');
+      c.fillStyle = g; c.beginPath(); c.ellipse(z.x, z.y + 2, r, 14, 0, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(255,236,190,0.6)'; c.lineWidth = 2;
+      for (let i = 0; i < 3; i++) { const u = (time * 0.8 + i / 3) % 1; c.beginPath(); c.ellipse(z.x, z.y + 2, r * (1 - u), 14 * (1 - u), 0, 0, TAU); c.stroke(); }
       return;
     }
     if (z.style === 'aura') {
@@ -3204,7 +3518,7 @@ const Game = (() => {
   return {
     dev, init, resize, update, render, start, quit, revive, idleScene, hud, hooks, setShift,
     press, release, setKey, setJoy, setDirAim, setMouse, selectSlot, cycleSlot,
-    startPreview, stopPreview, get previewing() { return !!preview; },
+    startPreview, stopPreview, get previewing() { return !!preview; }, endRhythm, get rhythm() { return rhythmFreeze; },
     setPreviewElement(id) { if (player && state === 'idle') { player.loadout = [id]; setPlayerElement(player, id, true); idleDemo.t = 0.3; } },
     get state() { return state; }, get mode() { return mode; }, get realmIdx() { return realmIdx; },
     get paused() { return paused; },

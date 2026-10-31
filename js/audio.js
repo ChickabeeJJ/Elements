@@ -224,8 +224,13 @@ const Sfx = (() => {
     }
   }
 
+  // Tempo: rhythm-game lane notes (a pentatonic chord per lane), misses and a closing chord
+  const LANE_NOTES = [523.25, 659.25, 783.99, 1046.5];
+  function note(lane, good = true) { if (!ensure()) return; if (good) { tone(LANE_NOTES[lane % 4], 0.22, 'triangle', 0.12, 1.0); tone(LANE_NOTES[lane % 4] * 2, 0.1, 'sine', 0.04, 1.0); } else noise(0.08, 0.08, 500, 'lowpass', 1); }
+  function chord(big = 1) { if (!ensure()) return; for (const [i, f] of [261.63, 329.63, 392, 523.25].entries()) tone(f, 0.9 * big, 'triangle', 0.1, 1.0, i * 0.03); noise(0.4, 0.12 * big, 300, 'lowpass', 1); }
+  function beat(accent) { if (!ensure()) return; tone(accent ? 120 : 95, 0.14, 'sine', accent ? 0.2 : 0.12, 0.45); noise(0.04, accent ? 0.05 : 0.03, 7000, 'highpass', 1); }
   return {
-    ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
+    beat, note, chord, ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
     telegraph, portal, ringout, swap, thud, zap, boom, hurt, kill, jump, pickup, beam, thunder, click,
     win, lose, unlock, denied, setRealm, setSfx, setMusic, setMusicPaused, setAdMuted, setPlatformMute, suspend,
   };

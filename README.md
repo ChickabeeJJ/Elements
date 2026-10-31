@@ -28,18 +28,18 @@ To play, serve the folder (for example `python3 -m http.server`) and open `index
 | Gravity | Gravity Hook (reels a foe in) | Anti-Grav Field: foes float helplessly | Collapse: slams airborne foes down, stuns the rest | 760 |
 | Echo | Sonic Clap (widening wave through everything) | Resonance: tag foes, then stun them | Rewind: snap back 1.5s, even out of a fall | 840 |
 | Dragon | Dragonfire (roaring flame burst) | Dragon Dive: leap and crash down in flame | Summon Dragon: a great golden dragon sweeps the arena | 1500 |
-| Sand | Sand Blast (3 slowing grit shots) | Dune Wave | Sandstorm: slowing zone | 110 |
-| Magma | Magma Fist (burning melee) | Lava Vents | Eruption: burning nova | 240 |
-| Smoke | Smoke Jab (fast melee) | Smoke Bomb: slowing cloud | Vanish: untouchable dash | 290 |
-| Spirit | Wisp (homing) | Phase: teleport burst | Spirit Bloom: heal | 350 |
-| Crimson | Crimson Lash (life-steal whip) | Hemorrhage: bleeding thorns | Crimson Nova: life-steal burst | 400 |
-| Plasma | Plasma Shot (piercing) | Arc Dash: stunning dash | Plasma Rain: 4 sky bolts | 430 |
-| Moon | Crescent Cut (melee) | Moon Disc: returning disc | Moonbeams: 3 sky beams | 580 |
-| Mirror | Glass Shards (ricochet) | Mirror Step: teleport burst | Mirror Shell: shield | 700 |
-| Phoenix | Flare Feathers (burning) | Rebirth: heal in flames | Firebird Dive | 1300 |
-| Cosmos | Star Lance (piercing) | Black Star: pulling zone | Supernova: huge nova | 1750 |
+| Sand | Sand Blast (3 slowing grit shots) | Dune Wave | Quicksand: foes sink, then a geyser launches them | 110 |
+| Magma | Magma Fist (burning melee) | Lava Floor: the whole island under your aim turns to lava | Eruption: burning nova | 240 |
+| Smoke | Smoke Jab (fast melee) | Smoke Bomb: foes inside lose track of you and wander | Backstab: appear behind a foe for a critical hit | 290 |
+| Spirit | Wisp (homing) | Spirit Link: chain 3 foes, damage to one is shared | Spirit Bloom: heal | 350 |
+| Crimson | Crimson Lash (life-steal whip) | Hemorrhage: bleeding thorns | Blood Pact: spend health for +50% damage and life steal | 400 |
+| Plasma | Plasma Shot (piercing) | Arc Dash: stunning dash | Tesla Coil: a turret that zaps foes | 430 |
+| Moon | Crescent Cut (melee) | Lunar Swap: trade places with a foe | Moonbeams: 3 sky beams | 580 |
+| Phoenix | Flare Feathers (burning) | Rebirth: heal, and rise from the void if you fall within 8s | Feather Storm: 12 feathers in every direction | 1300 |
+| Cosmos | Star Lance (piercing) | Event Horizon: pulls foes in, then detonates | Supernova: huge nova | 1750 |
+| Tempo | Sound Wave (piercing, staggers) | Grand Piano: drops a piano on your aim | Encore: time stops for a 15s four-lane rhythm game (keys 5 6 7 8 or tap); your hit rate becomes a sound blast on every foe | 1800 |
 
-Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements combo (each element's combos are shown in the Elements menu): **Shatter** (Rime → Stone), **Overload** (Tide → Storm), **Wildfire** (Thorn → Ember), **Ignite** (Venom → Ember), **Firestorm** (Ember/Dragon → Gale), **Resonate** (Storm/Echo → Steel), **Starfall** (Gravity → Arcane), **Prismatic** (Crystal → Radiance), **Eclipse** (Radiance → Void), **Singularity** (Void → Gravity), **Inferno** (Ember → Dragon), **Thunderwing** (Storm/Echo → Dragon), plus **Mudslide** (Tide → Sand), **Glassworks** (Sand/Smoke → Mirror), **Meltdown** (Venom/Crimson → Magma), **Ashes** (Ember/Magma/Dragon → Phoenix), **Smokescreen** (Radiance/Arcane → Smoke), **Haunt** (Smoke/Sand/Rime → Spirit), **Bloodlust** (Thorn/Spirit → Crimson), **Blood Moon** (Crimson/Venom → Moon), **Landslide** (Sand/Smoke → Stone), **Frostbite** (Rime → Crystal), **Conductor** (Tide → Plasma) and **Big Bang** (Gravity/Moon/Gale → Cosmos). Every element is part of at least two combos, and each element has a **Preview** in the Elements menu that plays its whole kit. Crystal, Radiance and Void hits leave a short mark (glint, dazzle, drain) that their partner cashes in.
+Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements combo (each element's combos are shown in the Elements menu): **Shatter** (Rime → Stone), **Overload** (Tide → Storm), **Wildfire** (Thorn → Ember), **Ignite** (Venom → Ember), **Firestorm** (Ember/Dragon → Gale), **Resonate** (Storm/Echo → Steel), **Starfall** (Gravity → Arcane), **Prismatic** (Crystal → Radiance), **Eclipse** (Radiance → Void), **Singularity** (Void → Gravity), **Inferno** (Ember → Dragon), **Thunderwing** (Storm/Echo → Dragon), plus **Mudslide** (Tide → Sand), **Harmony** (Echo/Plasma/Storm → Tempo), **Meltdown** (Venom/Crimson → Magma), **Ashes** (Ember/Magma/Dragon → Phoenix), **Smokescreen** (Radiance/Arcane, or any confused foe → Smoke), **Haunt** (Moon/Sand/Rime → Spirit), **Bloodlust** (Thorn/Sand → Crimson), **Blood Moon** (Crimson/Venom → Moon), **Landslide** (Sand/Smoke → Stone), **Frostbite** (Rime → Crystal), **Conductor** (Tide → Plasma) and **Big Bang** (Gravity/Moon/Gale → Cosmos). Every element is part of at least two combos, and each element has a **Preview** in the Elements menu that plays its whole kit. Crystal, Radiance and Void hits leave a short mark (glint, dazzle, drain) that their partner cashes in.
 
 ## Campaign and progression
 
