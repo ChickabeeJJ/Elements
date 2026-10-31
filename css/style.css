@@ -934,9 +934,9 @@ body.touch .sheet.result .payout {
   .codex-detail { position: sticky; top: 0; }
 }
 /* loadout picker: chosen slots stay pinned while the long list scrolls under them */
-.sheet.wide .lo-slots { position: sticky; top: -22px; z-index: 2; margin: -22px -24px 0; padding: 14px 24px 10px; background: #121620; box-shadow: 0 8px 12px -10px rgba(0, 0, 0, 0.6); }
+
 @media (min-width: 1000px) { .sheet.wide { width: min(900px, 100%); } .sheet.wide .picker { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
-@media (max-height: 560px) { .sheet.wide .lo-slots { top: -14px; margin: -14px -18px 0; padding: 10px 18px 8px; } }
+
 
 /* ------------------------------------------------ mobile controls: thumb arc
    Jump, power 1 and power 2 sit on one even arc around the big attack button,
@@ -1035,3 +1035,15 @@ body.touch .sheet-back { display: grid; position: sticky; top: 0; align-self: fl
 /* loadout slot labels: room for the full line height so nothing is clipped; tighter slots on PC */
 .lo-slot small { line-height: 1.35; padding-bottom: 1px; }
 body:not(.touch) .lo-slots { grid-template-columns: repeat(3, 100px); gap: 6px; }
+
+/* loadout header: title, back arrow and chosen slots pin together, so the title is never cut by scrolling */
+.lo-head { position: sticky; top: -22px; z-index: 2; margin: -22px -24px 0; padding: 18px 24px 10px; background: #121620; box-shadow: 0 8px 12px -10px rgba(0, 0, 0, 0.6), inset 0 3px 0 var(--acc); display: flex; flex-direction: column; gap: 10px; }
+.lo-head h2 { line-height: 1.15; }
+body.touch .lo-head .sheet-back { position: absolute; top: 14px; left: 18px; margin: 0; }
+@media (max-height: 560px) { .lo-head { top: -14px; margin: -14px -18px 0; padding: 12px 18px 8px; gap: 6px; } body.touch .lo-head .sheet-back { top: 10px; left: 14px; } }
+/* PC: the three chosen slots sit closer together */
+body:not(.touch) .lo-slots { grid-template-columns: repeat(3, 88px); gap: 4px; }
+
+/* touch controls: more room between the thumb buttons and between element tiles */
+body.touch { --og: clamp(13px, 3.6vh, 20px); }
+body.touch .dock { gap: 8px; }

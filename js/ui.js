@@ -168,9 +168,11 @@ const UI = (() => {
       const keep = drawn; drawn = true;
       applyAccentTheme(sel[0] || Save.loadout()[0]);
       modal(`
+        <div class="lo-head">
         <button type="button" class="round sheet-back" id="loBack" aria-label="Back"><span class="ic" data-icon="back"></span></button>
         <h2>YOUR ELEMENTS</h2>
         <div class="lo-slots">${[0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small></button>`).join('')}</div>
+        </div>
         <p class="hint">Pick up to three. You can swap between them in battle with 1, 2 and 3.</p>
         <div class="picker">${ELEMENTS.map(e => {
           const open = Save.elementOpen(e.id);
