@@ -12,6 +12,7 @@ const Rhythm = (() => {
   const KEYS = { Digit5: 0, Digit6: 1, Digit7: 2, Digit8: 3, Numpad5: 0, Numpad6: 1, Numpad7: 2, Numpad8: 3 };
   const LANE_COL = ['#7ad8ff', '#b9a8ff', '#ff7ad9', '#ffd36b'];
   let el = null, cv = null, ctx = null, active = false, notes = [], t = 0, last = 0, done = null;
+  let tip = -1, ghostTimes = [];   // spam warning: when it last appeared
   let hits = 0, ghosts = 0, units = 0, combo = 0, best = 0, held = [null, null, null, null], pointers = new Map(), pops = [], flashes = [0, 0, 0, 0], sparks = [], beatNo = -1, result = null;
 
   // random but fair chart: 16th grid at 150 BPM, no jacks faster than 0.2s, chords only on open lanes
@@ -80,7 +81,7 @@ const Rhythm = (() => {
     if (!el) build();
     notes = chart(); t = 0; last = performance.now(); done = cb;
     hits = 0; ghosts = 0; combo = 0; best = 0; pops = []; sparks = []; flashes = [0, 0, 0, 0]; beatNo = -1; result = null;
-    held = [null, null, null, null]; pointers.clear();
+    held = [null, null, null, null]; pointers.clear(); tip = -1; ghostTimes = [];
     units = notes.length + notes.filter(n => n.len).length;   // a hold counts its head and its tail
     active = true;
     el.classList.add('on');
@@ -107,7 +108,12 @@ const Rhythm = (() => {
     for (const n of notes) if (n.state === 'live' && n.lane === lane && Math.abs(n.at - now) <= WIN.good && (!hitNote || Math.abs(n.at - now) < Math.abs(hitNote.at - now))) hitNote = n;
     if (!hitNote) {
       // a tap with nothing to hit: spamming costs accuracy and the combo
-      if (now > 0 && now < SONG + 0.2) { ghosts++; combo = 0; pops.push({ lane, text: 'MISS', t: 0 }); Sfx.note(lane, false); }
+      if (now > 0 && now < SONG + 0.2) {
+        ghosts++; combo = 0; pops.push({ lane, text: 'MISS', t: 0 }); Sfx.note(lane, false);
+        // lots of stray taps in a short burst: show a gentle tip (at most every few seconds)
+        ghostTimes.push(now); ghostTimes = ghostTimes.filter(x => now - x < 2);
+        if (ghostTimes.length >= 5 && (tip < 0 || t - tip > 6)) { tip = t; ghostTimes = []; }
+      }
       return;
     }
     const j = judge(hitNote.at - now);
@@ -262,6 +268,17 @@ const Rhythm = (() => {
       ctx.font = `900 ${Math.round(Math.min(46, g.H * 0.08))}px Rubik, sans-serif`; ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.fillText(combo, cx, g.H * 0.36);
       ctx.font = '800 12px Rubik, sans-serif'; ctx.fillStyle = '#ff7ad9'; ctx.fillText('COMBO', cx, g.H * 0.36 + Math.min(30, g.H * 0.055));
+    }
+    // spam tip: fades in, holds, fades out
+    if (tip >= 0 && t - tip < 2.6) {
+      const k = t - tip, a = Math.min(1, k / 0.3, (2.6 - k) / 0.5);
+      ctx.globalAlpha = vis * a;
+      const msg = 'TAPPING AN EMPTY LANE COUNTS AS A MISS', yy = g.topY + 54 - (1 - Math.min(1, k / 0.3)) * 8;
+      ctx.font = '800 13px Rubik, sans-serif';
+      const tw = ctx.measureText(msg).width + 28;
+      ctx.fillStyle = 'rgba(14,12,26,0.88)'; roundRect(ctx, cx - tw / 2, yy - 15, tw, 30, 8); ctx.fill();
+      ctx.fillStyle = '#ffd36b'; ctx.fillText(msg, cx, yy + 1);
+      ctx.globalAlpha = vis;
     }
     // countdown
     if (s < 0) {
