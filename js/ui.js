@@ -52,6 +52,10 @@ const UI = (() => {
 
   /* ----------------------------------------------------------- screens */
   function show(name) {
+    if (document.body.classList.contains('previewing')) {   // leaving mid-preview
+      Game.stopPreview(); Game.hooks.onPreviewMove = null;
+      document.body.classList.remove('previewing'); $('previewBar').classList.add('hidden');
+    }
     current = name;
     for (const id of ['home', 'map', 'codex', 'forge']) $(id).classList.toggle('hidden', id !== name);
     $('hud').classList.toggle('hidden', name !== null);
@@ -224,7 +228,7 @@ const UI = (() => {
     const det = $('codexDetail');
     det.style.setProperty('--c', e.color);
     det.innerHTML = `
-      <div class="cd-head">${hex(e.id, open ? '' : 'locked')}<div><h3>${e.name.toUpperCase()}</h3><p>${e.blurb}</p></div></div>
+      <div class="cd-head">${hex(e.id, open ? '' : 'locked')}<div><h3>${e.name.toUpperCase()}</h3><p>${e.blurb}</p></div><button class="btn small preview-btn" id="previewEl"><span class="ic" data-icon="play"></span><b>PREVIEW</b></button></div>
       ${open ? '' : `<div class="buy-row"><p>Unlock ${e.name} with gems from battles, pickups and stage clears.</p><button class="btn${Save.data.essence >= e.price ? ' primary' : ''}" id="buyEl"><span class="ic" data-icon="gem"></span><b>UNLOCK · ${e.price}</b></button></div>`}
       <div class="moves">${e.moves.map((mv, i) => `
         <div class="move"${open ? '' : ' style="opacity:.5"'}>
@@ -243,6 +247,7 @@ const UI = (() => {
           </div>`).join('')}</div>`;
       })()}`;
     Icons.hydrate(det);
+    det.querySelector('#previewEl').onclick = () => { Sfx.click(); openPreview(e); };
     const buy = det.querySelector('#buyEl');
     if (buy) buy.onclick = () => {
       if (Save.buyElement(e.id)) {
@@ -252,6 +257,32 @@ const UI = (() => {
         show('codex'); renderCodex();
       } else { Sfx.denied(); toast(`NEED ${e.price - Save.data.essence} MORE GEMS`); }
     };
+  }
+
+  /* ------------------------------------------------------------ preview */
+  // watch an element's whole kit in action before buying or equipping it
+  function openPreview(e) {
+    const bar = $('previewBar');
+    bar.style.setProperty('--c', e.color);
+    bar.innerHTML = `<div class="pv-head">${hex(e.id)}<div><small>PREVIEW</small><b>${e.name.toUpperCase()}</b></div></div>
+      <div class="pv-moves">${e.moves.map((mv, i) => `<div class="pv-move" data-i="${i}"><span class="move-ic" style="--c:${e.color};--d:${e.deep}">${Icons.svg(mv.icon)}</span><div><b>${mv.name.toUpperCase()}</b><small>${i === 0 ? 'MAIN ATTACK' : 'POWER ' + i}</small></div></div>`).join('')}</div>
+      <button class="btn primary small" id="pvBack"><b>BACK</b></button>`;
+    Icons.hydrate(bar);
+    document.body.classList.add('previewing');
+    $('codex').classList.add('hidden');
+    bar.classList.remove('hidden');
+    Game.hooks.onPreviewMove = slot => bar.querySelectorAll('.pv-move').forEach(m => m.classList.toggle('on', +m.dataset.i === slot));
+    Game.startPreview(e.id);
+    $('pvBack').onclick = () => { Sfx.click(); closePreview(); };
+  }
+  function closePreview() {
+    if (!document.body.classList.contains('previewing')) return;
+    Game.stopPreview();
+    Game.hooks.onPreviewMove = null;
+    document.body.classList.remove('previewing');
+    $('previewBar').classList.add('hidden');
+    $('codex').classList.remove('hidden');
+    renderCodex();
   }
 
   /* -------------------------------------------------------------- forge */

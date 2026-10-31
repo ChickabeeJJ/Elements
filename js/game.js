@@ -139,7 +139,7 @@ const Game = (() => {
 
   /* menu backdrop: the hero shows off moves against a sparring dummy */
   function idleScene(r) {
-    state = 'idle'; mode = null; paused = false; run = null;
+    state = 'idle'; mode = null; paused = false; run = null; preview = null;
     setRealm(r);
     pStats = Save.playerStats();
     buildArena(arenaNamed('Crossing'));
@@ -2376,7 +2376,36 @@ const Game = (() => {
     updateCam(realDt, false);
   }
 
+  /* element preview: the hero runs through every move of an element against sparring dummies */
+  let preview = null;
+  const PREVIEW_SEQ = [0, 0, 1, 0, 2];
+  function startPreview(id) {
+    idleScene(realmIdx);
+    player.loadout = [id];
+    setPlayerElement(player, id, true);
+    const sp = islands[0];
+    for (const dx of [320, -230]) { const d = spawnEnemyAt({ type: 'grunt', element: realm.element, d: 0 }, sp.x + dx, sp.top, true); d.decor = true; d.facing = dx > 0 ? -1 : 1; }
+    preview = { el: id, i: 0, t: 0.7 };
+  }
+  function stopPreview() { preview = null; idleDemo.t = 0.6; }
+  function previewTick(dt) {
+    preview.t -= dt;
+    if (preview.t > 0 || !player || !player.canAct || player.action) return;
+    const slot = PREVIEW_SEQ[preview.i % PREVIEW_SEQ.length];
+    const mv = ELEMENT_BY_ID[preview.el].moves[slot];
+    const foes = enemies.filter(e => e.alive).sort((a, b) => Math.abs(a.root.x - player.root.x) - Math.abs(b.root.x - player.root.x));
+    const t = foes[0];
+    const tc = t ? t.chest() : { x: player.root.x + player.facing * 300, y: player.root.y - 80 };
+    for (const k in player.cds) player.cds[k] = 0;
+    player.facing = tc.x >= player.root.x ? 1 : -1;
+    if (!tryMove(player, mv, tc.x, tc.y)) { preview.t = 0.2; return; }
+    hooks.onPreviewMove && hooks.onPreviewMove(slot, preview.i % PREVIEW_SEQ.length);
+    preview.i++;
+    preview.t = slot === 0 ? 0.9 : 2.1;
+  }
+
   function demoTick(dt) {
+    if (preview) { previewTick(dt); return; }
     if (dev.noDemo) return;
     idleDemo.t -= dt;
     if (idleDemo.t > 0 || !player || !player.canAct) return;
@@ -3175,6 +3204,7 @@ const Game = (() => {
   return {
     dev, init, resize, update, render, start, quit, revive, idleScene, hud, hooks, setShift,
     press, release, setKey, setJoy, setDirAim, setMouse, selectSlot, cycleSlot,
+    startPreview, stopPreview, get previewing() { return !!preview; },
     setPreviewElement(id) { if (player && state === 'idle') { player.loadout = [id]; setPlayerElement(player, id, true); idleDemo.t = 0.3; } },
     get state() { return state; }, get mode() { return mode; }, get realmIdx() { return realmIdx; },
     get paused() { return paused; },

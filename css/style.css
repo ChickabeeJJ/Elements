@@ -951,3 +951,40 @@ body.touch .dock { top: auto; right: calc(14px + var(--safe-r)); bottom: calc(14
 body.touch .dock-slot .hex { width: var(--hx); height: var(--hx); }
 /* power cooldown numbers read clearly over the badge */
 body.touch .orb.cooling .cd-num { background: rgba(8, 10, 16, 0.55); border-radius: 50%; width: 64%; height: 64%; display: grid; place-items: center; }
+
+/* ------------------------------------------------------- element preview */
+.cd-head > div { flex: 1; min-width: 0; }
+.preview-btn { flex: none; flex-direction: row; gap: 6px; align-self: center; }
+.preview-btn .ic { width: 14px; height: 14px; }
+.preview-bar { --c: #fff; position: fixed; left: 50%; bottom: calc(16px + var(--safe-b)); transform: translateX(-50%); z-index: 20; zoom: var(--ui);
+  display: flex; align-items: center; gap: 14px; padding: 10px 12px 10px 10px; max-width: calc(100vw - 24px); clip-path: var(--cut-m); background: rgba(13, 15, 23, 0.92); box-shadow: inset 0 3px 0 var(--c); animation: fade 0.2s ease; }
+.pv-head { display: flex; align-items: center; gap: 10px; flex: none; }
+.pv-head .hex { width: 44px; height: 44px; }
+.pv-head small { display: block; font-weight: 800; font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
+.pv-head b { display: block; font-weight: 900; font-size: 18px; letter-spacing: 0.03em; color: var(--c); white-space: nowrap; }
+.pv-moves { display: flex; gap: 6px; min-width: 0; }
+.pv-move { display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 5px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); opacity: 0.55; transition: opacity 0.15s, background 0.15s, box-shadow 0.15s; min-width: 0; }
+.pv-move .move-ic { width: 34px; height: 34px; border-radius: 8px; }
+.pv-move b { display: block; font-weight: 800; font-size: 12px; letter-spacing: 0.03em; white-space: nowrap; }
+.pv-move small { display: block; font-weight: 700; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.pv-move.on { opacity: 1; background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 2px var(--c); }
+@media (max-width: 760px), (max-height: 560px) {
+  .preview-bar { gap: 8px; padding: 7px 8px 7px 7px; bottom: calc(10px + var(--safe-b)); }
+  .pv-head .hex { width: 36px; height: 36px; }
+  .pv-head b { font-size: 15px; }
+  .pv-move { padding: 4px 7px 4px 4px; gap: 6px; }
+  .pv-move .move-ic { width: 28px; height: 28px; }
+  .pv-move small { display: none; }
+  .pv-move b { font-size: 11px; }
+}
+@media (max-width: 600px) { .pv-head > div { display: none; } }
+
+/* ------------------------------------------------ HUD: roomier panels */
+.stage-chip { padding: 8px 18px 8px 8px; gap: 12px; }
+.dock { padding: 9px; gap: 7px; }
+@media (max-height: 560px) { .stage-chip { padding: 6px 15px 6px 6px; } }
+
+/* mobile: element dock sits top right beside pause; buttons 5% smaller */
+body.touch { --ob: clamp(56px, 14.1vh, 80px); --om: clamp(84px, 21.95vh, 122px); }
+body.touch .dock { top: calc(12px + var(--safe-t)); bottom: auto; right: calc(14px + var(--safe-r) + 44px + 8px); padding: 7px; gap: 6px; }
+@media (max-height: 560px) { body.touch .dock { right: calc(14px + var(--safe-r) + 38px + 8px); } }
