@@ -1722,7 +1722,13 @@ const Game = (() => {
     links = live;
     for (const pn of pianos) {
       pn.t += dt;
-      if (pn.landed) continue;
+      if (pn.landed) {
+        for (const d of pn.debris || []) {
+          d.vy += 2600 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.rot += d.vr * dt;
+          if (!d.bounced && pn.ground != null && d.vy > 0 && d.y >= pn.ground - 8 && Math.abs(d.x - pn.x) < 400) { d.bounced = true; d.y = pn.ground - 8; d.vy *= -0.35; d.vx *= 0.6; d.vr *= 0.5; }
+        }
+        continue;
+      }
       pn.vy += 3400 * dt; pn.y += pn.vy * dt;
       let hit = null;
       for (const t of opponents(pn.owner)) { if (!t.alive || blocked(t)) continue; const h = t.pts[P.HEAD]; if (Math.abs(h.x - pn.x) < pn.mv.radius * 0.8 && pn.y > h.y - 10 && pn.y < h.y + 80) { hit = t; break; } }
@@ -1735,12 +1741,19 @@ const Game = (() => {
           if (Math.abs(c.x - pn.x) > pn.mv.radius + 30 * t.s || c.y < pn.y - 220 || c.y > pn.y + 60) continue;
           applyHit(pn.owner, t, { mv: pn.mv, el: pn.el, dmg: pn.mv.dmg, knock: pn.mv.knock, lift: pn.mv.lift, dirX: Math.sign(c.x - pn.x) || 1, dirY: 0.3, idx: P.HEAD, px: c.x, py: c.y });
         }
-        fx.chunks(pn.x, pn.y - 20, '#1c1a22', 20, 520, 10); fx.chunks(pn.x, pn.y - 20, '#f4f1ea', 10, 420, 6);
+        // burst apart: every part flies off on its own, lighter parts further
+        pn.debris = PIANO_PARTS.map(part => {
+          const ox = part.cx * PIANO_SCALE, oy = part.cy * PIANO_SCALE;
+          const dir = Math.sign(ox) || (Math.random() < 0.5 ? -1 : 1);
+          return { part, x: pn.x + ox, y: pn.y + oy, vx: (dir * rand(140, 360) + ox * 2.2) * part.w, vy: -rand(380, 760) * part.w, rot: pn.rot, vr: rand(-9, 9) * part.w, bounced: false };
+        });
+        for (let k = 0; k < 14; k++) fx.add({ kind: 'chunk', x: pn.x - 100 + rand(-10, 10), y: pn.y - 55, vx: rand(-320, 120), vy: -rand(250, 600), g: 1500, vr: rand(-12, 12), color: k % 3 ? '#f6f2e8' : '#0b0a10', size: rand(3, 5), life: rand(0.6, 1), add: false });
+        fx.chunks(pn.x, pn.y - 30, '#1c1a22', 12, 420, 7);
         for (let i = 0; i < 10; i++) fx.add({ kind: 'star', x: pn.x + rand(-60, 60), y: pn.y - rand(20, 80), vx: rand(-200, 200), vy: -rand(200, 500), g: 900, vr: rand(-8, 8), color: pick(['#b9a8ff', '#ff3d9a', '#ffffff']), size: rand(5, 8), life: 0.8, add: true });
         shake = Math.max(shake, 16); Sfx.chord(1); Sfx.boom(1.1);
       }
     }
-    pianos = pianos.filter(pn => (pn.landed ? pn.t < 0.9 : pn.y < view.y0 + view.h + 300));
+    pianos = pianos.filter(pn => (pn.landed ? pn.t < 1.6 : pn.y < view.y0 + view.h + 300));
   }
 
   function updateSpecials(dt) {
@@ -2224,45 +2237,47 @@ const Game = (() => {
     }
     for (const pn of pianos) {
       if (!pn.landed && pn.ground != null) { c.fillStyle = 'rgba(0,0,0,0.3)'; const k = clamp(1 - (pn.ground - pn.y) / 900, 0.2, 1); c.beginPath(); c.ellipse(pn.x, pn.ground, 80 * k, 9 * k, 0, 0, TAU); c.fill(); }
-      c.save(); c.translate(pn.x, pn.y); c.rotate(pn.rot); c.globalAlpha = pn.landed ? clamp(1 - (pn.t - 0.5) / 0.4, 0, 1) : 1;
+      if (pn.landed) {
+        const a = clamp(1 - (pn.t - 1.1) / 0.5, 0, 1);
+        for (const d of pn.debris || []) { c.save(); c.globalAlpha = a; c.translate(d.x, d.y); c.rotate(d.rot); drawPianoPart(c, d.part); c.restore(); }
+        continue;
+      }
+      c.save(); c.translate(pn.x, pn.y); c.rotate(pn.rot);
       drawPiano(c);
       c.restore();
     }
   }
   // a side-on grand piano, origin at the floor under its centre; every part overlaps the
   // part it hangs from so the silhouette reads as one solid instrument
+  // the piano is a set of parts; each draws around its own centre (cx, cy in piano space)
+  const P_BODY = '#17151f', P_LID = '#2a2636', P_GOLD = '#d9b25a';
+  const PIANO_PARTS = [
+    { cx: -66, cy: -22, w: 1.0, draw(c) { c.fillStyle = P_BODY; c.beginPath(); c.moveTo(-73, -38); c.lineTo(-59, -38); c.lineTo(-61, -6); c.lineTo(-71, -6); c.closePath(); c.fill(); c.fillStyle = P_GOLD; c.beginPath(); c.arc(-66, -4, 4, 0, TAU); c.fill(); } },
+    { cx: 66, cy: -22, w: 1.0, draw(c) { c.fillStyle = P_BODY; c.beginPath(); c.moveTo(59, -38); c.lineTo(73, -38); c.lineTo(71, -6); c.lineTo(61, -6); c.closePath(); c.fill(); c.fillStyle = P_GOLD; c.beginPath(); c.arc(66, -4, 4, 0, TAU); c.fill(); } },
+    { cx: -20, cy: -22, w: 1.0, draw(c) { c.fillStyle = P_BODY; c.beginPath(); c.moveTo(-34, -38); c.lineTo(-28, -38); c.lineTo(-26, -12); c.lineTo(-14, -12); c.lineTo(-12, -38); c.lineTo(-6, -38); c.lineTo(-8, -6); c.lineTo(-32, -6); c.closePath(); c.fill(); c.fillStyle = P_GOLD; c.fillRect(-29, -8, 4, 3); c.fillRect(-22, -8, 4, 3); c.fillRect(-15, -8, 4, 3); } },
+    { cx: 12, cy: -90, w: 0.6, draw(c) { c.fillStyle = P_LID; c.beginPath(); c.moveTo(-70, -62); c.lineTo(84, -120); c.quadraticCurveTo(96, -122, 95, -110); c.lineTo(-58, -62); c.closePath(); c.fill(); } },
+    { cx: 34, cy: -80, w: 1.4, draw(c) { c.fillStyle = P_BODY; c.fillRect(32, -100, 4, 40); } },
+    { cx: -66, cy: -72, w: 1.3, draw(c) { c.fillStyle = P_BODY; c.beginPath(); c.moveTo(-74, -61); c.lineTo(-64, -84); c.lineTo(-58, -84); c.lineTo(-66, -61); c.closePath(); c.fill(); } },
+    { cx: 5, cy: -49, w: 0.35, draw(c) {
+      const g = c.createLinearGradient(0, -64, 0, -34); g.addColorStop(0, '#2e2a3a'); g.addColorStop(1, '#100f16');
+      c.fillStyle = g; c.beginPath(); c.moveTo(-82, -64); c.lineTo(62, -64); c.bezierCurveTo(90, -64, 96, -54, 92, -44); c.quadraticCurveTo(88, -34, 72, -34); c.lineTo(-82, -34); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(-80, -62, 140, 2); c.fillStyle = P_GOLD; c.fillRect(-80, -39, 150, 1.4);
+    } },
+    { cx: -91, cy: -47, w: 1.2, draw(c) { c.fillStyle = P_BODY; c.fillRect(-104, -54, 26, 14); c.fillStyle = '#f6f2e8'; c.fillRect(-102, -52, 20, 6); c.fillStyle = '#0b0a10'; for (let k = 0; k < 4; k++) c.fillRect(-100 + k * 5, -52, 2.2, 3.6); } },
+  ];
+  const PIANO_SCALE = 1.15;
+  // a whole grand piano, origin at the floor under its centre
   function drawPiano(c) {
-    c.save(); c.scale(1.15, 1.15);
-    const body = '#17151f', lid = '#2a2636', gold = '#d9b25a';
-    // legs with brass casters, rooted inside the case bottom
-    for (const lx of [-66, 66]) {
-      c.fillStyle = body;
-      c.beginPath(); c.moveTo(lx - 7, -38); c.lineTo(lx + 7, -38); c.lineTo(lx + 5, -6); c.lineTo(lx - 5, -6); c.closePath(); c.fill();
-      c.fillStyle = gold; c.beginPath(); c.arc(lx, -4, 4, 0, TAU); c.fill();
-    }
-    // pedal lyre under the keyboard end
-    c.fillStyle = body;
-    c.beginPath(); c.moveTo(-34, -38); c.lineTo(-28, -38); c.lineTo(-26, -12); c.lineTo(-14, -12); c.lineTo(-12, -38); c.lineTo(-6, -38); c.lineTo(-8, -6); c.lineTo(-32, -6); c.closePath(); c.fill();
-    c.fillStyle = gold; c.fillRect(-29, -8, 4, 3); c.fillRect(-22, -8, 4, 3); c.fillRect(-15, -8, 4, 3);
-    // lid on its hinge, and the prop stick holding it open
-    c.fillStyle = lid;
-    c.beginPath(); c.moveTo(-70, -62); c.lineTo(84, -120); c.quadraticCurveTo(96, -122, 95, -110); c.lineTo(-58, -62); c.closePath(); c.fill();
-    c.fillStyle = body; c.fillRect(32, -100, 4, 40);
-    // music stand
-    c.beginPath(); c.moveTo(-74, -61); c.lineTo(-64, -84); c.lineTo(-58, -84); c.lineTo(-66, -61); c.closePath(); c.fill();
-    // the case: straight bass side, curved tail, lit from above
-    const g = c.createLinearGradient(0, -64, 0, -34);
-    g.addColorStop(0, '#2e2a3a'); g.addColorStop(1, '#100f16');
-    c.fillStyle = g;
-    c.beginPath(); c.moveTo(-82, -64); c.lineTo(62, -64); c.bezierCurveTo(90, -64, 96, -54, 92, -44); c.quadraticCurveTo(88, -34, 72, -34); c.lineTo(-82, -34); c.closePath(); c.fill();
-    c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(-80, -62, 140, 2);
-    c.fillStyle = gold; c.fillRect(-80, -39, 150, 1.4);
-    // keybed and keyboard, set into the front of the case
-    c.fillStyle = body; c.fillRect(-104, -54, 26, 14);
-    c.fillStyle = '#f6f2e8'; c.fillRect(-102, -52, 20, 6);
-    c.fillStyle = '#0b0a10'; for (let k = 0; k < 4; k++) c.fillRect(-100 + k * 5, -52, 2.2, 3.6);
+    c.save(); c.scale(PIANO_SCALE, PIANO_SCALE);
+    // back to front: legs and lyre, lid and stick, stand, case, keyboard
+    for (const i of [0, 1, 2, 3, 4, 5, 6, 7]) PIANO_PARTS[i].draw(c);
     c.restore();
   }
+  // one loose piece, drawn about its own centre
+  function drawPianoPart(c, part) {
+    c.save(); c.scale(PIANO_SCALE, PIANO_SCALE); c.translate(-part.cx, -part.cy); part.draw(c); c.restore();
+  }
+
 
 
 
