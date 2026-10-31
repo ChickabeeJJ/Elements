@@ -1195,6 +1195,7 @@ const Game = (() => {
     if (COMBO_MARKS[o.el] && t.alive) st[COMBO_MARKS[o.el]] = 2.5;
     if (mv.poison) { st.poison = Math.max(st.poison, mv.poison.dur); st.poisonDps = mv.poison.dps * (att && att.isPlayer ? pStats.dmgMul : 0.62); }
     if (mv.chill) st.chill = Math.max(st.chill, mv.chill);
+    if (mv.sink) st.sink = Math.max(st.sink, mv.sink);
     if (mv.stitch && t !== att) {
       t.stitches = (t.stitches || 0) + 1;
       if (t.stitches >= mv.stitch) { t.stitches = 0; st.root = Math.max(st.root, 1.2 * bossy); fx.text(o.px, o.py - 70, 'STITCHED!', '#f0d2a8', 18, { dur: 0.7 }); }

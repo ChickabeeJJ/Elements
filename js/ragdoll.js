@@ -56,7 +56,7 @@ class Fighter {
     this.input = { x: 0 };
     this.action = null;
     this.cds = {};
-    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0, glint: 0, dazzle: 0, drain: 0, confuse: 0, fear: 0, gilded: 0 };
+    this.status = { burn: 0, burnDps: 0, poison: 0, poisonDps: 0, freeze: 0, chill: 0, soak: 0, root: 0, shock: 0, glint: 0, dazzle: 0, drain: 0, confuse: 0, fear: 0, gilded: 0, sink: 0 };
     this.shield = 0; this.shieldT = 0;
     this.regen = 0; this.regenT = 0;
     this.invuln = 0;
@@ -159,7 +159,7 @@ class Fighter {
   /* ------------------------------------------------------------ update */
   update(dt, plats, forces) {
     const st = this.status;
-    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock', 'glint', 'dazzle', 'drain', 'confuse', 'fear', 'gilded']) st[k] = Math.max(0, st[k] - dt);
+    for (const k of ['burn', 'poison', 'chill', 'soak', 'root', 'shock', 'glint', 'dazzle', 'drain', 'confuse', 'fear', 'gilded', 'sink']) st[k] = Math.max(0, st[k] - dt);
     if (st.freeze > 0) st.freeze = Math.max(0, st.freeze - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.flash = Math.max(0, this.flash - dt * 4);
@@ -215,7 +215,7 @@ class Fighter {
       r.vx = this.dash.vx; r.vy = this.dash.vy;
       if (this.dash.t <= 0) { r.vx *= 0.35; r.vy = Math.min(r.vy, 0) * 0.3; this.dash = null; }
     } else {
-      let want = control && st.root <= 0 && !(this.action && this.action.lock) ? this.input.x * this.speed * (st.chill > 0 ? 0.55 : 1) : 0;
+      let want = control && st.root <= 0 && !(this.action && this.action.lock) ? this.input.x * this.speed * (st.chill > 0 ? 0.55 : 1) * (st.sink > 0 ? 0.4 : 1) : 0;
       if (this.action && !this.action.lock) want *= 0.45;
       let acc = r.grounded ? 14 : 6;
       if (this.knockT > 0) acc *= 0.15;
@@ -733,6 +733,26 @@ class Fighter {
       ctx.globalAlpha = fade;
     }
     // root: thorny vines coiling up the legs
+    // sink (Sand): a mound of sand swallowing the feet, grains trickling off the shins
+    if (st.sink > 0) {
+      const a = fade * Math.min(1, st.sink * 3);
+      const ff = pts[P.FFOOT], bf = pts[P.BFOOT], fk = pts[P.FKNEE], bk = pts[P.BKNEE];
+      const gx = (ff.x + bf.x) / 2, gy = Math.max(ff.y, bf.y) + 2 * s, wdt = Math.abs(ff.x - bf.x) / 2 + 28 * s;
+      const hgt = (Math.max(ff.y, bf.y) - Math.min(fk.y, bk.y)) * 0.95;
+      ctx.globalAlpha = a * 0.5;
+      for (const [k, f] of [[P.FKNEE, P.FFOOT], [P.BKNEE, P.BFOOT]]) seg(k, f, 3, '#c2902f');   // sand-caked shins
+      ctx.globalAlpha = a;
+      const g = ctx.createLinearGradient(0, gy - hgt, 0, gy);
+      g.addColorStop(0, '#f2d28b'); g.addColorStop(1, '#b07f2a');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(gx - wdt, gy);
+      ctx.quadraticCurveTo(gx - wdt * 0.6, gy - hgt * 0.9, gx, gy - hgt);
+      ctx.quadraticCurveTo(gx + wdt * 0.6, gy - hgt * 0.9, gx + wdt, gy);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8c070';
+      for (let i = 0; i < 4; i++) { const u = (time * 1.5 + i * 0.25) % 1, x = gx + (i - 1.5) * wdt * 0.45; ctx.globalAlpha = a * (1 - u); ctx.fillRect(x, gy - hgt * (1 - u * 0.8) , 2 * s, 2 * s); }
+      ctx.globalAlpha = fade;
+    }
     if (st.root > 0) {
       ctx.globalAlpha = fade * Math.min(1, st.root * 3);
       for (const [a, b] of [[P.FKNEE, P.FFOOT], [P.BKNEE, P.BFOOT]]) {
