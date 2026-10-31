@@ -1031,3 +1031,7 @@ body.touch .sheet-back { display: grid; position: sticky; top: 0; align-self: fl
 /* realm tabs: centred when they fit, still scroll from the first tab when they don't */
 .seg > :first-child { margin-left: auto; }
 .seg > :last-child { margin-right: auto; }
+
+/* loadout slot labels: room for the full line height so nothing is clipped; tighter slots on PC */
+.lo-slot small { line-height: 1.35; padding-bottom: 1px; }
+body:not(.touch) .lo-slots { grid-template-columns: repeat(3, 100px); gap: 6px; }
