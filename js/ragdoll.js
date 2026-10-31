@@ -620,8 +620,10 @@ class Fighter {
     if (this.cape) this.drawCape(ctx);
 
     const fl = this.flash;
-    const body = fl > 0 ? mixHex(this.body, '#ffffff', fl) : this.body;
-    const shade = fl > 0 ? mixHex(this.shade, '#ffffff', fl) : this.shade;
+    const stopped = this.stopT > 0;   // Chrono's Time Stop: drained of all colour
+    const baseBody = stopped ? '#a3a3ab' : this.body, baseShade = stopped ? '#86868e' : this.shade;
+    const body = fl > 0 ? mixHex(baseBody, '#ffffff', fl) : baseBody;
+    const shade = fl > 0 ? mixHex(baseShade, '#ffffff', fl) : baseShade;
     const seg = (a, b, w, col) => {
       ctx.strokeStyle = col; ctx.lineWidth = w * s;
       ctx.beginPath(); ctx.moveTo(pts[a].x, pts[a].y); ctx.lineTo(pts[b].x, pts[b].y); ctx.stroke();
@@ -644,7 +646,7 @@ class Fighter {
       ctx.lineTo(x2, y2);
       ctx.stroke();
     };
-    const bandColor = this.el === 'none' ? '#aeb8c8' : this.accent;
+    const bandColor = this.stopT > 0 ? '#b8b8c0' : this.el === 'none' ? '#aeb8c8' : (this.stopT > 0 ? '#b8b8c0' : this.accent);
     cuff(P.BELB, P.BHAND, bandColor);
     // Small rounded hand endpoints clarify where the rear arms finish.
     ctx.fillStyle = shade;
@@ -667,7 +669,7 @@ class Fighter {
     ctx.beginPath(); ctx.arc(pts[P.FHAND].x, pts[P.FHAND].y, 5.8 * s, 0, TAU); ctx.fill();
     if (this.isPlayer && this.alive && this.el !== 'none') {
       ctx.globalCompositeOperation = 'lighter';
-      Glow.draw(ctx, AURA[this.el], pts[P.FHAND].x, pts[P.FHAND].y, 16 * s, 0.55);
+      if (!(this.stopT > 0)) Glow.draw(ctx, AURA[this.el], pts[P.FHAND].x, pts[P.FHAND].y, 16 * s, 0.55);
       ctx.globalCompositeOperation = 'source-over';
     }
 
@@ -710,7 +712,7 @@ class Fighter {
       }
     }
     // freeze: faceted ice shell around the whole body
-    if (st.freeze > 0) {
+    if (st.freeze > 0 && !(this.stopT > 0)) {
       const a = fade * clamp(st.freeze * 2, 0, 1);
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       for (const q of pts) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
@@ -824,9 +826,9 @@ class Fighter {
     const s = this.s, f = this.facing, hr = HEAD_R * s;
     if (this.isPlayer) {
       // wrapped band in the element colour with two trailing tails
-      ctx.fillStyle = this.accent;
+      ctx.fillStyle = (this.stopT > 0 ? '#b8b8c0' : this.accent);
       ctx.fillRect(hd.x - hr, hd.y - hr * 0.55, hr * 2, 5 * s);
-      ctx.strokeStyle = this.accent; ctx.lineWidth = 3.5 * s; ctx.lineCap = 'round';
+      ctx.strokeStyle = (this.stopT > 0 ? '#b8b8c0' : this.accent); ctx.lineWidth = 3.5 * s; ctx.lineCap = 'round';
       const wave = Math.sin(time * 6 + this.t) * 3 * s;
       ctx.beginPath();
       ctx.moveTo(hd.x - f * hr, hd.y - hr * 0.45);
@@ -846,7 +848,7 @@ class Fighter {
     }
     if (this.kind === 'boss') {
       // tall element-coloured crest rising from the helmet
-      ctx.fillStyle = this.accent;
+      ctx.fillStyle = (this.stopT > 0 ? '#b8b8c0' : this.accent);
       const by = hd.y - hr * 1.1;
       ctx.beginPath();
       ctx.moveTo(hd.x - 6 * s, by);
@@ -861,17 +863,17 @@ class Fighter {
       ctx.quadraticCurveTo(hd.x - hr * 0.4, hd.y - hr * 1.8, hd.x - f * hr * 0.9, hd.y - hr * 2.4);
       ctx.quadraticCurveTo(hd.x + hr * 0.6, hd.y - hr * 1.2, hd.x + hr + 3 * s, hd.y + hr * 0.4);
       ctx.closePath(); ctx.fill();
-      ctx.fillStyle = this.accent;
+      ctx.fillStyle = (this.stopT > 0 ? '#b8b8c0' : this.accent);
       ctx.fillRect(hd.x - hr - 1 * s, hd.y - hr * 0.1, hr * 2 + 2 * s, 3.5 * s);
     } else if (this.kind === 'grunt') {
-      ctx.fillStyle = this.accent;
+      ctx.fillStyle = (this.stopT > 0 ? '#b8b8c0' : this.accent);
       ctx.fillRect(hd.x - hr, hd.y - hr * 0.55, hr * 2, 5 * s);
     }
   }
 
   drawCape(ctx) {
     const c = this.cape;
-    ctx.fillStyle = this.capeColor || this.accent;
+    ctx.fillStyle = this.capeColor || (this.stopT > 0 ? '#b8b8c0' : this.accent);
     ctx.beginPath();
     const w0 = 8 * this.s;
     const left = [], right = [];

@@ -252,7 +252,7 @@ const ELEMENTS = [
   /* ------------------------------------------------ twenty newer elements */
   {
     id: 'sand', name: 'Sand', color: '#f2d28b', deep: '#c2902f', price: 110,
-    blurb: 'Gritty blasts, rolling dunes and a storm that slows everything caught in it.',
+    blurb: 'Gritty blasts, a burrow under the island and quicksand that swallows foes then spits them skyward.',
     moves: [
       { slot: 'main', id: 'sand_blast', name: 'Sand Blast', type: 'ranged', icon: 'grit', kind: 'projectile', pose: 'cast',
         desc: 'Fling a spray of grit that slows what it hits.', cd: 0.5, windup: 0.07, active: 0.05, recover: 0.15,
@@ -282,7 +282,7 @@ const ELEMENTS = [
   },
   {
     id: 'spirit', name: 'Spirit', color: '#b8f5ff', deep: '#4aa9c9', price: 350,
-    blurb: 'Seeking wisps, a phase step and a calming bloom of spirit light.',
+    blurb: 'Seeking wisps, a link that shares pain between foes, and a second life when you need it.',
     moves: [
       { slot: 'main', id: 'wisp', name: 'Wisp', type: 'ranged', icon: 'wisp', kind: 'projectile', pose: 'cast',
         desc: 'Release a wisp that homes in on the nearest foe.', cd: 0.5, windup: 0.08, active: 0.05, recover: 0.14,
@@ -297,7 +297,7 @@ const ELEMENTS = [
   },
   {
     id: 'crimson', name: 'Crimson', color: '#ff6f86', deep: '#a3173a', price: 400,
-    blurb: 'A life-stealing whip, bleeding thorns and a nova that feeds on every hit.',
+    blurb: 'A life-stealing whip, a transfusion that drains every foe nearby, and a blood pact for raw power.',
     moves: [
       { slot: 'main', id: 'crimson_lash', name: 'Crimson Lash', type: 'melee', icon: 'lash', kind: 'melee', pose: 'swing',
         desc: 'A long lash that heals you for a slice of the damage.', cd: 0.46, windup: 0.08, active: 0.12, recover: 0.14,
@@ -312,7 +312,7 @@ const ELEMENTS = [
   },
   {
     id: 'moon', name: 'Moon', color: '#dfe1ff', deep: '#6b6fd6', price: 580,
-    blurb: 'Crescent blades, a returning moon disc and moonbeams from the night sky.',
+    blurb: 'Crescent blades, a swap that trades places with a foe, and moon phases that hide, heal or blast.',
     moves: [
       { slot: 'main', id: 'crescent_cut', name: 'Crescent Cut', type: 'melee', icon: 'crescent', kind: 'melee', pose: 'swing',
         desc: 'A sweeping crescent slash.', cd: 0.42, windup: 0.07, active: 0.12, recover: 0.14,
@@ -326,7 +326,7 @@ const ELEMENTS = [
     ],
   },
   {
-    id: 'tempo', name: 'Tempo', color: '#b9a8ff', deep: '#ff3d9a', price: 1800,
+    id: 'tempo', name: 'Tempo', color: '#b9a8ff', deep: '#ff3d9a', price: 2500,
     blurb: 'Shoot sound waves, drop a grand piano on foes and play a rhythm game to unleash a song.',
     moves: [
       { slot: 'main', id: 'sound_wave', name: 'Sound Wave', type: 'ranged', icon: 'soundwave', kind: 'projectile', pose: 'cast',
@@ -397,8 +397,8 @@ const ELEMENTS = [
         desc: 'Speed up your own time for 5s: move 40% faster and every cooldown runs twice as fast.', cd: 13, windup: 0.05, active: 0.1, recover: 0.1,
         dur: 5, speed: 1.4 },
       { slot: 'p2', id: 'time_stop', name: 'Time Stop', type: 'power', icon: 'timestop', kind: 'timestop', pose: 'nova',
-        desc: 'Stop time for every foe nearby for 2.5s. Damage you deal is stored and lands all at once, 25% stronger, when time resumes.', cd: 14, windup: 0.2, active: 0.1, recover: 0.25,
-        radius: 650, dur: 2.5, bonus: 1.25 },
+        desc: 'Stop time for foes around you for 1.9s. Damage you deal is stored and lands all at once, 25% stronger, when time resumes.', cd: 14, windup: 0.2, active: 0.1, recover: 0.25,
+        radius: 420, dur: 1.9, bonus: 1.25 },
     ],
   },
   {
@@ -450,7 +450,7 @@ const ELEMENTS = [
     moves: [
       { slot: 'main', id: 'nail_gun', name: 'Nail Gun', type: 'ranged', icon: 'nailgun', kind: 'projectile', pose: 'cast',
         desc: 'Hold to spray nails very fast. Each nail is weak but they add up, and they jolt foes.', cd: 0.12, windup: 0.02, active: 0.03, recover: 0.04,
-        speed: 1600, grav: 120, radius: 5, dmg: 3, spread: 0.05, knock: 90, lift: 0.05, life: 0.7, shock: 0.06, style: 'nail' },
+        speed: 1600, grav: 120, radius: 5, dmg: 3, spread: 0.05, knock: 40, lift: 0.02, life: 0.7, shock: 0.06, style: 'nail' },
       { slot: 'p1', id: 'grapple', name: 'Grapple', type: 'power', icon: 'grapple', kind: 'grapple', pose: 'cast',
         desc: 'Fire a hook at your aim. It zips you to the island or foe it catches, kicking the foe on arrival.', cd: 4, windup: 0.06, active: 0.1, recover: 0.1,
         range: 720, speed: 1700, dmg: 12, knock: 520, lift: 0.4 },

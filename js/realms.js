@@ -174,7 +174,9 @@ function buildStage(r, s) {
   for (let w = 0; w < nW; w++) {
     const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);
     const wave = [];
-    for (let i = 0; i < n; i++) wave.push({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d });
+    // from Toxic Mire on, foes get sturdier and hit harder chapter by chapter
+    const tier = Math.max(0, r - 4);
+    for (let i = 0; i < n; i++) wave.push({ type: rollType(rng, r, s), element: rollElement(rng, realm, mix), d, hpMul: 1 + tier * 0.08, dmgBoost: 1 + tier * 0.07 });
     waves.push(capRoles(capElements(wave), realm));
   }
   return { realm: r, stage: s, arena, waves, d, boss: false };

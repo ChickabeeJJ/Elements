@@ -1002,3 +1002,6 @@ body.rhythm canvas#stage { cursor: default; }
 .seg::-webkit-scrollbar { display: none; }
 .seg button { flex: none; padding: 8px 10px; font-size: 11px; }
 .seg button { letter-spacing: 0.02em; padding: 8px 9px; }
+
+/* stage chip: no empty gap before the subtitle when there are no wave dots */
+.dots:empty { display: none; }

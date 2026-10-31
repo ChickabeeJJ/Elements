@@ -12,7 +12,7 @@ const Rhythm = (() => {
   const KEYS = { Digit5: 0, Digit6: 1, Digit7: 2, Digit8: 3, Numpad5: 0, Numpad6: 1, Numpad7: 2, Numpad8: 3 };
   const LANE_COL = ['#7ad8ff', '#b9a8ff', '#ff7ad9', '#ffd36b'];
   let el = null, cv = null, ctx = null, active = false, notes = [], t = 0, last = 0, done = null;
-  let hits = 0, combo = 0, best = 0, pops = [], flashes = [0, 0, 0, 0], sparks = [], beatNo = -1, result = null;
+  let hits = 0, ghosts = 0, units = 0, combo = 0, best = 0, held = [null, null, null, null], pointers = new Map(), pops = [], flashes = [0, 0, 0, 0], sparks = [], beatNo = -1, result = null;
 
   // random but fair chart: 16th grid at 150 BPM, no jacks faster than 0.2s, chords only on open lanes
   function chart() {
@@ -23,6 +23,12 @@ const Rhythm = (() => {
       const free = [0, 1, 2, 3].filter(l => tm - lastAt[l] >= 0.2 && l !== prev);
       if (r < 0.7 && free.length) {
         const l = free[Math.floor(Math.random() * free.length)];
+        // now and then a hold note: keep the lane pressed until its tail passes the line
+        if (Math.random() < 0.17 && tm < SONG - 1.5) {
+          const len = step * (2 + Math.floor(Math.random() * 3));
+          out.push({ lane: l, at: tm, len }); lastAt[l] = tm + len + 0.05; prev = l;
+          tm += step; continue;
+        }
         out.push({ lane: l, at: tm }); lastAt[l] = tm; prev = l;
         // a chord now and then (two lanes at once)
         const rest = free.filter(x => x !== l);
@@ -35,7 +41,10 @@ const Rhythm = (() => {
       }
       tm += step;
     }
-    return out.map(n => Object.assign(n, { state: 'live' }));
+    // a hold's lane stays clear while it is held
+    const holds = out.filter(n => n.len);
+    const clean = out.filter(n => n.len || !holds.some(h => h.lane === n.lane && n.at > h.at - 0.05 && n.at < h.at + h.len + 0.2));
+    return clean.sort((a, b) => a.at - b.at).map(n => Object.assign(n, { state: 'live' }));
   }
 
   function build() {
@@ -44,11 +53,18 @@ const Rhythm = (() => {
     el.innerHTML = '<canvas></canvas>';
     document.body.appendChild(el);
     cv = el.querySelector('canvas'); ctx = cv.getContext('2d');
-    el.addEventListener('pointerdown', e => { if (!active) return; e.preventDefault(); const l = laneAt(e.clientX); if (l >= 0) press(l); });
+    el.addEventListener('pointerdown', e => { if (!active) return; e.preventDefault(); const l = laneAt(e.clientX); if (l >= 0) { pointers.set(e.pointerId, l); press(l); } });
+    const up = e => { const l = pointers.get(e.pointerId); pointers.delete(e.pointerId); if (active && l != null && ![...pointers.values()].includes(l)) release(l); };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
     window.addEventListener('keydown', e => {
       if (!active || !(e.code in KEYS)) return;
       e.preventDefault(); e.stopImmediatePropagation();
       if (!e.repeat) press(KEYS[e.code]);
+    }, true);
+    window.addEventListener('keyup', e => {
+      if (!active || !(e.code in KEYS)) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      release(KEYS[e.code]);
     }, true);
   }
 
@@ -63,7 +79,9 @@ const Rhythm = (() => {
   function start(mv, cb) {
     if (!el) build();
     notes = chart(); t = 0; last = performance.now(); done = cb;
-    hits = 0; combo = 0; best = 0; pops = []; sparks = []; flashes = [0, 0, 0, 0]; beatNo = -1; result = null;
+    hits = 0; ghosts = 0; combo = 0; best = 0; pops = []; sparks = []; flashes = [0, 0, 0, 0]; beatNo = -1; result = null;
+    held = [null, null, null, null]; pointers.clear();
+    units = notes.length + notes.filter(n => n.len).length;   // a hold counts its head and its tail
     active = true;
     el.classList.add('on');
     document.body.classList.add('rhythm');
@@ -87,13 +105,24 @@ const Rhythm = (() => {
     const now = songT();
     let hitNote = null;
     for (const n of notes) if (n.state === 'live' && n.lane === lane && Math.abs(n.at - now) <= WIN.good && (!hitNote || Math.abs(n.at - now) < Math.abs(hitNote.at - now))) hitNote = n;
-    if (!hitNote) return;
+    if (!hitNote) {
+      // a tap with nothing to hit: spamming costs accuracy and the combo
+      if (now > 0 && now < SONG + 0.2) { ghosts++; combo = 0; pops.push({ lane, text: 'MISS', t: 0 }); Sfx.note(lane, false); }
+      return;
+    }
     const j = judge(hitNote.at - now);
-    hitNote.state = 'hit';
+    hitNote.state = hitNote.len ? 'holding' : 'hit';
+    if (hitNote.len) held[lane] = hitNote;
     hits++; combo++; bestCombo();
     pops.push({ lane, text: j, t: 0 });
     for (let i = 0; i < 8; i++) sparks.push({ lane, x: Math.random() - 0.5, vx: (Math.random() - 0.5) * 2, vy: -Math.random() * 1.2 - 0.4, t: 0 });
     Sfx.note(lane);
+  }
+  function release(lane) {
+    const n = held[lane];
+    held[lane] = null;
+    if (!n || n.state !== 'holding') return;
+    if (songT() < n.at + n.len - 0.1) { n.state = 'broken'; combo = 0; pops.push({ lane, text: 'MISS', t: 0 }); Sfx.note(lane, false); }
   }
   function bestCombo() { if (combo > best) best = combo; }
 
@@ -109,12 +138,17 @@ const Rhythm = (() => {
     const bn = Math.floor(s / 0.4);
     if (s >= 0 && s < SONG && bn !== beatNo) { beatNo = bn; Sfx.beat(bn % 4 === 0); }
     for (const n of notes) if (n.state === 'live' && s - n.at > WIN.good) { n.state = 'miss'; combo = 0; pops.push({ lane: n.lane, text: 'MISS', t: 0 }); Sfx.note(n.lane, false); }
+    for (const n of notes) if (n.state === 'holding') {
+      if (Math.random() < dt * 30) sparks.push({ lane: n.lane, x: Math.random() - 0.5, vx: (Math.random() - 0.5) * 1.5, vy: -Math.random() * 1.2 - 0.3, t: 0 });
+      flashes[n.lane] = Math.max(flashes[n.lane], 0.6);
+      if (s >= n.at + n.len) { n.state = 'hit'; held[n.lane] = null; hits++; combo++; bestCombo(); pops.push({ lane: n.lane, text: 'PERFECT', t: 0 }); Sfx.note(n.lane); }
+    }
     for (const p of pops) p.t += dt;
     pops = pops.filter(p => p.t < 0.5);
     for (const sp of sparks) sp.t += dt;
     sparks = sparks.filter(sp => sp.t < 0.45);
     for (let i = 0; i < 4; i++) flashes[i] = Math.max(0, flashes[i] - dt * 5);
-    if (!result && s > SONG + 0.25) { result = { pct: notes.length ? hits / notes.length : 0, t: 0 }; Sfx.chord(1); }
+    if (!result && s > SONG + 0.25) { result = { pct: units ? Math.min(1, hits / (units + ghosts)) : 0, t: 0 }; Sfx.chord(1); }
     if (result) {
       result.t += dt;
       if (result.t > OUTRO) { const pct = result.pct; abort(); done && done(pct); return; }
@@ -164,18 +198,28 @@ const Rhythm = (() => {
     ctx.beginPath(); ctx.moveTo(X(0, g.hitY), g.hitY); ctx.lineTo(X(4, g.hitY), g.hitY); ctx.stroke();
     ctx.shadowColor = '#ff3d9a'; ctx.shadowBlur = 16; ctx.stroke(); ctx.shadowBlur = 0;
     // notes
+    const yAt = when => g.topY + (g.hitY - g.topY) * (1 - (when - s) / TRAVEL);
     for (const n of notes) {
       if (n.state === 'hit') continue;
+      const x1 = X(n.lane + 0.08, 0), x2 = X(n.lane + 0.92, 0), h = 16;
+      if (n.len) {
+        // hold: a body from head to tail; while held the head sits on the line
+        const headY = n.state === 'holding' ? g.hitY : yAt(n.at), tailY = Math.max(g.topY, yAt(n.at + n.len));
+        if (tailY > g.H || headY < g.topY - 20) continue;
+        ctx.globalAlpha = vis * (n.state === 'miss' || n.state === 'broken' ? 0.3 : 1) * 0.5;
+        ctx.fillStyle = LANE_COL[n.lane];
+        roundRect(ctx, x1 + 10, tailY, x2 - x1 - 20, Math.max(0, headY - tailY), 6); ctx.fill();
+        ctx.globalAlpha = vis * (n.state === 'miss' || n.state === 'broken' ? 0.3 : 1);
+        roundRect(ctx, x1, tailY - h / 2, x2 - x1, h, h / 2); ctx.fill();
+        roundRect(ctx, x1, headY - h / 2, x2 - x1, h, h / 2); ctx.fill();
+        continue;
+      }
       const u = 1 - (n.at - s) / TRAVEL;
       if (u < 0 || u > 1.25) continue;
-      const y = g.topY + (g.hitY - g.topY) * u;
-      const p = persp(y), h = 16 * p, x1 = X(n.lane + 0.08, y), x2 = X(n.lane + 0.92, y);
+      const y = yAt(n.at);
       ctx.globalAlpha = vis * (n.state === 'miss' ? 0.3 : Math.min(1, u * 4));
-      const ng = ctx.createLinearGradient(x1, 0, x2, 0);
-      ng.addColorStop(0, LANE_COL[n.lane]); ng.addColorStop(1, '#ffffff');
-      ctx.fillStyle = ng;
+      ctx.fillStyle = LANE_COL[n.lane];
       roundRect(ctx, x1, y - h / 2, x2 - x1, h, h / 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.85)'; roundRect(ctx, x1 + 6 * p, y - h * 0.18, x2 - x1 - 12 * p, h * 0.22, 2); ctx.fill();
     }
     ctx.globalAlpha = vis;
     // sparks and judgements at the hit line
@@ -202,8 +246,8 @@ const Rhythm = (() => {
       }
     }
     // header: title, time bar, accuracy and combo
-    const judged = notes.filter(n => n.state !== 'live').length;
-    const pct = judged ? hits / judged : 1;
+    const judged = notes.filter(n => n.state !== 'live' && n.state !== 'holding').length + notes.filter(n => n.len && (n.state === 'hit' || n.state === 'broken' || n.state === 'miss')).length;
+    const pct = judged + ghosts ? Math.min(1, hits / (judged + ghosts)) : 1;
     ctx.font = '900 14px Rubik, sans-serif'; ctx.fillStyle = '#ffffff';
     ctx.fillText('ENCORE', cx, g.topY - 6 > 14 ? g.topY + 4 : 18);
     const bw = Math.min(g.width, 360), by = g.topY + 22;
@@ -236,7 +280,7 @@ const Rhythm = (() => {
       const shown = Math.round(result.pct * 100 * Math.min(1, result.t / 0.6));
       ctx.font = '900 54px Rubik, sans-serif'; ctx.fillStyle = '#ffffff'; ctx.fillText(shown + '%', 0, -14);
       ctx.font = '900 16px Rubik, sans-serif'; ctx.fillStyle = '#ffe066'; ctx.fillText(grade(result.pct), 0, 30);
-      ctx.font = '700 12px Rubik, sans-serif'; ctx.fillStyle = '#b9a8ff'; ctx.fillText(`BEST COMBO ${best} · ${hits}/${notes.length} NOTES`, 0, 52);
+      ctx.font = '700 12px Rubik, sans-serif'; ctx.fillStyle = '#b9a8ff'; ctx.fillText(`BEST COMBO ${best} · ${hits}/${units} NOTES`, 0, 52);
       ctx.restore();
     }
   }

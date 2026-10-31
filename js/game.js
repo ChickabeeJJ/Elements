@@ -252,6 +252,7 @@ const Game = (() => {
   function spawnEnemyAt(spec, x, y, instant, isl) {
     const T = ENEMY_TYPES[spec.type];
     const stats = enemyStats(spec.type, spec.d);
+    if (spec.dmgBoost) stats.dmgMul *= spec.dmgBoost;
     const [body, shade] = bodyColors(spec.element, spec.type);
     const f = new Fighter({
       x, y: instant ? y : y - 520, facing: player && x > player.root.x ? -1 : 1, scale: spec.scale || T.scale,
@@ -909,7 +910,8 @@ const Game = (() => {
         let total = 0;
         for (const t of foes) {
           const amt = t.hp * mv.pct * (t.kind === 'boss' ? 0.4 : 1);
-          t.hp -= amt; total += amt; t.flash = 1;
+          if (!t.dummy) t.hp -= amt;
+          total += amt; t.flash = 1;
           const tc = t.center();
           fx.arc(tc.x, tc.y, c.x, c.y, '#ff6f86', 0.35);
           for (let i = 0; i < 8; i++) { const u = Math.random(); fx.add({ kind: 'drop', x: lerp(tc.x, c.x, u), y: lerp(tc.y, c.y, u) + rand(-10, 10), vx: (c.x - tc.x) * 1.5, vy: (c.y - tc.y) * 1.5, color: '#ff6f86', size: rand(3, 5), life: 0.3, add: false }); }
@@ -1176,6 +1178,7 @@ const Game = (() => {
       return;
     }
     t.hp -= dmg;
+    if (t.dummy) t.hp = t.maxHp;   // the Testing dummy never runs out of health
     t.flash = 1;
     if (att && att.pact > 0 && dmg > 0) heal(att, dmg * att.pactLeech);
     // spirit link: part of the hit echoes into every other linked foe
@@ -2063,8 +2066,8 @@ const Game = (() => {
     // slim, bony forearm
     c.beginPath();
     c.moveTo(bx - 7, gy + 2);
-    c.bezierCurveTo(bx - 6, gy - h * 0.4, wx - 6 + side * 2, wy + h * 0.25, wx - 4, wy);
-    c.lineTo(wx + 4, wy);
+    c.bezierCurveTo(bx - 6, gy - h * 0.4, wx - 6 + side * 2, wy + h * 0.25, wx - 5, wy - 8);
+    c.lineTo(wx + 5, wy - 8);
     c.bezierCurveTo(wx + 6 + side * 2, wy + h * 0.25, bx + 6, gy - h * 0.4, bx + 7, gy + 2);
     c.closePath(); c.fill();
     if (rise < 0.3) return;
@@ -2075,7 +2078,7 @@ const Game = (() => {
     const curl = 0.35 + rise * 0.55;
     const lens = [19, 25, 24, 18];
     for (let i = 0; i < 4; i++) {
-      const fx0 = (i - 1.5) * 4, fy0 = -7;
+      const fx0 = (i - 1.5) * 4, fy0 = -3;
       const spread = (i - 1.5) * 0.18;
       const len = lens[i];
       const kx = fx0 + Math.sin(spread) * len * 0.55, ky = fy0 - len * 0.55;                       // knuckle
@@ -2090,7 +2093,7 @@ const Game = (() => {
       c.fillStyle = '#d6c8ff'; c.beginPath(); c.arc(tx, ty, 1.4, 0, TAU); c.fill(); c.fillStyle = grad;
     }
     // thumb hooking across
-    c.beginPath(); c.moveTo(side * 5, -2); c.quadraticCurveTo(side * 13, -8, side * 9 - side * 9 * curl, -18); c.lineTo(side * 3, -8); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(side * 3, 2); c.quadraticCurveTo(side * 13, -6, side * 9 - side * 9 * curl, -18); c.lineTo(side * 1, -6); c.closePath(); c.fill();
     c.restore();
     // faint rim light along the outer edge of the arm
     c.strokeStyle = 'rgba(170,150,230,0.5)'; c.lineWidth = 1;
@@ -2147,14 +2150,20 @@ const Game = (() => {
         c.fillStyle = '#9fd4ff'; c.beginPath(); c.arc(f.zip.x, f.zip.y, 6, 0, TAU); c.fill();
       }
       const a = f.action;
-      if (a && a.move.stretch && a.tip && a.t >= a.move.windup && a.t < a.move.windup + a.move.active + a.move.recover * 0.5) {
-        // Rubber's arm stretches all the way to the fist
-        const h = f.hand(), sh = f.pts[P.NECK];
-        c.strokeStyle = '#ffb3c7'; c.lineWidth = 9 * f.s; c.lineCap = 'round';
-        c.beginPath(); c.moveTo(sh.x, sh.y + 6); c.quadraticCurveTo(h.x, h.y, a.tip.x, a.tip.y); c.stroke();
-        c.strokeStyle = '#d1495b'; c.lineWidth = 2; c.stroke();
-        c.fillStyle = '#ffb3c7'; c.beginPath(); c.arc(a.tip.x, a.tip.y, 11 * f.s, 0, TAU); c.fill();
-        c.strokeStyle = '#d1495b'; c.lineWidth = 2; c.stroke();
+      if (a && a.move.stretch && a.tip && a.t >= a.move.windup && a.t < a.move.windup + a.move.active + a.move.recover) {
+        // Rubber's arm is a real elastic: it overshoots the target, wobbles, then snaps back
+        const mv = a.move, h = f.hand(), sh = f.pts[P.NECK];
+        const tt = a.t - mv.windup;
+        let e, wob;
+        if (tt < mv.active) { const k = tt / mv.active; e = 1 - Math.exp(-6 * k) * Math.cos(k * 9); wob = (1 - k) * 0.6 + 0.4; }
+        else { const k = (tt - mv.active) / mv.recover; e = (1 - k) * (1 - k) * (1 + 0.18 * Math.sin(k * 14)); wob = 1 - k; }
+        const fxp = h.x + (a.tip.x - h.x) * e, fyp = h.y + (a.tip.y - h.y) * e;
+        const dx = fxp - sh.x, dy = fyp - sh.y, L = Math.hypot(dx, dy) || 1;
+        const bend = Math.sin(tt * 38) * 16 * wob * Math.min(1, L / 120);
+        const cx = (sh.x + fxp) / 2 - dy / L * bend, cy = (sh.y + 6 + fyp) / 2 + dx / L * bend;
+        c.strokeStyle = '#ffb3c7'; c.lineWidth = 9 * f.s * clamp(1.25 - L / 320, 0.55, 1); c.lineCap = 'round';   // thins as it stretches
+        c.beginPath(); c.moveTo(sh.x, sh.y + 6); c.quadraticCurveTo(cx, cy, fxp, fyp); c.stroke();
+        c.fillStyle = '#ffb3c7'; c.beginPath(); c.arc(fxp, fyp, 11 * f.s, 0, TAU); c.fill();
       }
     }
     for (const pd of pads) {
@@ -3211,6 +3220,7 @@ const Game = (() => {
     for (const f of fighters) {
       if (f.gone) continue;
       if (f.tagCd > 0) f.tagCd -= dt;
+      if (f.dummy) f.hp = f.maxHp;
       if (f.pact > 0) { f.pact -= dt; if (Math.random() < dt * 20) { const q = f.center(); fx.add({ x: q.x + rand(-20, 20), y: q.y + rand(-40, 30), vy: -rand(40, 120), color: pick(['#ff6f86', '#a3173a']), size: rand(3, 6), life: 0.5 }); } }
       if (f.haste > 0) {
         f.haste -= dt;

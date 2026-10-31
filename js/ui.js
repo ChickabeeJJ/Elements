@@ -242,7 +242,7 @@ const UI = (() => {
         if (!mine.length) return '';
         return `<div class="combos"><h4>COMBOS</h4>${mine.map(cb => `
           <div class="combo-card">
-            <div class="pair">${cb.a.map(id => hex(id)).join('<span class="or">/</span>')}<span class="plus">+</span>${hex(cb.b)}</div>
+            <div class="pair">${(cb.b === e.id ? cb.a : [e.id]).map(id => hex(id)).join('<span class="or">/</span>')}<span class="plus">+</span>${hex(cb.b)}</div>
             <div><b>${cb.name.toUpperCase()}</b><p>${cb.desc}</p></div>
           </div>`).join('')}</div>`;
       })()}`;
