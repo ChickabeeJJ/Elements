@@ -121,8 +121,9 @@ const Sfx = (() => {
     [0, 2, 3, 7, 10],      // frost: minor
     [0, 3, 5, 6, 10],      // storm: blues
     [0, 1, 6, 7, 11],      // void: tense
+    [0, 2, 4, 6, 9],       // crystal caverns: bright lydian shimmer
   ];
-  const ROOTS = [57, 52, 55, 50, 49];
+  const ROOTS = [57, 52, 55, 50, 49, 59];
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
   function pad(freq, t, dur) {

@@ -513,6 +513,7 @@ const AFFINITY = {
   void:      { weak: ['light', 'arcane'], resist: ['void', 'wind', 'frost'] },
   water:     { weak: ['lightning', 'nature'], resist: ['water', 'fire', 'frost'] },
   venom:     { weak: ['fire', 'arcane'], resist: ['venom', 'nature', 'water'] },
+  crystal:   { weak: ['earth', 'midas', 'echo'], resist: ['crystal', 'light', 'frost'] },
 };
 /* element combos: set a foe up with one element, then hit it with the partner.
    a: element(s) that apply the setup status; b: element that cashes it in. */

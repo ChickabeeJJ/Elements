@@ -61,7 +61,17 @@ const REALMS = [
     ambient: 'mote', tint: '#c08bff', glowTop: true,
     boss: { name: 'The Hollow King', title: 'End of All Light' },
   },
+  {
+    id: 'caverns', name: 'Crystal Caverns', element: 'crystal',
+    sky: ['#0b1f2e', '#14455a', '#3f8f99'], sun: '#c9fff7', sunPos: [0.7, 0.2],
+    hills: ['#2a6b78', '#1b4b57', '#10323b'], fog: '#7fe0d6',
+    top: '#9ff0e8', topDark: '#4fbcb2', rock: '#2f5560', rockDark: '#1d3942',
+    ambient: 'shard', tint: '#9ff0e8',
+    boss: { name: 'The Shardmother', title: 'Heart of the Geode' },
+  },
 ];
+// the first seven realms keep the difficulty curve they launched with
+const CLASSIC_STAGES = 56;
 const STAGES_PER_REALM = 8;
 const TOTAL_STAGES = REALMS.length * STAGES_PER_REALM;
 
@@ -147,19 +157,19 @@ function capRoles(wave, realm) {
 function buildStage(r, s) {
   const realm = REALMS[r];
   const g = r * STAGES_PER_REALM + s;
-  const d = g / (TOTAL_STAGES - 1);
+  const d = r < 7 ? g / (CLASSIC_STAGES - 1) : lerp(0.72, 0.92, s / (STAGES_PER_REALM - 1));
   const rng = mulberry32(9137 + g * 7919);
-  const mix = r === REALMS.length - 1 ? 0.3 : 0;
+  const mix = r === 6 ? 0.3 : 0;   // the Void Rift mixes in other elements
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + r * 1.1) * 0.95 }]);
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 }]);
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
   // at most three waves; early stages are short and gentle
   // at most three waves of at most three foes; individual foes carry the difficulty
-  const total = Math.min(TOUGH_REALMS[realm.element] ? 8 : 9, 2 + Math.floor(s * 0.7) + Math.floor(r * 0.8));
+  const total = Math.min(TOUGH_REALMS[realm.element] ? 8 : 9, 2 + Math.floor(s * 0.7) + Math.floor(Math.min(r, 5) * 0.8));
   const nW = Math.min(3, Math.ceil(total / 3));
   for (let w = 0; w < nW; w++) {
     const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);

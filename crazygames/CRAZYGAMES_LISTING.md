@@ -11,12 +11,12 @@ Element Rag is a physics ragdoll brawler set across seven elemental realms of fl
 
 Each element gives you a main attack plus two element powers. Gale's Updraft launches foes skyward, Ember's Flame Dash burns through crowds, Tide's Tidal Wave sweeps fighters off the edge, and Rime's Frost Nova freezes everything nearby. Earn gems in battle to unlock new elements, from Stone and Storm to Void, Radiance, Crystal, Gravity, Echo and the legendary Dragon: ricochet shards, prism walls that reflect shots, anti-gravity fields and a rewind that pulls you back from a fall. Equip up to three at once and swap between them mid-combo.
 
-Fight through 56 stages in 7 realms, each ending in an elemental boss. Upgrade your fighter in the forge, chase three stars on every stage, then test yourself in Endless mode.
+Fight through 64 stages in 8 realms, each ending in an elemental boss. Upgrade your fighter in the forge, chase three stars on every stage, then test yourself in Endless mode.
 
 **Features**
 - Active ragdoll physics with knockback, tumbles and ring-outs
 - 30 elements, each with its own main attack and two unique powers, plus 28 element combos
-- 56 campaign stages across 7 realms, with 7 bosses
+- 64 campaign stages across 8 realms, with 8 bosses
 - Elemental weaknesses and combos (shatter frozen foes, shock soaked ones)
 - Endless mode with rotating realms and champion waves
 - Permanent upgrades, star ratings, a short visual tutorial and a Testing ground to try every element

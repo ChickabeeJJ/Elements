@@ -996,3 +996,9 @@ body.touch .dock { top: calc(12px + var(--safe-t)); bottom: auto; right: calc(14
 /* only the pause button stays while the lanes are up */
 body.rhythm #hud > :not(.hud-right) { display: none !important; }
 body.rhythm canvas#stage { cursor: default; }
+
+/* eight realms: the tab strip stays on one row and scrolls if it must */
+.seg { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+.seg::-webkit-scrollbar { display: none; }
+.seg button { flex: none; padding: 8px 10px; font-size: 11px; }
+.seg button { letter-spacing: 0.02em; padding: 8px 9px; }

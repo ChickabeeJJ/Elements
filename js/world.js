@@ -245,7 +245,7 @@ class Ambience {
       c.x += c.v * dt;
       if (c.x - 260 * c.s > view.x0 + view.w) c.x = view.x0 - 260 * c.s;
     }
-    const want = { leaf: 26, ember: 60, snow: 110, rain: 150, mote: 70, bubble: 45, spore: 55 }[r.ambient] || 0;
+    const want = { leaf: 26, ember: 60, snow: 110, rain: 150, mote: 70, bubble: 45, spore: 55, shard: 60 }[r.ambient] || 0;
     while (this.parts.length < want) this.parts.push(this.spawn(view, true));
     for (const p of this.parts) {
       p.t += dt;
@@ -321,6 +321,17 @@ class Ambience {
         ctx.beginPath(); ctx.ellipse(0, 0, 6 * p.s, 2.6 * p.s, 0, 0, TAU); ctx.fill();
         ctx.restore();
       }
+    } else if (kind === 'shard') {
+      // slow glinting crystal flecks drifting up through the cavern
+      for (const p of this.parts) {
+        const tw = 0.4 + Math.abs(Math.sin(p.t * 2.5 + p.ph)) * 0.6;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot + p.t * 0.6);
+        ctx.globalAlpha = tw; ctx.fillStyle = p.s > 1 ? '#c9fff7' : '#7fe0d6';
+        const r = 4 * p.s;
+        ctx.beginPath(); ctx.moveTo(0, -r * 1.6); ctx.lineTo(r * 0.6, 0); ctx.lineTo(0, r * 1.6); ctx.lineTo(-r * 0.6, 0); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
     } else {
       ctx.globalCompositeOperation = 'lighter';
       const col = { ember: '#ff9a4a', bubble: '#cfefff', spore: '#c8ef6a' }[kind] || '#b58cff';
