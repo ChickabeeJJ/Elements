@@ -207,7 +207,7 @@ const UI = (() => {
   }
 
   /* -------------------------------------------------------------- codex */
-  function openCodex() { show('codex'); renderCodex(); }
+  function openCodex() { show('codex'); renderCodex(); nudgeScroll($('codex'), 'y'); nudgeScroll($('codexList'), 'x'); }
   function renderCodex() {
     const list = $('codexList');
     list.innerHTML = '';
@@ -286,7 +286,7 @@ const UI = (() => {
   }
 
   /* -------------------------------------------------------------- forge */
-  function openForge() { show('forge'); renderForge(); }
+  function openForge() { show('forge'); renderForge(); nudgeScroll($('forge'), 'y'); }
   function renderForge() {
     const grid = $('forgeGrid');
     grid.innerHTML = '';
@@ -324,8 +324,36 @@ const UI = (() => {
     Icons.hydrate(s);
     m.classList.remove('hidden');
     if (keep) s.scrollTop = top;
-    else { s.scrollTop = 0; s.style.animation = 'none'; void s.offsetWidth; s.style.animation = ''; }
+    else { s.scrollTop = 0; s.style.animation = 'none'; void s.offsetWidth; s.style.animation = ''; nudgeScroll(s, 'y'); }
     onOpen && onOpen(s);
+  }
+
+  // touch screens: a scrollable menu left untouched for a moment shows a small scroll nudge and a hint
+  const nudges = new Map();
+  function nudgeScroll(el, axis) {
+    if (!document.body.classList.contains('touch') || !el) return;
+    clearTimeout(nudges.get(el));
+    const hint = el.querySelector(':scope > .scroll-hint'); if (hint) hint.remove();
+    let touched = false;
+    const stop = () => { touched = true; clearTimeout(nudges.get(el)); const h = el.querySelector(':scope > .scroll-hint'); if (h) h.classList.add('gone'); };
+    el.addEventListener('scroll', stop, { once: true, passive: true });
+    el.addEventListener('pointerdown', stop, { once: true, passive: true });
+    nudges.set(el, setTimeout(() => {
+      const more = axis === 'y' ? el.scrollHeight - el.clientHeight : el.scrollWidth - el.clientWidth;
+      if (touched || more < 24 || el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return;
+      el.removeEventListener('scroll', stop);
+      const d = Math.min(70, more);
+      el.scrollTo(axis === 'y' ? { top: d, behavior: 'smooth' } : { left: d, behavior: 'smooth' });
+      setTimeout(() => el.scrollTo(axis === 'y' ? { top: 0, behavior: 'smooth' } : { left: 0, behavior: 'smooth' }), 520);
+      if (axis === 'y') {
+        const h = document.createElement('div');
+        h.className = 'scroll-hint';
+        h.innerHTML = '<span>SCROLL FOR MORE</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        el.appendChild(h);
+        setTimeout(() => el.addEventListener('scroll', () => h.classList.add('gone'), { once: true, passive: true }), 1100);
+        setTimeout(() => h.classList.add('gone'), 5000);
+      }
+    }, 2600));
   }
   function closeModal() { $('modal').classList.add('hidden'); }
   const modalOpen = () => !$('modal').classList.contains('hidden');
