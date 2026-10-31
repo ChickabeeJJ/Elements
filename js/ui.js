@@ -150,7 +150,7 @@ const UI = (() => {
       el.style.setProperty('--c', realm.tint);
       el.innerHTML = `<span class="n">${open ? (boss ? '<span class="ic" data-icon="crown"></span>' : s + 1) : '<span class="ic" data-icon="lock"></span>'}</span>
         <span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>
-        <small>${boss ? 'BOSS' : 'STAGE ' + stageLabel(mapRealm, s)}</small>
+        <small>${boss ? 'BOSS' : '<span class="st-word">STAGE </span>' + stageLabel(mapRealm, s)}</small>
         ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}`;
       el.onclick = () => {
         if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }

@@ -564,7 +564,7 @@ body.touch .combo span { font-size: 11px; }
   .stage-grid { margin-top: 10px; }
   .stage-card { padding: 10px 4px 8px; gap: 4px; }
   .stage-card .n { font-size: 20px; }
-  .stage-card small { display: none; }
+  .stage-card small { font-size: 11px; letter-spacing: 0.02em; }
   .realm-head { gap: 6px 10px; }
   .realm-head h3 { font-size: 20px; }
   .codex-detail { padding: 12px 14px; gap: 8px; }
@@ -1005,3 +1005,6 @@ body.rhythm canvas#stage { cursor: default; }
 
 /* stage chip: no empty gap before the subtitle when there are no wave dots */
 .dots:empty { display: none; }
+
+/* stage labels on small screens: keep them, drop the word STAGE so 1-1 always fits */
+@media (max-width: 900px), (max-height: 560px) { .stage-card small .st-word { display: none; } }
