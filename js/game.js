@@ -481,13 +481,14 @@ const Game = (() => {
         f.shield = mv.absorb; f.shieldT = mv.dur; f.shieldEl = el;
         heal(f, mv.heal);
         Sfx.shield();
-        fx.ring(f.center().x, f.center().y, el === 'steel' ? '#dfe5ee' : '#7cc8ff', 90, 0.4);
+        fx.ring(f.center().x, f.center().y, el === 'steel' ? '#dfe5ee' : el === 'water' ? '#7cc8ff' : (ELEMENT_BY_ID[el] || NEUTRAL).color, 90, 0.4);
         break;
       case 'heal': {
         f.regen = (f.maxHp * mv.heal) / mv.dur; f.regenT = mv.dur;
         const st = f.status; st.burn = st.poison = st.chill = st.soak = st.root = st.shock = 0;
         nova(f, f.center().x, f.center().y, mv, el);
-        for (let i = 0; i < 16; i++) fx.add({ kind: 'leaf', x: f.center().x + rand(-40, 40), y: f.center().y + rand(-40, 40), vx: rand(-80, 80), vy: -rand(60, 200), g: 200, vr: rand(-6, 6), color: pick(['#9ae66e', '#c3f08e', '#ffd6e8']), size: rand(4, 7), life: rand(0.8, 1.4), add: false });
+        if (el === 'nature') for (let i = 0; i < 16; i++) fx.add({ kind: 'leaf', x: f.center().x + rand(-40, 40), y: f.center().y + rand(-40, 40), vx: rand(-80, 80), vy: -rand(60, 200), g: 200, vr: rand(-6, 6), color: pick(['#9ae66e', '#c3f08e', '#ffd6e8']), size: rand(4, 7), life: rand(0.8, 1.4), add: false });
+        else { const HE = ELEMENT_BY_ID[el] || NEUTRAL; for (let i = 0; i < 18; i++) fx.add({ kind: 'star', x: f.center().x + rand(-40, 40), y: f.center().y + rand(-40, 40), vx: rand(-60, 60), vy: -rand(80, 220), vr: rand(-6, 6), color: pick([HE.color, '#ffffff']), size: rand(4, 7), life: rand(0.6, 1.1), add: true }); }
         Sfx.heal();
         break;
       }
@@ -497,11 +498,12 @@ const Game = (() => {
         const d = dist(c.x, c.y, tx, ty);
         if (d > mv.range) { tx = c.x + (tx - c.x) / d * mv.range; ty = c.y + (ty - c.y) / d * mv.range; }
         tx = clamp(tx, 40, W - 40); ty = clamp(ty, 80, H - 140);
-        fx.burst(c.x, c.y, '#fff27a', 20, 260);
+        const BL = el === 'lightning' ? { color: '#fff27a', deep: '#a77bff' } : (ELEMENT_BY_ID[el] || NEUTRAL);
+        fx.burst(c.x, c.y, BL.color, 20, 260);
         teleport(f, tx, ty + 30 * f.s);
         f.root.vy = -260;
         const c2 = f.center();
-        fx.arc(c.x, c.y, c2.x, c2.y, '#a77bff', 0.3);
+        fx.arc(c.x, c.y, c2.x, c2.y, BL.deep, 0.3);
         nova(f, c2.x, c2.y, mv, el);
         Sfx.blink();
         break;
@@ -555,10 +557,10 @@ const Game = (() => {
           if (t.mode === 'active') { t.root.vx = dir * mv.pullV * clamp(d / mv.radius + 0.35, 0.5, 1.1); t.root.vy = -240; t.root.grounded = false; t.root.plat = null; t.knockT = 0.45; }
           else t.impulse(P.PELVIS, dir * mv.pullV * 0.6, -200, 1);
           t.status.shock = Math.max(t.status.shock, mv.stun);
-          fx.arc(tc.x, tc.y, c.x, c.y, '#cfd6e0', 0.25);
+          fx.arc(tc.x, tc.y, c.x, c.y, (ELEMENT_BY_ID[el] || NEUTRAL).color, 0.25);
           for (let i = 0; i < 6; i++) { const u = rand(0.2, 1); fx.add({ kind: 'spark', x: lerp(c.x, tc.x, u), y: lerp(c.y, tc.y, u) + rand(-14, 14), vx: dir * 700, vy: 0, color: '#e6ebf2', size: 4, life: 0.2 }); }
         }
-        fx.ring(c.x, c.y, '#cfd6e0', 70, 0.3, 6);
+        fx.ring(c.x, c.y, (ELEMENT_BY_ID[el] || NEUTRAL).color, 70, 0.3, 6);
         Sfx.zap();
         break;
       }
@@ -720,8 +722,9 @@ const Game = (() => {
       applyHit(f, t, { mv, el: act.el, dmg: mv.dmg, knock: mv.knock, lift: mv.lift, dirX: Math.sign(f.dash ? f.dash.vx : f.facing), dirY: 0, idx: hit.idx, px: hit.px, py: hit.py });
     }
     const c = f.center();
-    const voidish = act.el === 'void';
-    const col = voidish ? pick(['#c08bff', '#2a1250']) : pick(['#ffb347', '#ff5a1f', '#ffd76a']);
+    const voidish = act.el === 'void' || act.el === 'smoke';
+    const DE = ELEMENT_BY_ID[act.el] || NEUTRAL;
+    const col = act.el === 'void' ? pick(['#c08bff', '#2a1250']) : act.el === 'fire' ? pick(['#ffb347', '#ff5a1f', '#ffd76a']) : pick([DE.color, DE.deep, DE.color]);
     for (let i = 0; i < 3; i++) fx.add({ x: c.x + rand(-14, 14), y: c.y + rand(-40, 30), vx: rand(-40, 40), vy: rand(-80, 0), color: col, size: rand(6, 12), life: rand(0.25, 0.45), add: !voidish });
   }
 
@@ -730,7 +733,7 @@ const Game = (() => {
     const h = f.hand();
     const ax = Math.cos(f.aim), ay = Math.sin(f.aim);
     const ex = h.x + ax * mv.length, ey = h.y + ay * mv.length;
-    act.beam = { x0: h.x, y0: h.y, x1: ex, y1: ey };
+    act.beam = { x0: h.x, y0: h.y, x1: ex, y1: ey, el: act.el };
     act.tickT = (act.tickT || 0) - dt;
     const tick = act.tickT <= 0;
     if (tick) act.tickT = 0.12;
@@ -741,7 +744,7 @@ const Game = (() => {
       if (t.mode === 'active') { t.root.vx += ax * mv.push * dt * 2 / t.weight; t.root.vy += ay * mv.push * dt / t.weight - 400 * dt; }
       if (tick) applyHit(f, t, { mv, el: act.el, dmg: mv.dps * 0.12, knock: 160, lift: 0.2, dirX: ax, dirY: ay, idx: hit.idx, px: hit.px, py: hit.py, quiet: true });
     }
-    if (Math.random() < 0.6) fx.add({ x: lerp(h.x, ex, Math.random()), y: lerp(h.y, ey, Math.random()), vx: rand(-40, 40), vy: rand(-40, 40), color: '#fff3b0', size: rand(4, 9), life: 0.3 });
+    if (Math.random() < 0.6) fx.add({ x: lerp(h.x, ex, Math.random()), y: lerp(h.y, ey, Math.random()), vx: rand(-40, 40), vy: rand(-40, 40), color: act.el === 'light' ? '#fff3b0' : (ELEMENT_BY_ID[act.el] || NEUTRAL).color, size: rand(4, 9), life: 0.3 });
   }
 
   function nova(f, x, y, mv, el) {
@@ -1191,7 +1194,7 @@ const Game = (() => {
   function zoneForce(x, y, f) {
     let ox = 0, oy = 0;
     for (const z of zones) {
-      if (z.style !== 'rift' || (f && f.team === z.team)) continue;
+      if (!(z.style === 'rift' || (z.style === 'aura' && z.pull)) || (f && f.team === z.team)) continue;
       const dx = z.x - x, dy = z.y - y, d = Math.hypot(dx, dy);
       if (d < z.r * 1.25 && d > 6) {
         const k = z.pull * (1 - d / (z.r * 1.25));
@@ -1217,9 +1220,10 @@ const Game = (() => {
           if (t.mode === 'active') { t.root.vy = Math.min(lerp(t.root.vy, -260, 0.25), t.root.vy); t.root.vx *= 0.9; t.root.grounded = false; t.root.plat = null; t.knockT = Math.max(t.knockT, 0.2); }
           else t.impulse(P.PELVIS, 0, -60, 0.3);
         }
-        if (tick) applyHit(z.owner, t, { mv: null, el: z.el, dmg: z.dps * 0.25, knock: z.style === 'rift' || z.style === 'antigrav' ? 0 : 60, lift: 0, dirX: 0, dirY: 1, idx: P.PELVIS, px: c.x, py: c.y, quiet: true, zoneRoot: z.root });
+        if (tick) applyHit(z.owner, t, { mv: z.fx || null, el: z.el, dmg: z.dps * 0.25, knock: z.style === 'rift' || z.style === 'antigrav' ? 0 : 60, lift: 0, dirX: 0, dirY: 1, idx: P.PELVIS, px: c.x, py: c.y, quiet: true, zoneRoot: z.root });
       }
       if (z.style === 'antigrav' && Math.random() < 0.8) fx.add({ x: z.x + rand(-z.r, z.r) * 0.8, y: z.y + rand(0, z.r) * 0.8, vy: -rand(120, 260), color: pick(['#b9a6ff', '#e4dcff']), size: rand(3, 6), life: 0.6 });
+      if (z.style === 'aura' && Math.random() < 0.7) { const ZE = ELEMENT_BY_ID[z.el] || NEUTRAL; const a = rand(0, TAU), r = rand(0, z.r) * 0.9; fx.add({ x: z.x + Math.cos(a) * r, y: z.y + Math.sin(a) * r * 0.6, vx: z.pull ? -Math.cos(a) * 160 : 0, vy: -rand(40, 140), color: pick([ZE.color, ZE.deep]), size: rand(3, 7), life: 0.6, add: true }); }
       if (z.style === 'toxic' && Math.random() < 0.5) fx.add({ x: z.x + rand(-z.r, z.r) * 0.7, y: z.y + rand(-z.r, z.r) * 0.4, vy: -rand(20, 60), color: pick(['#a6e35b', '#6fbf2e']), size: rand(4, 8), life: 0.6 });
       if (z.style === 'rift') {
         if (Math.random() < 0.9) {
@@ -1594,8 +1598,9 @@ const Game = (() => {
       const ty = t ? t.center().y : s.y;
       if (s.mv.style === 'sun') { fx.add({ kind: 'beam', x: tx, y: ty + 70, color: '#ffe48a', size: 34, life: 0.5 }); Sfx.beam(); }
       else if (s.mv.style === 'meteor') { fx.chunks(tx, ty, '#7a4a6e', 18, 520, 10); fx.ring(tx, ty, '#ff8ad8', 120, 0.45, 12); fx.burst(tx, ty, '#ffb36b', 24, 360); Sfx.boom(1); }
+      else if (s.mv.style === 'beam') { const SE = ELEMENT_BY_ID[s.el] || NEUTRAL; fx.add({ kind: 'beam', x: tx, y: ty + 70, color: SE.color, size: 30, life: 0.45 }); fx.ring(tx, ty, SE.color, 90, 0.4, 8); Sfx.beam(); }
       else { fx.arc(tx + rand(-60, 60), -80, tx, ty, '#a77bff', 0.35); fx.arc(tx + rand(-40, 40), -80, tx, ty, '#fff27a', 0.25); Sfx.zap(); }
-      fx.burst(tx, ty, s.mv.style === 'sun' ? '#fff3b0' : '#fff27a', 22, 320);
+      fx.burst(tx, ty, s.mv.style === 'sun' ? '#fff3b0' : s.mv.style === 'beam' || s.mv.style === 'meteor' && s.el !== 'arcane' ? (ELEMENT_BY_ID[s.el] || NEUTRAL).color : '#fff27a', 22, 320);
       shake = Math.max(shake, 7);
       for (const o of opponents(s.owner)) {
         if (!o.alive || blocked(o)) continue;
@@ -2880,9 +2885,11 @@ const Game = (() => {
   function drawWave(c, w) {
     const k = clamp(w.life / w.max * 1.6, 0, 1);
     const h = w.h * (0.4 + k * 0.6);
-    if (w.el === 'water') {
+    if (w.el !== 'earth') {
+      const WE = ELEMENT_BY_ID[w.el] || NEUTRAL;
       const g = c.createLinearGradient(0, w.y - h, 0, w.y);
-      g.addColorStop(0, 'rgba(214,239,255,0.95)'); g.addColorStop(1, 'rgba(47,127,224,0.8)');
+      if (w.el === 'water') { g.addColorStop(0, 'rgba(214,239,255,0.95)'); g.addColorStop(1, 'rgba(47,127,224,0.8)'); }
+      else { g.addColorStop(0, rgba(WE.color, 0.95)); g.addColorStop(1, rgba(WE.deep, 0.82)); }
       c.fillStyle = g;
       c.beginPath();
       c.moveTo(w.x - w.dir * 90, w.y);
@@ -2907,11 +2914,13 @@ const Game = (() => {
     c.save(); c.translate(b.x0, b.y0); c.rotate(ang);
     c.globalCompositeOperation = 'lighter';
     const w = 26 + Math.sin(time * 40) * 4;
+    const BE = b.el && b.el !== 'light' && ELEMENT_BY_ID[b.el];
+    const outer = BE ? BE.deep : '#ffc93c', inner = BE ? BE.color : '#fff3b0';
     const g = c.createLinearGradient(0, -w, 0, w);
-    g.addColorStop(0, 'rgba(255,201,60,0)'); g.addColorStop(0.5, 'rgba(255,243,176,0.95)'); g.addColorStop(1, 'rgba(255,201,60,0)');
+    g.addColorStop(0, rgba(outer, 0)); g.addColorStop(0.5, rgba(inner, 0.95)); g.addColorStop(1, rgba(outer, 0));
     c.fillStyle = g; c.fillRect(0, -w, len, w * 2);
     c.fillStyle = 'rgba(255,255,255,0.9)'; c.fillRect(0, -4, len, 8);
-    Glow.draw(c, '#ffc93c', 0, 0, 60, 0.9);
+    Glow.draw(c, outer, 0, 0, 60, 0.9);
     c.globalCompositeOperation = 'source-over';
     c.restore();
   }
@@ -2926,6 +2935,17 @@ const Game = (() => {
       c.fillStyle = g; c.beginPath(); c.arc(z.x, z.y, z.r * grow, 0, TAU); c.fill();
       c.strokeStyle = 'rgba(228,220,255,0.8)'; c.lineWidth = 2;
       for (let i = 0; i < 3; i++) { const u = ((time * 0.6 + i / 3) % 1); c.globalAlpha = 1 - u; c.beginPath(); c.arc(z.x, z.y, z.r * grow * u, 0, TAU); c.stroke(); }
+      c.globalAlpha = 1;
+      return;
+    }
+    if (z.style === 'aura') {
+      if (!back) return;
+      const ZE = ELEMENT_BY_ID[z.el] || NEUTRAL, r = z.r * grow;
+      const g = c.createRadialGradient(z.x, z.y, 0, z.x, z.y, r);
+      g.addColorStop(0, rgba(ZE.color, 0.28)); g.addColorStop(0.75, rgba(ZE.deep, 0.18)); g.addColorStop(1, rgba(ZE.deep, 0));
+      c.fillStyle = g; c.beginPath(); c.arc(z.x, z.y, r, 0, TAU); c.fill();
+      c.strokeStyle = rgba(ZE.color, 0.7); c.lineWidth = 2;
+      for (let i = 0; i < 2; i++) { const u = (time * (z.pull ? -0.7 : 0.7) + i / 2) % 1, uu = u < 0 ? u + 1 : u; c.globalAlpha = 1 - uu; c.beginPath(); c.arc(z.x, z.y, r * uu, 0, TAU); c.stroke(); }
       c.globalAlpha = 1;
       return;
     }

@@ -2,7 +2,7 @@
 
 A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**, but careful: if you fall into the void yourself, the run is over.
 
-You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **16 elements**, and you unlock them with **gems** earned in battle. The campaign has **56 stages** across seven realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, plus a short, skippable tutorial on first launch.
+You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **36 elements**, and you unlock them with **gems** earned in battle. The campaign has **56 stages** across seven realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, plus a short, skippable tutorial on first launch.
 
 It's pure HTML5 and vanilla JS, with no build step and no dependencies. All art is drawn procedurally and every sound is synthesized.
 
@@ -28,8 +28,28 @@ To play, serve the folder (for example `python3 -m http.server`) and open `index
 | Gravity | Gravity Hook (reels a foe in) | Anti-Grav Field: foes float helplessly | Collapse: slams airborne foes down, stuns the rest | 760 |
 | Echo | Sonic Clap (widening wave through everything) | Resonance: tag foes, then stun them | Rewind: snap back 1.5s, even out of a fall | 840 |
 | Dragon | Dragonfire (roaring flame burst) | Dragon Dive: leap and crash down in flame | Summon Dragon: a great golden dragon sweeps the arena | 1500 |
+| Sand | Sand Blast (3 slowing grit shots) | Dune Wave | Sandstorm: slowing zone | 110 |
+| Timber | Staff Strike (long melee) | Log Roll: rolling log | Timber!: ground slam | 150 |
+| Magma | Magma Fist (burning melee) | Lava Vents | Eruption: burning nova | 240 |
+| Smoke | Smoke Jab (fast melee) | Smoke Bomb: slowing cloud | Vanish: untouchable dash | 290 |
+| Spirit | Wisp (homing) | Phase: teleport burst | Spirit Bloom: heal | 350 |
+| Crimson | Crimson Lash (life-steal whip) | Hemorrhage: bleeding thorns | Crimson Nova: life-steal burst | 400 |
+| Plasma | Plasma Shot (piercing) | Arc Dash: stunning dash | Plasma Rain: 4 sky bolts | 430 |
+| Ink | Ink Splash (bursting blob) | Ink Pool: rooting pool | Ink Wave | 470 |
+| Cloud | Puff (huge knockback) | Cloud Jump | Rain Cloud: soaking zone | 500 |
+| Acid | Acid Spray (4 poison drops) | Corrode: poison nova | Acid Rain: melting zone | 540 |
+| Moon | Crescent Cut (melee) | Moon Disc: returning disc | Moonbeams: 3 sky beams | 580 |
+| Comet | Comet Shot (exploding) | Streak: fast dash | Meteor Shower: 5 meteors | 620 |
+| Bone | Bone Club (heavy melee) | Bone Spears: 3 piercing spears | Rib Cage: shield | 650 |
+| Mirror | Glass Shards (ricochet) | Mirror Step: teleport burst | Mirror Shell: shield | 700 |
+| Spore | Spore Puff (homing poison) | Fungal Field: rooting zone | Mycelium Burst: rooting nova | 720 |
+| Aurora | Aurora Ribbon (piercing, chills) | Polar Beam: channelled beam | Northern Veil: heal and freeze | 900 |
+| Chrono | Clock Hand (melee, slows) | Stasis Field: time-slow zone | Rewind | 980 |
+| Chaos | Chaos Bolt (homing, explodes) | Warp: teleport burst | Chaos Vortex: pulling zone | 1100 |
+| Phoenix | Flare Feathers (burning) | Rebirth: heal in flames | Firebird Dive | 1300 |
+| Cosmos | Star Lance (piercing) | Black Star: pulling zone | Supernova: huge nova | 1750 |
 
-Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements combo (each element's combos are shown in the Elements menu): **Shatter** (Rime → Stone), **Overload** (Tide → Storm), **Wildfire** (Thorn → Ember), **Ignite** (Venom → Ember), **Firestorm** (Ember/Dragon → Gale), **Resonate** (Storm/Echo → Steel), **Starfall** (Gravity → Arcane), **Prismatic** (Crystal → Radiance), **Eclipse** (Radiance → Void), **Singularity** (Void → Gravity), **Inferno** (Ember → Dragon) and **Thunderwing** (Storm/Echo → Dragon). Crystal, Radiance and Void hits leave a short mark (glint, dazzle, drain) that their partner cashes in.
+Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements combo (each element's combos are shown in the Elements menu): **Shatter** (Rime → Stone), **Overload** (Tide → Storm), **Wildfire** (Thorn → Ember), **Ignite** (Venom → Ember), **Firestorm** (Ember/Dragon → Gale), **Resonate** (Storm/Echo → Steel), **Starfall** (Gravity → Arcane), **Prismatic** (Crystal → Radiance), **Eclipse** (Radiance → Void), **Singularity** (Void → Gravity), **Inferno** (Ember → Dragon), **Thunderwing** (Storm/Echo → Dragon), plus ten more for the newer elements: **Mudslide**, **Kindling**, **Meltdown**, **Conductor**, **Blood Moon**, **Time Stop**, **Ashes**, **Big Bang**, **Polar Night** and **Haunt**. Crystal, Radiance and Void hits leave a short mark (glint, dazzle, drain) that their partner cashes in.
 
 ## Campaign and progression
 

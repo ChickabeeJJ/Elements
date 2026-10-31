@@ -781,13 +781,13 @@ body.touch .sheet.result .big-stars .ic { width: clamp(28px, 5vh, 40px); height:
 body.touch .sheet.result .stat-tiles { gap: 5px; }
 body.touch .sheet.result .stat-tiles div { min-width: 0; padding: 7px 3px; }
 body.touch .sheet.result .stat-tiles b { font-size: clamp(17px, 3.2vh, 22px); }
-body.touch .sheet.result .stat-tiles small { font-size: clamp(8px, 1.7vh, 11px); }
+body.touch .sheet.result .stat-tiles small { font-size: 11px; }
 body.touch .sheet.result .payout { gap: 4px 7px; font-size: clamp(16px, 3vh, 21px); }
-body.touch .sheet.result .payout small { font-size: clamp(9px, 1.7vh, 11px); text-align: center; }
+body.touch .sheet.result .payout small { font-size: 11px; text-align: center; }
 body.touch .sheet.result .unlock { gap: 8px; padding: 8px; min-width: 0; }
 body.touch .sheet.result .unlock .hex { width: 38px; height: 38px; }
 body.touch .sheet.result .unlock b { font-size: 15px; }
-body.touch .sheet.result .unlock small { font-size: 9px; }
+body.touch .sheet.result .unlock small { font-size: 11px; }
 body.touch .sheet.result .unlock p { font-size: 11px; line-height: 1.2; }
 body.touch .sheet.result .tip { font-size: 12px; }
 body.touch .sheet.result .revive-row { gap: 6px; }
@@ -849,12 +849,12 @@ body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; p
   #map .bar > .seg button {
     flex: 0 0 auto;
     padding: 7px 9px;
-    font-size: 10px;
+    font-size: 11px;
   }
   #map .bar > .btn.small {
     min-height: 34px;
     padding: 5px 8px;
-    font-size: 10px;
+    font-size: 11px;
     white-space: nowrap;
   }
   #map .realm-head {
@@ -869,7 +869,7 @@ body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; p
   #map .realm-head .tag {
     gap: 5px;
     padding: 4px 7px 4px 4px;
-    font-size: 10px;
+    font-size: 11px;
   }
   #map .realm-head .hex { width: 22px; height: 22px; }
   #map .stage-grid,
@@ -889,7 +889,7 @@ body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; p
   #map .stage-card .n { font-size: clamp(25px, 7vw, 32px); }
   #map .stage-card .stars { gap: 1px; }
   #map .stage-card .stars .ic { width: clamp(10px, 3vw, 13px); height: clamp(10px, 3vw, 13px); }
-  #map .stage-card small { display: block; font-size: 9px; line-height: 1; }
+  #map .stage-card small { display: block; font-size: 11px; line-height: 1; }
   #map .stage-card .reward { top: 4px; right: 4px; width: 19px; height: 19px; border-radius: 4px; }
   #map .stage-card.zero .zero-ic { width: 16px; height: 16px; }
 }
@@ -926,3 +926,28 @@ body.touch .sheet.result > .result-content {
 body.touch .sheet.result .payout {
   margin-top: 14px;
 }
+
+/* ---------------------------------------------- 36 elements: lists that fit */
+@media (min-width: 901px) {
+  /* the element list scrolls on its own so the page (and the detail card) stays put */
+  .codex-list { max-height: calc((100dvh - 110px - var(--safe-t) - var(--safe-b)) / var(--ui)); overflow-y: auto; padding-right: 4px; align-content: start; scrollbar-width: thin; scrollbar-color: var(--ink-4) transparent; }
+  .codex-detail { position: sticky; top: 0; }
+}
+/* loadout picker: chosen slots stay pinned while the long list scrolls under them */
+.sheet.wide .lo-slots { position: sticky; top: -22px; z-index: 2; margin: -22px -24px 0; padding: 14px 24px 10px; background: #121620; box-shadow: 0 8px 12px -10px rgba(0, 0, 0, 0.6); }
+@media (min-width: 1000px) { .sheet.wide { width: min(900px, 100%); } .sheet.wide .picker { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (max-height: 560px) { .sheet.wide .lo-slots { top: -14px; margin: -14px -18px 0; padding: 10px 18px 8px; } }
+
+/* ------------------------------------------------ mobile controls: thumb arc
+   Jump, power 1 and power 2 sit on one even arc around the big attack button,
+   and the element dock rides just above that arc, inside thumb reach. */
+body.touch { --arc: calc(var(--om) / 2 + var(--og) + var(--ob) / 2); }
+body.touch .orb-jump { right: calc(var(--om) + var(--og)); bottom: calc((var(--om) - var(--ob)) / 2); }
+body.touch .orb-p1 { right: calc(var(--om) / 2 + var(--arc) * 0.707 - var(--ob) / 2); bottom: calc(var(--om) / 2 + var(--arc) * 0.707 - var(--ob) / 2); }
+body.touch .orb-p2 { right: calc((var(--om) - var(--ob)) / 2); bottom: calc(var(--om) + var(--og)); }
+body.touch .orb { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+body.touch .orb-jump .orb-icon { width: 46%; height: 46%; }
+body.touch .dock { top: auto; right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b) + var(--om) + var(--og) + var(--ob) + 12px); padding: 5px; gap: 5px; }
+body.touch .dock-slot .hex { width: var(--hx); height: var(--hx); }
+/* power cooldown numbers read clearly over the badge */
+body.touch .orb.cooling .cd-num { background: rgba(8, 10, 16, 0.55); border-radius: 50%; width: 64%; height: 64%; display: grid; place-items: center; }
