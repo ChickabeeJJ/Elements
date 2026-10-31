@@ -25,7 +25,7 @@ const Game = (() => {
   let eruptions = [], walls = [], mines = [], resonances = [], dragons = [];
   let vineSwing = null, enemyVines = [];
   let lavas = [], coils = [], links = [], pianos = [], blasts = [];   // newer element powers
-  let pads = [], grasps = [], slots = [];
+  let pads = [], grasps = [], slots = [], geysers = [];
   let rhythmFreeze = false;   // Tempo's Encore: the world holds still while the song plays
   let dummyTimer = 0;
   let time = 0, timeScale = 1, slowmo = 0, hitstop = 0, shake = 0, hurtFlash = 0, healFlash = 0, acc = 0, endTimer = 0, realmFlash = 0;
@@ -134,7 +134,7 @@ const Game = (() => {
   function clearField() {
     fx.clear();
     enemies = []; projectiles = []; zones = []; waves = []; strikes = []; spawns = []; pickups = [];
-    eruptions = []; walls = []; mines = []; resonances = []; dragons = []; lavas = []; coils = []; links = []; pianos = []; blasts = []; rhythmFreeze = false; pads = []; grasps = []; slots = [];
+    eruptions = []; walls = []; mines = []; resonances = []; dragons = []; lavas = []; coils = []; links = []; pianos = []; blasts = []; rhythmFreeze = false; pads = []; grasps = []; slots = []; geysers = [];
     timeScale = 1; slowmo = 0; hitstop = 0; shake = 0; hurtFlash = 0; healFlash = 0; acc = 0;
     combo.n = 0; combo.t = 0; combo.best = 0;
     input.attack = false; input.queued = {}; vineSwing = null; enemyVines = [];
@@ -1570,7 +1570,7 @@ const Game = (() => {
         const c = t.center();
         const inside = z.style === 'thorns' || z.style === 'quicksand' ? Math.abs(t.root.x - z.x) < z.r && Math.abs(t.root.y - z.y) < 40 : dist(c.x, c.y, z.x, z.y) < z.r;
         if (!inside) continue;
-        if (z.style === 'quicksand' && t.mode === 'active' && t.root.grounded) { t.root.vx *= 0.6; }
+        if (z.style === 'quicksand' && t.mode === 'active' && t.root.grounded) { t.root.vx *= 0.6; t.root.vx += Math.sign(z.x - t.root.x) * 60 * dt * 10; }
         if (z.style === 'antigrav') {
           if (t.mode === 'active') { t.root.vy = Math.min(lerp(t.root.vy, -260, 0.25), t.root.vy); t.root.vx *= 0.9; t.root.grounded = false; t.root.plat = null; t.knockT = Math.max(t.knockT, 0.2); }
           else t.impulse(P.PELVIS, 0, -60, 0.3);
@@ -1578,6 +1578,10 @@ const Game = (() => {
         if (tick) applyHit(z.owner, t, { mv: z.fx || null, el: z.el, dmg: z.dps * 0.25, knock: z.style === 'rift' || z.style === 'antigrav' ? 0 : 60, lift: 0, dirX: 0, dirY: 1, idx: P.PELVIS, px: c.x, py: c.y, quiet: true, zoneRoot: z.root });
       }
       if (z.style === 'antigrav' && Math.random() < 0.8) fx.add({ x: z.x + rand(-z.r, z.r) * 0.8, y: z.y + rand(0, z.r) * 0.8, vy: -rand(120, 260), color: pick(['#b9a6ff', '#e4dcff']), size: rand(3, 6), life: 0.6 });
+      if (z.style === 'quicksand') {
+        if (!z.opened) { z.opened = true; for (let i = 0; i < 26; i++) { const a = rand(-0.3, Math.PI + 0.3); fx.add({ kind: 'smoke', x: z.x + Math.cos(a) * z.r * 0.6, y: z.y - 4, vx: Math.cos(a) * rand(60, 160), vy: -rand(30, 90), color: pick(['#d9b56a', '#c2902f']), size: rand(10, 18), life: rand(0.4, 0.7), add: false }); } Sfx.rumble(); }
+        if (Math.random() < 0.9) { const side = Math.random() < 0.5 ? -1 : 1, d = rand(0.6, 1) * z.r; fx.add({ x: z.x + side * d, y: z.y - rand(0, 4), vx: -side * rand(40, 90), vy: rand(-10, 4), color: pick(['#f2d28b', '#e8c070', '#c2902f']), size: rand(2, 4), life: rand(0.6, 1), drag: 0.5, add: false }); }
+      }
       if (z.style === 'aura' && Math.random() < 0.7) { const ZE = ELEMENT_BY_ID[z.el] || NEUTRAL; const a = rand(0, TAU), r = rand(0, z.r) * 0.9; fx.add({ x: z.x + Math.cos(a) * r, y: z.y + Math.sin(a) * r * 0.6, vx: z.pull ? -Math.cos(a) * 160 : 0, vy: -rand(40, 140), color: pick([ZE.color, ZE.deep]), size: rand(3, 7), life: 0.6, add: true }); }
       if (z.style === 'toxic' && Math.random() < 0.5) fx.add({ x: z.x + rand(-z.r, z.r) * 0.7, y: z.y + rand(-z.r, z.r) * 0.4, vy: -rand(20, 60), color: pick(['#a6e35b', '#6fbf2e']), size: rand(4, 8), life: 0.6 });
       if (z.style === 'rift') {
@@ -1599,7 +1603,7 @@ const Game = (() => {
         if (!inside) continue;
         applyHit(z.owner, t, { mv: null, el: z.el, dmg: B.dmg, knock: B.knock, lift: B.lift, dirX: B.out ? Math.sign(c.x - z.x) || 1 : 0, dirY: B.out ? Math.sign(c.y - z.y) * 0.4 : -1, idx: P.PELVIS, px: c.x, py: c.y });
       }
-      if (z.style === 'quicksand') { for (let i = 0; i < 40; i++) fx.add({ kind: 'drop', x: z.x + rand(-z.r * 0.6, z.r * 0.6), y: z.y, vx: rand(-120, 120), vy: -rand(500, 1100), g: 1500, color: pick(['#f2d28b', '#c2902f', '#e8c070']), size: rand(3, 7), life: rand(0.6, 1), add: false }); Sfx.rumble(); }
+      if (z.style === 'quicksand') { geysers.push({ x: z.x, y: z.y, w: z.r * 0.4, t: 0 }); for (let i = 0; i < 40; i++) fx.add({ kind: 'drop', x: z.x + rand(-z.r * 0.6, z.r * 0.6), y: z.y, vx: rand(-120, 120), vy: -rand(500, 1100), g: 1500, color: pick(['#f2d28b', '#c2902f', '#e8c070']), size: rand(3, 7), life: rand(0.6, 1), add: false }); Sfx.rumble(); }
       else { fx.ring(z.x, z.y, ZE.color, z.r * 1.4, 0.5, 14); fx.burst(z.x, z.y, ZE.color, 40, 600); realmFlash = Math.max(realmFlash, 0.2); Sfx.boom(1.3); }
       shake = Math.max(shake, 14);
     }
@@ -1656,6 +1660,8 @@ const Game = (() => {
   }
 
   function updateNewPowers(dt) {
+    for (const gz of geysers) gz.t += dt;
+    geysers = geysers.filter(gz => gz.t < 0.8);
     for (const sl of slots) {
       sl.t += dt;
       const f = sl.owner;
@@ -2283,6 +2289,7 @@ const Game = (() => {
 
 
   function drawSpecials(c) {
+    drawGeysers(c);
     drawNewPowers(c);
     for (const d of dragons) drawDragon(c, d);
     for (const e of eruptions) {
@@ -3898,6 +3905,62 @@ const Game = (() => {
     c.restore();
   }
 
+  // Quicksand: a sunken, swirling sand pit that bulges up just before its geyser
+  function drawQuicksand(c, z, back, grow, k) {
+    const r = z.r * grow, ry = Math.max(6, r * 0.14), x = z.x, y = z.y + 2;
+    const bulge = clamp((k - 0.78) / 0.22, 0, 1);
+    if (back) {
+      // the pit floor: darker toward the sucking centre
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, '#5a3a14'); g.addColorStop(0.35, '#8a6224'); g.addColorStop(0.75, '#c2902f'); g.addColorStop(1, 'rgba(226,190,120,0)');
+      c.fillStyle = g; c.beginPath(); c.ellipse(x, y, r, ry, 0, 0, TAU); c.fill();
+      // three spiral arms of lighter sand winding inward
+      c.lineCap = 'round';
+      for (let arm = 0; arm < 3; arm++) {
+        c.beginPath();
+        for (let q = 0; q <= 24; q++) {
+          const u = q / 24, th = time * 2.2 + arm * TAU / 3 + u * 4.2, rr = r * 0.95 * (1 - u);
+          const px = x + Math.cos(th) * rr, py = y + Math.sin(th) * rr * (ry / r);
+          q ? c.lineTo(px, py) : c.moveTo(px, py);
+        }
+        c.strokeStyle = 'rgba(242,210,139,0.55)'; c.lineWidth = 2.4; c.stroke();
+      }
+      // as the geyser builds, the middle heaves up
+      if (bulge > 0) {
+        const bh = 22 * bulge + Math.sin(time * 40) * 2 * bulge;
+        const bg = c.createLinearGradient(0, y - bh, 0, y);
+        bg.addColorStop(0, '#f2d28b'); bg.addColorStop(1, '#a57427');
+        c.fillStyle = bg; c.beginPath(); c.ellipse(x, y, r * 0.32, bh, 0, Math.PI, TAU); c.fill();
+      }
+      return;
+    }
+    // near lip of the pit, drawn over the foes' feet so they look sunk in
+    const lg = c.createLinearGradient(0, y, 0, y + ry + 6);
+    lg.addColorStop(0, '#e8c27a'); lg.addColorStop(1, '#b07f2a');
+    c.fillStyle = lg;
+    c.beginPath(); c.ellipse(x, y, r, ry, 0, 0, Math.PI); c.ellipse(x, y + 1, r * 0.92, ry * 0.55, 0, Math.PI, 0, true); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,240,200,0.45)';
+    c.beginPath(); c.ellipse(x, y + ry * 0.55, r * 0.7, 1.6, 0, 0, TAU); c.fill();
+  }
+
+  function drawGeysers(c) {
+    for (const gz of geysers) {
+      const k = gz.t / 0.75, up = Math.min(1, gz.t / 0.12), h = 260 * up * (1 - Math.max(0, k - 0.5) * 0.6), a = 1 - Math.max(0, (k - 0.45) / 0.55);
+      if (a <= 0) continue;
+      c.globalAlpha = a;
+      const w0 = gz.w, w1 = gz.w * 0.35;
+      const g = c.createLinearGradient(0, gz.y - h, 0, gz.y);
+      g.addColorStop(0, 'rgba(242,210,139,0.2)'); g.addColorStop(0.25, '#f2d28b'); g.addColorStop(1, '#a57427');
+      c.fillStyle = g;
+      c.beginPath(); c.moveTo(gz.x - w0, gz.y);
+      c.quadraticCurveTo(gz.x - w1 - Math.sin(gz.t * 30) * 4, gz.y - h * 0.6, gz.x - w1 * 0.6, gz.y - h);
+      c.quadraticCurveTo(gz.x, gz.y - h - 30 * up, gz.x + w1 * 0.6, gz.y - h);
+      c.quadraticCurveTo(gz.x + w1 + Math.sin(gz.t * 30) * 4, gz.y - h * 0.6, gz.x + w0, gz.y);
+      c.closePath(); c.fill();
+      c.globalAlpha = 1;
+    }
+  }
+
   function drawZone(c, z, back) {
     const k = z.t / z.dur;
     const grow = Math.min(1, z.t * 5) * (k > 0.85 ? (1 - k) / 0.15 : 1);
@@ -3911,16 +3974,7 @@ const Game = (() => {
       c.globalAlpha = 1;
       return;
     }
-    if (z.style === 'quicksand') {
-      if (!back) return;
-      const r = z.r * grow;
-      const g = c.createRadialGradient(z.x, z.y, 0, z.x, z.y, r);
-      g.addColorStop(0, 'rgba(120,80,30,0.85)'); g.addColorStop(0.6, 'rgba(194,144,47,0.7)'); g.addColorStop(1, 'rgba(242,210,139,0)');
-      c.fillStyle = g; c.beginPath(); c.ellipse(z.x, z.y + 2, r, 14, 0, 0, TAU); c.fill();
-      c.strokeStyle = 'rgba(255,236,190,0.6)'; c.lineWidth = 2;
-      for (let i = 0; i < 3; i++) { const u = (time * 0.8 + i / 3) % 1; c.beginPath(); c.ellipse(z.x, z.y + 2, r * (1 - u), 14 * (1 - u), 0, 0, TAU); c.stroke(); }
-      return;
-    }
+    if (z.style === 'quicksand') { drawQuicksand(c, z, back, grow, k); return; }
     if (z.style === 'aura') {
       if (!back) return;
       const ZE = ELEMENT_BY_ID[z.el] || NEUTRAL, r = z.r * grow;

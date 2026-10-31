@@ -733,24 +733,51 @@ class Fighter {
       ctx.globalAlpha = fade;
     }
     // root: thorny vines coiling up the legs
-    // sink (Sand): a mound of sand swallowing the feet, grains trickling off the shins
+    // sink (Sand): the foe is sunk to the shins in a dune, with ripples, a swirl and trickling grains
     if (st.sink > 0) {
       const a = fade * Math.min(1, st.sink * 3);
       const ff = pts[P.FFOOT], bf = pts[P.BFOOT], fk = pts[P.FKNEE], bk = pts[P.BKNEE];
-      const gx = (ff.x + bf.x) / 2, gy = Math.max(ff.y, bf.y) + 2 * s, wdt = Math.abs(ff.x - bf.x) / 2 + 28 * s;
-      const hgt = (Math.max(ff.y, bf.y) - Math.min(fk.y, bk.y)) * 0.95;
-      ctx.globalAlpha = a * 0.5;
-      for (const [k, f] of [[P.FKNEE, P.FFOOT], [P.BKNEE, P.BFOOT]]) seg(k, f, 3, '#c2902f');   // sand-caked shins
+      const gx = (ff.x + bf.x) / 2, gy = Math.max(ff.y, bf.y) + 3 * s;
+      const depth = Math.min(1, st.sink * 2.2);                   // rises in, sinks away as it wears off
+      const wdt = Math.abs(ff.x - bf.x) / 2 + 26 * s;
+      const hgt = (gy - Math.min(fk.y, bk.y)) * (0.45 + 0.55 * depth);
+      // sand-caked shins under the dune
+      ctx.globalAlpha = a * 0.7;
+      for (const [k, f] of [[P.FKNEE, P.FFOOT], [P.BKNEE, P.BFOOT]]) seg(k, f, 2.5, '#c99a45');
+      // ripples spreading out over the ground
+      ctx.strokeStyle = '#e8c27a'; ctx.lineWidth = 1.6 * s;
+      for (let i = 0; i < 2; i++) {
+        const u = (time * 0.9 + i * 0.5) % 1;
+        ctx.globalAlpha = a * (1 - u) * 0.8;
+        ctx.beginPath(); ctx.ellipse(gx, gy, wdt * (1 + u * 1.2), 5 * s * (1 + u), 0, 0, TAU); ctx.stroke();
+      }
+      // back dune, darker
       ctx.globalAlpha = a;
+      ctx.fillStyle = '#a57427';
+      ctx.beginPath(); ctx.moveTo(gx - wdt * 1.05, gy); ctx.quadraticCurveTo(gx - wdt * 0.2, gy - hgt * 1.05, gx + wdt * 0.35, gy - hgt * 0.8); ctx.quadraticCurveTo(gx + wdt * 0.8, gy - hgt * 0.5, gx + wdt * 1.05, gy); ctx.closePath(); ctx.fill();
+      // front dune, lit from above, with a soft ridge highlight
       const g = ctx.createLinearGradient(0, gy - hgt, 0, gy);
-      g.addColorStop(0, '#f2d28b'); g.addColorStop(1, '#b07f2a');
+      g.addColorStop(0, '#f6dc9c'); g.addColorStop(0.6, '#d9ae5c'); g.addColorStop(1, '#b07f2a');
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.moveTo(gx - wdt, gy);
-      ctx.quadraticCurveTo(gx - wdt * 0.6, gy - hgt * 0.9, gx, gy - hgt);
-      ctx.quadraticCurveTo(gx + wdt * 0.6, gy - hgt * 0.9, gx + wdt, gy);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#e8c070';
-      for (let i = 0; i < 4; i++) { const u = (time * 1.5 + i * 0.25) % 1, x = gx + (i - 1.5) * wdt * 0.45; ctx.globalAlpha = a * (1 - u); ctx.fillRect(x, gy - hgt * (1 - u * 0.8) , 2 * s, 2 * s); }
+      ctx.beginPath(); ctx.moveTo(gx - wdt, gy + 1); ctx.quadraticCurveTo(gx - wdt * 0.55, gy - hgt * 0.95, gx, gy - hgt); ctx.quadraticCurveTo(gx + wdt * 0.55, gy - hgt * 0.92, gx + wdt, gy + 1); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,245,215,0.7)'; ctx.lineWidth = 1.5 * s;
+      ctx.beginPath(); ctx.moveTo(gx - wdt * 0.5, gy - hgt * 0.7); ctx.quadraticCurveTo(gx - wdt * 0.15, gy - hgt * 0.98, gx + wdt * 0.25, gy - hgt * 0.9); ctx.stroke();
+      // speckles of darker grit, fixed per fighter so they don't flicker
+      ctx.fillStyle = 'rgba(120,80,30,0.45)';
+      for (let i = 0; i < 6; i++) { const u = ((i * 0.37 + this.s * 0.13) % 1) * 2 - 1, v = (i * 0.61) % 1; ctx.fillRect(gx + u * wdt * 0.7, gy - hgt * v * 0.7 - 2, 1.6 * s, 1.6 * s); }
+      // a swirl of sand round the shins, pulling down
+      ctx.strokeStyle = 'rgba(242,210,139,0.85)'; ctx.lineWidth = 2 * s;
+      for (let i = 0; i < 2; i++) {
+        const ph = time * 5 + i * Math.PI, yy = gy - hgt * (0.85 + 0.3 * i);
+        ctx.beginPath(); ctx.ellipse(gx, yy, wdt * 0.55, 4 * s, 0, ph, ph + 2.2); ctx.stroke();
+      }
+      // grains trickling down the dune's sides
+      ctx.fillStyle = '#f2d28b';
+      for (let i = 0; i < 6; i++) {
+        const u = (time * 1.2 + i / 6) % 1, side = i % 2 ? 1 : -1;
+        ctx.globalAlpha = a * (1 - u);
+        ctx.fillRect(gx + side * wdt * (0.1 + u * 0.85), gy - hgt * (1 - u) * 0.95, 2 * s, 2 * s);
+      }
       ctx.globalAlpha = fade;
     }
     if (st.root > 0) {
