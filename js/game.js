@@ -2053,6 +2053,51 @@ const Game = (() => {
       c.fillStyle = 'rgba(255,255,255,0.6)'; c.beginPath(); c.moveTo(x, y - 12); c.lineTo(x - 10, y - 2); c.lineTo(x - 3, y - 2); c.closePath(); c.fill();
     }
   }
+  // one clawed shadow hand reaching up out of the ground, leaning in and curling over the foe
+  function drawShadowHand(c, bx, gy, side, rise, tm) {
+    const h = 74 * rise, sway = Math.sin(tm * 3) * 2.5;
+    const wx = bx - side * 7 + sway, wy = gy - h;   // wrist leans in toward the foe
+    const grad = c.createLinearGradient(0, gy, 0, wy - 40);
+    grad.addColorStop(0, '#07040d'); grad.addColorStop(0.55, '#21173a'); grad.addColorStop(1, '#4a3878');
+    c.fillStyle = grad;
+    // slim, bony forearm
+    c.beginPath();
+    c.moveTo(bx - 7, gy + 2);
+    c.bezierCurveTo(bx - 6, gy - h * 0.4, wx - 6 + side * 2, wy + h * 0.25, wx - 4, wy);
+    c.lineTo(wx + 4, wy);
+    c.bezierCurveTo(wx + 6 + side * 2, wy + h * 0.25, bx + 6, gy - h * 0.4, bx + 7, gy + 2);
+    c.closePath(); c.fill();
+    if (rise < 0.3) return;
+    // palm, tilted toward the foe
+    c.save(); c.translate(wx, wy - 6); c.rotate(-side * 0.35);
+    c.beginPath(); c.ellipse(0, 0, 7.5, 9, 0, 0, TAU); c.fill();
+    // four long, jointed fingers fanning out then hooking inward
+    const curl = 0.35 + rise * 0.55;
+    const lens = [19, 25, 24, 18];
+    for (let i = 0; i < 4; i++) {
+      const fx0 = (i - 1.5) * 4, fy0 = -7;
+      const spread = (i - 1.5) * 0.18;
+      const len = lens[i];
+      const kx = fx0 + Math.sin(spread) * len * 0.55, ky = fy0 - len * 0.55;                       // knuckle
+      const tx = kx - side * len * 0.5 * curl, ty = ky - len * 0.45 * (1 - curl * 0.6);            // claw tip
+      c.beginPath();
+      c.moveTo(fx0 - 2, fy0);
+      c.quadraticCurveTo(kx - 2.2, ky + 2, kx - 1.6, ky);
+      c.quadraticCurveTo((kx + tx) / 2 - 1, (ky + ty) / 2, tx, ty);
+      c.quadraticCurveTo((kx + tx) / 2 + 1.4, (ky + ty) / 2 + 1, kx + 1.6, ky);
+      c.quadraticCurveTo(kx + 2.2, ky + 2, fx0 + 2, fy0);
+      c.closePath(); c.fill();
+      c.fillStyle = '#d6c8ff'; c.beginPath(); c.arc(tx, ty, 1.4, 0, TAU); c.fill(); c.fillStyle = grad;
+    }
+    // thumb hooking across
+    c.beginPath(); c.moveTo(side * 5, -2); c.quadraticCurveTo(side * 13, -8, side * 9 - side * 9 * curl, -18); c.lineTo(side * 3, -8); c.closePath(); c.fill();
+    c.restore();
+    // faint rim light along the outer edge of the arm
+    c.strokeStyle = 'rgba(170,150,230,0.5)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(bx + side * 7, gy); c.bezierCurveTo(bx + side * 6, gy - h * 0.4, wx + side * 6, wy + h * 0.25, wx + side * 4, wy); c.stroke();
+    if (Math.random() < 0.25) fx.add({ x: bx + rand(-6, 6), y: gy - rand(0, h), vx: rand(-12, 12), vy: -rand(30, 70), color: pick(['#2b2140', '#6b4fb0']), size: rand(3, 6), life: 0.5 });
+  }
+
   function drawNewPowers(c) {
     for (const sl of slots) {
       const a = Math.min(1, sl.t * 8, ((sl.kind === 'slot' ? 2.4 : 1.2) - sl.t) * 4);
@@ -2121,16 +2166,15 @@ const Game = (() => {
       c.globalAlpha = 1;
     }
     for (const g of grasps) {
-      const k = Math.min(1, g.t * 8) * (g.t > g.dur ? Math.max(0, 1 - (g.t - g.dur) / 0.3) : 1);
-      const t = g.target, x = t.alive ? t.root.x : g.x;
-      c.globalAlpha = k;
-      for (const side of [-1, 1]) {
-        const bx = x + side * 14, h = 70 * k;
-        c.fillStyle = '#1a1328';
-        c.beginPath(); c.moveTo(bx - 9, g.y); c.quadraticCurveTo(bx - side * 6, g.y - h * 0.6, bx + side * 4, g.y - h); c.lineTo(bx + side * 14, g.y - h + 6); c.quadraticCurveTo(bx + side * 2, g.y - h * 0.5, bx + 9, g.y); c.closePath(); c.fill();
-        c.strokeStyle = '#9b8cc4'; c.lineWidth = 1.5; c.stroke();
-        for (let f2 = 0; f2 < 3; f2++) { c.beginPath(); c.moveTo(bx + side * (4 + f2 * 4), g.y - h + 2); c.lineTo(bx + side * (10 + f2 * 5), g.y - h - 10 + f2 * 3); c.lineWidth = 3; c.strokeStyle = '#1a1328'; c.stroke(); }
-      }
+      const rise = Math.min(1, g.t * 7), out = g.t > g.dur ? Math.max(0, 1 - (g.t - g.dur) / 0.3) : 1;
+      const t = g.target, x = t.alive ? t.root.x : g.x, gy = g.y;
+      c.globalAlpha = out;
+      // a pool of shadow under the foe
+      const pg = c.createRadialGradient(x, gy, 0, x, gy, 56);
+      pg.addColorStop(0, 'rgba(10,6,20,0.95)'); pg.addColorStop(0.7, 'rgba(43,33,64,0.55)'); pg.addColorStop(1, 'rgba(43,33,64,0)');
+      c.fillStyle = pg; c.beginPath(); c.ellipse(x, gy + 1, 56, 10, 0, 0, TAU); c.fill();
+      c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#6b4fb0', x, gy - 30, 70, 0.35 * out); c.globalCompositeOperation = 'source-over';
+      for (const side of [-1, 1]) drawShadowHand(c, x + side * 24, gy, side, rise, time + side);
       c.globalAlpha = 1;
     }
     for (const e of enemies) if (e.engulf && e.alive) {
@@ -2180,39 +2224,37 @@ const Game = (() => {
   // part it hangs from so the silhouette reads as one solid instrument
   function drawPiano(c) {
     c.save(); c.scale(1.15, 1.15);
-    const ink = '#0b0a10', body = '#17151f', hi = '#2c2838', gold = '#d9b25a';
-    c.lineJoin = 'round'; c.lineCap = 'round';
+    const body = '#17151f', lid = '#2a2636', gold = '#d9b25a';
     // legs with brass casters, rooted inside the case bottom
     for (const lx of [-66, 66]) {
-      c.fillStyle = body; c.strokeStyle = ink; c.lineWidth = 2;
-      c.beginPath(); c.moveTo(lx - 7, -38); c.lineTo(lx + 7, -38); c.lineTo(lx + 5, -6); c.lineTo(lx - 5, -6); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = body;
+      c.beginPath(); c.moveTo(lx - 7, -38); c.lineTo(lx + 7, -38); c.lineTo(lx + 5, -6); c.lineTo(lx - 5, -6); c.closePath(); c.fill();
       c.fillStyle = gold; c.beginPath(); c.arc(lx, -4, 4, 0, TAU); c.fill();
     }
     // pedal lyre under the keyboard end
-    c.fillStyle = body; c.strokeStyle = ink;
-    c.beginPath(); c.moveTo(-34, -38); c.lineTo(-28, -38); c.lineTo(-26, -12); c.lineTo(-14, -12); c.lineTo(-12, -38); c.lineTo(-6, -38); c.lineTo(-8, -6); c.lineTo(-32, -6); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = body;
+    c.beginPath(); c.moveTo(-34, -38); c.lineTo(-28, -38); c.lineTo(-26, -12); c.lineTo(-14, -12); c.lineTo(-12, -38); c.lineTo(-6, -38); c.lineTo(-8, -6); c.lineTo(-32, -6); c.closePath(); c.fill();
     c.fillStyle = gold; c.fillRect(-29, -8, 4, 3); c.fillRect(-22, -8, 4, 3); c.fillRect(-15, -8, 4, 3);
-    // lid on its hinge, then the prop stick that holds it open
-    c.fillStyle = hi; c.strokeStyle = ink; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(-70, -62); c.lineTo(84, -120); c.quadraticCurveTo(96, -122, 95, -110); c.lineTo(-58, -62); c.closePath(); c.fill(); c.stroke();
-    c.strokeStyle = ink; c.lineWidth = 4; c.beginPath(); c.moveTo(34, -62); c.lineTo(34, -98); c.stroke();
-    // music stand, leaning back from the case top
-    c.fillStyle = body; c.strokeStyle = ink; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(-74, -61); c.lineTo(-64, -84); c.lineTo(-58, -84); c.lineTo(-66, -61); c.closePath(); c.fill(); c.stroke();
-    // the case: straight bass side, curved tail
+    // lid on its hinge, and the prop stick holding it open
+    c.fillStyle = lid;
+    c.beginPath(); c.moveTo(-70, -62); c.lineTo(84, -120); c.quadraticCurveTo(96, -122, 95, -110); c.lineTo(-58, -62); c.closePath(); c.fill();
+    c.fillStyle = body; c.fillRect(32, -100, 4, 40);
+    // music stand
+    c.beginPath(); c.moveTo(-74, -61); c.lineTo(-64, -84); c.lineTo(-58, -84); c.lineTo(-66, -61); c.closePath(); c.fill();
+    // the case: straight bass side, curved tail, lit from above
     const g = c.createLinearGradient(0, -64, 0, -34);
-    g.addColorStop(0, '#2a2636'); g.addColorStop(1, '#100f16');
-    c.fillStyle = g; c.strokeStyle = ink; c.lineWidth = 2.5;
-    c.beginPath(); c.moveTo(-82, -64); c.lineTo(62, -64); c.bezierCurveTo(90, -64, 96, -54, 92, -44); c.quadraticCurveTo(88, -34, 72, -34); c.lineTo(-82, -34); c.closePath(); c.fill(); c.stroke();
-    c.strokeStyle = 'rgba(255,255,255,0.18)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(-78, -60); c.lineTo(60, -60); c.stroke();
-    c.strokeStyle = gold; c.lineWidth = 1.2; c.beginPath(); c.moveTo(-78, -38); c.lineTo(70, -38); c.stroke();
+    g.addColorStop(0, '#2e2a3a'); g.addColorStop(1, '#100f16');
+    c.fillStyle = g;
+    c.beginPath(); c.moveTo(-82, -64); c.lineTo(62, -64); c.bezierCurveTo(90, -64, 96, -54, 92, -44); c.quadraticCurveTo(88, -34, 72, -34); c.lineTo(-82, -34); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(-80, -62, 140, 2);
+    c.fillStyle = gold; c.fillRect(-80, -39, 150, 1.4);
     // keybed and keyboard, set into the front of the case
-    c.fillStyle = body; c.strokeStyle = ink; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(-80, -54); c.lineTo(-104, -54); c.lineTo(-104, -40); c.lineTo(-80, -40); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = body; c.fillRect(-104, -54, 26, 14);
     c.fillStyle = '#f6f2e8'; c.fillRect(-102, -52, 20, 6);
-    c.fillStyle = ink; for (let k = 0; k < 4; k++) c.fillRect(-100 + k * 5, -52, 2.2, 3.6);
+    c.fillStyle = '#0b0a10'; for (let k = 0; k < 4; k++) c.fillRect(-100 + k * 5, -52, 2.2, 3.6);
     c.restore();
   }
+
 
 
   function drawSpecials(c) {
@@ -3472,7 +3514,7 @@ const Game = (() => {
   // melee slash: a tapered crescent ribbon swept through the recent tip positions
   function drawSwipe(c, f) {
     const act = f.action;
-    if (!act || act.move.kind !== 'melee' || !act.trail || act.trail.length < 2) return;
+    if (!act || act.move.kind !== 'melee' || act.move.stretch || !act.trail || act.trail.length < 2) return;
     const mv = act.move;
     const u = (act.t - mv.windup) / mv.active;
     if (u < 0 || u > 1.8) return;

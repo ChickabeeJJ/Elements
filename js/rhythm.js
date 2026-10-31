@@ -54,7 +54,7 @@ const Rhythm = (() => {
 
   function geom() {
     const W = innerWidth, H = innerHeight;
-    const lw = Math.min(150, W * 0.2, H * 0.3);
+    const lw = Math.min(120, W * 0.17, H * 0.26);
     const width = lw * 4, x0 = (W - width) / 2;
     return { W, H, lw, width, x0, hitY: H * 0.8, topY: H * 0.06 };
   }
@@ -142,7 +142,7 @@ const Rhythm = (() => {
     ctx.save(); ctx.translate(0, lift); ctx.globalAlpha = vis;
 
     const cx = g.W / 2;
-    const persp = y => 0.42 + 0.58 * Math.max(0, (y - g.topY) / (g.hitY - g.topY));
+    const persp = () => 1;   // flat, straight lanes: notes fall at one constant speed
     const X = (lanePos, y) => cx + (g.x0 + lanePos * g.lw - cx) * persp(y);
     // lane floor
     ctx.beginPath(); ctx.moveTo(X(0, g.topY), g.topY); ctx.lineTo(X(4, g.topY), g.topY); ctx.lineTo(X(4, g.H), g.H); ctx.lineTo(X(0, g.H), g.H); ctx.closePath();
