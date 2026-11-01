@@ -234,13 +234,12 @@ const UI = (() => {
       </div>
       <div class="el-tools compact" id="loTools"></div>
       <div class="el-grid lo-grid" id="loGrid"></div>
-      <div class="lo-foot"><p class="hint">Tap to equip up to three. Swap in battle with 1, 2 and 3.</p><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
+      <div class="lo-foot"><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
       const slots = sh.querySelector('#loSlots'), grid = sh.querySelector('#loGrid');
       const drawSlots = () => {
-        slots.innerHTML = [0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small>${sel[i] && sel.length > 1 ? `<i class="x">${ic('close')}</i>` : ''}</button>`).join('');
+        slots.innerHTML = [0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small>${sel[i] ? `<i class="x">${ic('close')}</i>` : ''}</button>`).join('');
         Icons.hydrate(slots);
         slots.querySelectorAll('.lo-slot:not(:disabled)').forEach(slot => slot.onclick = () => {
-          if (sel.length <= 1) { Sfx.denied(); toast('KEEP AT LEAST ONE ELEMENT EQUIPPED'); return; }
           Sfx.click();
           sel.splice(Number(slot.dataset.slot), 1);
           refresh();
@@ -260,19 +259,21 @@ const UI = (() => {
             Sfx.click(); closeModal(); codexSel = id; openCodex(); return;
           }
           Sfx.click();
-          if (sel.includes(id)) { if (sel.length > 1) sel = sel.filter(x => x !== id); else { Sfx.denied(); toast('KEEP AT LEAST ONE ELEMENT EQUIPPED'); } }
+          if (sel.includes(id)) sel = sel.filter(x => x !== id);
           else if (sel.length < 3) sel.push(id);
           else { sel.shift(); sel.push(id); }
           refresh();
         });
       };
-      const refresh = () => { applyAccentTheme(sel[0]); drawSlots(); drawGrid(); };
+      // nothing equipped: DONE greys out, and only explains itself when pressed
+      const refresh = () => { applyAccentTheme(sel[0]); drawSlots(); drawGrid(); sh.querySelector('#loDone').classList.toggle('is-off', !sel.length); };
       mountTools(sh.querySelector('#loTools'), loFilter, drawGrid);
       refresh();
       nudgeScroll(grid, 'y');
       // the back arrow does exactly what DONE does
       sh.querySelector('#loBack').onclick = () => sh.querySelector('#loDone').click();
       sh.querySelector('#loDone').onclick = () => {
+        if (!sel.length) { Sfx.denied(); toast('EQUIP AT LEAST ONE ELEMENT'); return; }
         Sfx.click(); Save.setLoadout(sel);
         applyAccentTheme();
         if (current === 'home') refreshHome();
@@ -463,22 +464,22 @@ const UI = (() => {
           <h3>${ev.name.toUpperCase()}</h3>
           <p class="ev-tag">${ev.tagline}</p>
           <div class="ev-el"><small>EXCLUSIVE ELEMENT</small><b>${NAME(el.id)}</b><div class="ev-moves">${el.moves.map((mv, i) => `<span class="ev-move" title="${mv.name}"><span class="move-ic" style="--c:${el.color};--d:${el.deep}">${ic(mv.icon)}</span><small>${i ? 'POWER ' + i : 'MAIN'}</small><b>${mv.name.toUpperCase()}</b></span>`).join('')}</div></div>
-          <div class="ev-progress">
+          <div class="ev-progress" data-part="evprog">
             <div class="tok-line"><span class="tok-bal">${ic('token')}<b>${fmt(st.tokens)}</b><small>/ ${st.price} TOKENS</small></span>${st.owned ? `<span class="owned">${ic('check')}OWNED</span>` : ''}</div>
             <div class="bar-track"><i style="width:${st.owned ? 100 : pct}%"></i></div>
           </div>
-          <div class="ev-cta">${cta}<button class="btn" id="evPreview">${ic('play')}<b>PREVIEW</b></button></div>
+          <div class="ev-cta" data-part="evcta">${cta}<button class="btn" id="evPreview">${ic('play')}<b>PREVIEW</b></button></div>
         </div>
       </div>
       <div class="hub-col">
         <div class="card panel">
           <div class="panel-head"><h4>${ic('scroll')}DAILY EVENT QUESTS</h4><small>NEW QUESTS IN ${until(st.refresh)}</small></div>
-          <div class="quest-list">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.i}"`)).join('')}</div>
-          <p class="fine">${doneN}/${st.quests.length} claimed today · up to ${st.quests.reduce((t, q) => t + q.tokens, 0)} tokens a day</p>
+          <div class="quest-list" data-part="evq">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.i}"`)).join('')}</div>
+          <p class="fine" data-part="evqn">${doneN}/${st.quests.length} claimed today · up to ${st.quests.reduce((t, q) => t + q.tokens, 0)} tokens a day</p>
         </div>
         <div class="card panel">
           <div class="panel-head"><h4>${ic('gift')}TOKEN SHOP</h4></div>
-          <div class="shop-row"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
+          <div class="shop-row" data-part="shop"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
           <p class="fine">Tokens come only from daily event quests. They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
         </div>
         ${st.upcoming.length ? `<div class="card panel">
@@ -495,8 +496,8 @@ const UI = (() => {
     return `<div class="hub-grid quests-tab">
       <div class="card panel">
         <div class="panel-head"><h4>${ic('scroll')}DAILY QUESTS</h4><small>NEW QUESTS IN ${until(Date.now() + d.left)}</small></div>
-        <div class="quest-list">${d.list.map(q => questRow(q, gemRw(q.gems), `data-dq="${q.i}"`)).join('')}</div>
-        <div class="bonus${d.bonus ? ' claimed' : d.bonusReady ? ' ready' : ''}">
+        <div class="quest-list" data-part="dq">${d.list.map(q => questRow(q, gemRw(q.gems), `data-dq="${q.i}"`)).join('')}</div>
+        <div data-part="bonus" class="bonus${d.bonus ? ' claimed' : d.bonusReady ? ' ready' : ''}">
           <span class="q-ic gift">${ic('gift')}</span>
           <div class="q-body"><b>DAILY CHEST</b><small>Claim all three quests to open it</small><div class="pips">${[0, 1, 2].map(i => `<i class="${i < claimed ? 'on' : ''}"></i>`).join('')}</div></div>
           ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small primary claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
@@ -564,20 +565,32 @@ const UI = (() => {
       Icons.hydrate(panel);
     }).catch(() => {});
   }
+  function softRefreshHub() {
+    const body = $('hubBody'), tmp = document.createElement('div');
+    tmp.innerHTML = hubTab === 'event' ? eventTab() : hubTab === 'quests' ? questsTab() : ranksTab();
+    const fresh = [...tmp.querySelectorAll('[data-part]')];
+    if (!fresh.length || fresh.some(n => !body.querySelector(`[data-part="${n.dataset.part}"]`))) { renderHub(); return; }
+    for (const n of fresh) body.querySelector(`[data-part="${n.dataset.part}"]`).replaceWith(n);
+    Icons.hydrate(body);
+    const c = Meta.claimable();
+    $('hubTabs').querySelectorAll('button').forEach(b => { const dot = b.querySelector('.dot'); if (dot) dot.classList.toggle('hidden', !(b.dataset.tab === 'event' ? c.event : c.daily)); });
+    document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
+    bindHub(body);
+  }
   function bindHub(body) {
     const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
-    on('[data-evq]', b => { const n = Meta.claimEvent(+b.dataset.evq); if (n) { Sfx.pickup(); toast(`+${n} EVENT TOKENS`); renderHub(); } });
-    on('[data-dq]', b => { const n = Meta.claimDaily(+b.dataset.dq); if (n) { Sfx.pickup(); toast(`+${n} GEMS`); renderHub(); } });
-    on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST · +${n} GEMS`); renderHub(); } });
+    on('[data-evq]', b => { const n = Meta.claimEvent(+b.dataset.evq); if (n) { Sfx.pickup(); toast(`+${n} EVENT TOKENS`); softRefreshHub(); } });
+    on('[data-dq]', b => { const n = Meta.claimDaily(+b.dataset.dq); if (n) { Sfx.pickup(); toast(`+${n} GEMS`); softRefreshHub(); } });
+    on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST · +${n} GEMS`); softRefreshHub(); } });
     on('#rkPlay', () => { Sfx.click(); openArena(); });
-    on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); renderHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
+    on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); softRefreshHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
     on('#evBuy', () => {
       const st = Meta.eventState(); if (!st) return;
       const el = ELEMENT_BY_ID[st.ev.element];
       if (Meta.buyEventElement()) {
         Sfx.unlock(); Platform.happytime();
         const l = Save.loadout(); if (l.length < 3 && !l.includes(el.id)) Save.setLoadout(l.concat(el.id));
-        toast(`${el.name.toUpperCase()} UNLOCKED!`); renderHub();
+        toast(`${el.name.toUpperCase()} UNLOCKED!`); softRefreshHub();
       } else { Sfx.denied(); toast(`NEED ${st.price - st.tokens} MORE TOKENS`); }
     });
     on('#evEquip', () => {
@@ -585,7 +598,7 @@ const UI = (() => {
       const id = st.ev.element; let l = Save.loadout();
       if (l.includes(id)) return;
       if (l.length >= 3) l.shift(); l.push(id);
-      Sfx.click(); Save.setLoadout(l); applyAccentTheme(); toast(`${NAME(id)} EQUIPPED`); renderHub();
+      Sfx.click(); Save.setLoadout(l); applyAccentTheme(); toast(`${NAME(id)} EQUIPPED`); softRefreshHub();
     });
     on('#evPreview', () => { Sfx.click(); const st = Meta.eventState(); if (!st) return; previewFrom = 'hub'; openPreview(ELEMENT_BY_ID[st.ev.element]); });
   }

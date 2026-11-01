@@ -1607,3 +1607,26 @@ body:not(.touch) .lo-slot .x { right: 10px; }
 #bars i { box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05); }
 #bars.in i { animation-duration: 0.7s; animation-delay: calc(var(--i) * 70ms); }
 #bars.out i { animation-duration: 0.75s; animation-delay: calc(var(--i) * 70ms); }
+
+/* loadout: shorter on PC, DONE alone on the right, greyed when nothing is equipped */
+body:not(.touch) .sheet.loadout { max-height: min(calc((100dvh - 20px - var(--safe-t) - var(--safe-b)) / var(--ui)), 600px); }
+.lo-foot { justify-content: flex-end; }
+.btn.is-off, .btn.primary.is-off { background: var(--ink-4); color: var(--muted); filter: none; box-shadow: none; }
+body.touch .lo-slot .x { display: none; }
+
+/* scroll bars take the theme colour (your first element) */
+* { scrollbar-color: color-mix(in srgb, var(--acc) 80%, transparent) transparent; }
+.el-grid, .codex-detail, .sheet { scrollbar-color: color-mix(in srgb, var(--acc) 80%, transparent) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--acc); border-radius: 4px; }
+
+/* home chips on touch screens: small square icon buttons, same frame and accent */
+body.touch .live-rail { gap: 6px; }
+body.touch .rail-card, body.touch .rail-card:has(.badge) { width: 34px; height: 34px; padding: 0; gap: 0; justify-content: center; flex: none; }
+body.touch .rail-card .rc-t { display: none; }
+body.touch .rail-card::after { left: 8px; right: 8px; }
+body.touch .rc-gl, body.touch .rc-gl svg, body.touch .rc-gl .ic { width: 15px; height: 15px; }
+body.touch .rc-gl .tier-badge.sm { width: 14px; height: 16px; }
+body.touch .rail-card .badge { top: 3px; right: 3px; width: 5px; height: 5px; }
+@media (max-width: 600px) { body.touch .live-rail { left: auto; } }
