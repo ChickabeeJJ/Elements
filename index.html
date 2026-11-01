@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0c0e15">
-  <meta name="description" content="Element Rag - a physics ragdoll brawler across eight elemental realms. Unlock 30 elements, knock foes off floating islands, beat 64 stages and bosses, then survive Endless.">
+  <meta name="description" content="Element Rag - a physics ragdoll brawler across eight elemental realms. Unlock 33 elements, knock foes off floating islands, beat 64 stages and bosses, climb the Arena and survive Endless.">
   <title>Element Rag</title>
-  <link rel="stylesheet" href="css/style.css?v=60">
+  <link rel="stylesheet" href="css/style.css?v=61">
   <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>
 <body>
@@ -60,7 +60,10 @@
       <h1 class="title"><span class="t1">ELEMENT</span><span class="t2">RAG</span></h1>
       <div class="home-menu">
         <button class="btn primary big" id="btnPlay"><span class="ic" data-icon="play"></span><span class="bt"><b>PLAY</b><small id="playSub">STAGE 1-1</small></span><svg class="play-trace" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="trace-halo" pathLength="1000" d="M 4 1 H 99 V 34 L 96 39 H 1 V 6 Z"></path><path class="trace-line" pathLength="1000" d="M 4 1 H 99 V 34 L 96 39 H 1 V 6 Z"></path></svg></button>
-        <button class="btn" id="btnEndless"><span class="ic" data-icon="infinity"></span><span class="bt"><b>ENDLESS</b><small id="endlessSub">BEST 0</small></span></button>
+        <div class="btn-row duo">
+          <button class="btn mode arena" id="btnArena"><span class="ic" data-icon="swords"></span><span class="bt"><b>ARENA</b><small id="arenaSub">BRONZE III</small></span><i class="tag-live">PVP</i></button>
+          <button class="btn mode" id="btnEndless"><span class="ic" data-icon="infinity"></span><span class="bt"><b>ENDLESS</b><small id="endlessSub">BEST 0</small></span></button>
+        </div>
         <div class="btn-row">
           <button class="btn tile" data-open="stages"><span class="ic" data-icon="map"></span><b>STAGES</b></button>
           <button class="btn tile" data-open="codex"><span class="ic" data-icon="swirl"></span><b>ELEMENTS</b></button>
@@ -69,6 +72,11 @@
       </div>
       <div class="loadout-card" id="homeLoadout"></div>
     </div>
+    <nav class="live-rail" id="homeRail" aria-label="Live">
+      <button class="rail-card event" data-hub="event" id="railEvent"></button>
+      <button class="rail-card" data-hub="quests" id="railQuests"></button>
+      <button class="rail-card" data-hub="ranks" id="railRanks"></button>
+    </nav>
     <div class="corner tr">
       <button class="pill user hidden" id="userChip"></button>
       <div class="pill stars"><span class="ic star" data-icon="star"></span><b id="homeStars">0</b></div>
@@ -93,10 +101,14 @@
     <header class="bar">
       <button class="round" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
       <h2>ELEMENTS</h2>
-      <div class="pill"><b id="codexCount">1/12</b></div>
+      <div class="pill"><span class="ic" data-icon="swirl"></span><b id="codexCount">1/12</b></div>
+      <div class="pill"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
     </header>
     <div class="codex">
-      <div class="codex-list" id="codexList"></div>
+      <div class="codex-browse card">
+        <div class="el-tools" id="codexTools"></div>
+        <div class="el-grid" id="codexList"></div>
+      </div>
       <div class="codex-detail card" id="codexDetail"></div>
     </div>
   </section>
@@ -111,24 +123,39 @@
     <div class="forge" id="forgeGrid"></div>
   </section>
 
+  <!-- ============================ LIVE HUB ============================ -->
+  <section id="hub" class="screen hidden">
+    <header class="bar">
+      <button class="round" data-back aria-label="Back"><span class="ic" data-icon="back"></span></button>
+      <nav class="seg hub-tabs" id="hubTabs">
+        <button data-tab="event"><span class="ic" data-icon="token"></span>EVENT<i class="dot hidden"></i></button>
+        <button data-tab="quests"><span class="ic" data-icon="scroll"></span>QUESTS<i class="dot hidden"></i></button>
+        <button data-tab="ranks"><span class="ic" data-icon="ranks"></span>RANKS</button>
+      </nav>
+      <div class="pill"><span class="ic gem" data-icon="gem"></span><b class="essence-val">0</b></div>
+    </header>
+    <div class="hub-body" id="hubBody"></div>
+  </section>
+
   <div id="previewBar" class="preview-bar hidden"></div>
   <div id="modal" class="modal hidden"><div class="sheet" id="sheet"></div></div>
   <div id="toasts"></div>
   <div id="rotate" class="hidden"><div><span class="ic" data-icon="rotate"></span><p>TURN YOUR DEVICE SIDEWAYS</p><button class="btn primary" id="btnRotateOk"><b>PLAY ANYWAY</b></button></div></div>
 
-  <script src="js/util.js?v=60"></script>
-  <script src="js/platform.js?v=60"></script>
-  <script src="js/audio.js?v=60"></script>
-  <script src="js/elements.js?v=60"></script>
-  <script src="js/realms.js?v=60"></script>
-  <script src="js/progress.js?v=60"></script>
-  <script src="js/ragdoll.js?v=60"></script>
-  <script src="js/world.js?v=60"></script>
-  <script src="js/fx.js?v=60"></script>
-  <script src="js/game.js?v=60"></script>
-  <script src="js/icons.js?v=60"></script>
-  <script src="js/rhythm.js?v=60"></script>
-  <script src="js/ui.js?v=60"></script>
-  <script src="js/main.js?v=60"></script>
+  <script src="js/util.js?v=61"></script>
+  <script src="js/platform.js?v=61"></script>
+  <script src="js/audio.js?v=61"></script>
+  <script src="js/elements.js?v=61"></script>
+  <script src="js/realms.js?v=61"></script>
+  <script src="js/progress.js?v=61"></script>
+  <script src="js/meta.js?v=61"></script>
+  <script src="js/ragdoll.js?v=61"></script>
+  <script src="js/world.js?v=61"></script>
+  <script src="js/fx.js?v=61"></script>
+  <script src="js/game.js?v=61"></script>
+  <script src="js/icons.js?v=61"></script>
+  <script src="js/rhythm.js?v=61"></script>
+  <script src="js/ui.js?v=61"></script>
+  <script src="js/main.js?v=61"></script>
 </body>
 </html>

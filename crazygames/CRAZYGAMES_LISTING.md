@@ -4,7 +4,7 @@
 Element Rag
 
 ## Short description (one line)
-A ragdoll brawler on floating islands. Wield 30 elements and knock every foe into the void.
+A ragdoll brawler on floating islands. Wield 33 elements and knock every foe into the void.
 
 ## Description
 Element Rag is a physics ragdoll brawler set across seven elemental realms of floating islands. Every fighter is an active ragdoll, so bodies wobble and flinch, and big hits send them tumbling. Knock enemies off the edge for an instant ring-out. Watch your own footing, though, because falling into the void ends your run.
@@ -15,7 +15,8 @@ Fight through 64 stages in 8 realms, each ending in an elemental boss. Upgrade y
 
 **Features**
 - Active ragdoll physics with knockback, tumbles and ring-outs
-- 30 elements, each with its own main attack and two unique powers, plus 28 element combos
+- 33 elements (3 of them event exclusives), each with its own main attack and two unique powers, plus 31 element combos
+- Arena duels with trophies and seven tiers, daily quests and weekly events
 - 64 campaign stages across 8 realms, with 8 bosses
 - Elemental weaknesses and combos (shatter frozen foes, shock soaked ones)
 - Endless mode with rotating realms and champion waves
@@ -85,6 +86,9 @@ The covers come from real gameplay. The only text on them is the game title, wit
 - `banner.requestResponsiveBanner` on the home screen (desktop, 300×250) and `banner.clearAllBanners` when gameplay starts
 - `user.isUserAccountAvailable`, `getUser`, `showAuthPrompt`, `addAuthListener` (login chip on home; the save reloads on login)
 - `user.systemInfo.device.type` for mobile detection (hides keyboard hints)
+- `user.submitScore({ encryptedScore })`: Arena trophies, for logged-in players only. This is inactive until `LEADERBOARD_KEY` is set (leaderboards are invite-only)
 - `data.getItem` / `setItem` / `removeItem` for cloud saves
 
-Not used: `game.inviteLink` / `showInviteButton` (single-player game, no rooms).
+Not used: `game.inviteLink` / `showInviteButton`. Arena matches are against clearly labelled bots, because there is no real-time server. The hook for a live rival is `Platform.findLiveMatch()`.
+
+**Privacy:** No new data is collected. Quests, events and trophies live in the same save. Bot names are generated, there is no chat, and nothing about a player is shown to anyone else. The in-game Privacy & Terms note describes the optional leaderboard submission.

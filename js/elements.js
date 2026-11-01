@@ -461,6 +461,43 @@ const ELEMENTS = [
   },
 ];
 
+/* Event-exclusive elements: earned with event tokens while their event is live
+   (see js/meta.js). Their moves reuse proven move kinds and styles with their own
+   numbers, so every runtime path they touch is already battle-tested. */
+(() => {
+  const base = id => { for (const e of ELEMENTS) for (const m of e.moves) if (m.id === id) return m; return null; };
+  const clone = (id, over) => Object.assign(JSON.parse(JSON.stringify(base(id))), over);
+  ELEMENTS.push(
+    {
+      id: 'magma', name: 'Magma', color: '#ff8a4a', deep: '#a8240e', price: 0, event: 'molten', tokenPrice: 400,
+      blurb: 'Molten fists, erupting vents and lava bombs that leave the ground burning. Event exclusive.',
+      moves: [
+        clone('stone_fist', { id: 'magma_fist', name: 'Magma Fist', icon: 'magmafist', desc: 'A heavy molten punch that sets foes ablaze.', dmg: 19, knock: 780, burn: { dps: 5, dur: 2.2 } }),
+        clone('pillars', { id: 'eruption', name: 'Eruption', icon: 'eruption', desc: 'Three molten vents burst open in a line, hurling foes skyward.', n: 3, gap: 135, radius: 64, dmg: 15, lift: 1.6, cd: 7.5 }),
+        clone('boulder', { id: 'lava_bomb', name: 'Lava Bomb', icon: 'vents', desc: 'Lob a bomb of lava that bursts into a wide burning blast.', dmg: 22, burn: { dps: 6, dur: 3 }, explode: { r: 110, dmg: 12, knock: 560 }, cd: 6 }),
+      ],
+    },
+    {
+      id: 'aurora', name: 'Aurora', color: '#8ff7e4', deep: '#5b4fd8', price: 0, event: 'polar', tokenPrice: 400,
+      blurb: 'Shimmering polar light: homing bolts that chill, a freezing burst and a ribbon of cold light. Event exclusive.',
+      moves: [
+        clone('star_bolt', { id: 'aurora_bolts', name: 'Aurora Bolts', icon: 'starlance', desc: 'Two homing bolts of polar light that chill what they hit.', chill: 1.2, dmg: 7 }),
+        clone('frost_nova', { id: 'polar_burst', name: 'Polar Burst', icon: 'snow', desc: 'A burst of polar cold that freezes foes around you.', radius: 220, freeze: 1.8, dmg: 12, cd: 8.5 }),
+        clone('sunbeam', { id: 'aurora_ribbon', name: 'Aurora Ribbon', icon: 'beam', desc: 'Channel a ribbon of cold light that drives foes back.', dps: 38, push: 1250, cd: 8 }),
+      ],
+    },
+    {
+      id: 'tempest', name: 'Tempest', color: '#bfe3ff', deep: '#2f63d8', price: 0, event: 'tempest', tokenPrice: 400,
+      blurb: 'Wind and thunder in one: palms that jolt, a lightning updraft and the eye of a storm. Event exclusive.',
+      moves: [
+        clone('gust_palm', { id: 'thunder_palm', name: 'Thunder Palm', icon: 'palm', desc: 'A gusting palm strike that jolts foes with lightning.', shock: 0.2, dmg: 11 }),
+        clone('updraft', { id: 'squall', name: 'Squall', icon: 'updraft', desc: 'Ride a charged squall upward, shocking and flinging foes nearby.', shock: 0.5, radius: 165 }),
+        clone('thunderstorm', { id: 'eye_of_storm', name: 'Eye of the Storm', icon: 'storm', desc: 'Lightning strikes down on up to five foes.', targets: 5, dmg: 26 }),
+      ],
+    },
+  );
+})();
+
 // Apply the global combat balance pass once to the move data.
 // Main ranged attacks gain 5%; non-Gale main melee attacks gain 15%.
 // Every non-main ability gets an additional 5% multiplier on top of its
@@ -491,7 +528,8 @@ const ELEMENT_BY_ID = Object.fromEntries(ELEMENTS.map(e => [e.id, e]));
 
 /* plain brawlers and basic enemy strikes */
 // listed cheapest first everywhere (codex, loadout picker)
-ELEMENTS.sort((a, b) => a.price - b.price);
+// event exclusives sit after the gem-priced elements
+ELEMENTS.sort((a, b) => (a.event ? 1e6 + a.tokenPrice : a.price) - (b.event ? 1e6 + b.tokenPrice : b.price));
 
 const NEUTRAL = { id: 'none', name: 'Brawler', color: '#ece6da', deep: '#9a9184' };
 const ENEMY_PUNCH = {
@@ -574,6 +612,12 @@ const COMBOS = [
     desc: 'Glinting or dazzled foes are worth their weight in gold: Midas deals +50%.', when: (st, el) => el === 'midas' && (st.glint > 0 || st.dazzle > 0) },
   { id: 'paradox', name: 'Paradox', a: ['echo', 'gadget', 'tempo'], b: 'time', mul: 1.5,
     desc: 'Stunned foes are stuck between moments: Chrono deals +50%.', when: (st, el) => el === 'time' && st.shock > 0 },
+  { id: 'thermal', name: 'Thermal Shock', a: ['frost', 'aurora'], b: 'magma', mul: 1.6, clear: 'freeze',
+    desc: 'Frozen foes crack under sudden heat: Magma deals +60%.', when: (st, el) => el === 'magma' && st.freeze > 0 },
+  { id: 'borealis', name: 'Borealis', a: ['lightning', 'tempest', 'echo'], b: 'aurora', mul: 1.5,
+    desc: 'Charged foes light up the sky: Aurora deals +50% to stunned foes.', when: (st, el) => el === 'aurora' && st.shock > 0 },
+  { id: 'supercell', name: 'Supercell', a: ['water', 'magma', 'fire'], b: 'tempest', mul: 1.5,
+    desc: 'Soaked or burning foes feed the storm: Tempest deals +50%.', when: (st, el) => el === 'tempest' && (st.soak > 0 || st.burn > 0) },
 ];
 // hitting with these elements leaves a short mark that their combo partner cashes in
 const COMBO_MARKS = { crystal: 'glint', joker: 'dazzle', spirit: 'drain', shadow: 'drain', light: 'dazzle', arcane: 'dazzle', void: 'drain' };
@@ -629,6 +673,9 @@ const ICON_PATHS = {
   joker: '<rect x="5" y="3" width="11" height="15" rx="2" fill="currentColor" opacity=".55" transform="rotate(-12 10 10)"/><rect x="8" y="5" width="11" height="15" rx="2" fill="currentColor"/><path d="M13.5 9.5c-1-1.5-3-.8-3 .8 0 1.6 3 3.6 3 3.6s3-2 3-3.6c0-1.6-2-2.3-3-.8z" fill="rgba(0,0,0,.4)"/>',
   puppet: '<path d="M5 2.5v6M12 2.5v4.5M19 2.5v6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4 8.5h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="10.5" r="2.3" fill="currentColor"/><path d="M12 12.8v5M12 14l-4-3.5M12 14l4-3.5M12 17.8l-2.5 3.7M12 17.8l2.5 3.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   gadget: '<path d="M12 3.5 14 4l.6 2.1 2 1 2-.9 1.4 1.4-.9 2 1 2 2.1.6v2l-2.1.6-1 2 .9 2-1.4 1.4-2-.9-2 1-.6 2.1h-2l-.6-2.1-2-1-2 .9-1.4-1.4.9-2-1-2L2 14v-2l2.1-.6 1-2-.9-2 1.4-1.4 2 .9 2-1L10 4z" fill="currentColor"/><circle cx="12" cy="13" r="3.2" fill="rgba(0,0,0,.35)"/>',
+  magma: '<path d="M3 20.5 9 9.5l3 4 2.5-3.5 6.5 10.5z" fill="currentColor"/><path d="M12 2.5c1.8 2 1.6 3.8.4 5.2M8 4.5c1 1.2.9 2.3.2 3.1M16 4.5c1 1.2.9 2.3.2 3.1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M9 20.5l2.4-4 1.6 2 1.6-2.4 2 4.4" fill="none" stroke="rgba(0,0,0,.32)" stroke-width="1.5"/>',
+  aurora: '<path d="M2.5 15c3-6 6-9 9.5-9s6.5 3 9.5 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M5 19c2.2-4 4.6-6 7-6s4.8 2 7 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".6"/><circle cx="12" cy="3.6" r="1.4" fill="currentColor"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="19" cy="7" r="1" fill="currentColor"/>',
+  tempest: '<path d="M3 7h9.5a2.6 2.6 0 1 0-2.6-2.6M3 11h6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M15.5 8.5 10 15.5h4l-1.2 6 6.7-8.4h-4.2l1.6-4.6z" fill="currentColor"/>',
   none: '<path d="M7 10.5V7a1.5 1.5 0 0 1 3 0v3M10 10V5.5a1.5 1.5 0 0 1 3 0V10M13 10V6.5a1.5 1.5 0 0 1 3 0v5M7 10.5a1.5 1.5 0 0 0-3 0V13a7 7 0 0 0 7 7h1a6 6 0 0 0 6-6v-2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 };
 

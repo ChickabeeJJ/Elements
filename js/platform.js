@@ -28,6 +28,13 @@ const Platform = (() => {
   // Basic Launch builds must not show ads: no midgame, rewarded, banner or ad-block calls.
   // Flip to true for a Full Launch.
   const ADS_ENABLED = false;
+  // CrazyGames leaderboards are invite-only and need the encryption key from the
+  // developer portal. Leave the key empty and no score is ever sent.
+  // Before enabling, check the payload format against
+  // https://docs.crazygames.com/sdk/leaderboards/ (it is sent as { encryptedScore }).
+  const LEADERBOARD_KEY = '';           // base64 AES key from the CrazyGames developer portal
+  const LEADERBOARD_COOLDOWN = 12 * 1000;
+  let lastScoreAt = 0, pendingScore = null, scoreTimer = null;
 
   const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
 
@@ -152,6 +159,37 @@ const Platform = (() => {
   }
   function onAuth(cb) { authListeners.push(cb); }
 
+  /* ------------------------------------------------------ leaderboard */
+  // Only a single number (Arena trophies) is sent, and only on CrazyGames with a key.
+  // The platform shows it under the player's own CrazyGames username; nothing else is shared.
+  const leaderboardOn = () => !!(sdk && LEADERBOARD_KEY && sdk.user && typeof sdk.user.submitScore === 'function' && window.crypto && crypto.subtle);
+  async function encryptScore(score) {
+    const raw = Uint8Array.from(atob(LEADERBOARD_KEY), c => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(String(score))));
+    const out = new Uint8Array(iv.length + ct.length);
+    out.set(iv); out.set(ct, iv.length);
+    let bin = ''; out.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }
+  function submitScore(score) {
+    if (!leaderboardOn() || !user) return false;   // logged-in players only
+    pendingScore = Math.max(0, Math.floor(score));
+    const wait = Math.max(0, lastScoreAt + LEADERBOARD_COOLDOWN - Date.now());
+    clearTimeout(scoreTimer);
+    scoreTimer = setTimeout(async () => {
+      const v = pendingScore; pendingScore = null; lastScoreAt = Date.now();
+      try { await sdk.user.submitScore({ encryptedScore: await encryptScore(v) }); } catch (e) { /* ignore */ }
+    }, wait);
+    return true;
+  }
+
+  /* ------------------------------------------------------ matchmaking */
+  // Live PvP needs a real-time game server, which this build does not have.
+  // Plug one in here: resolve to a match object, or null to fall back to a bot.
+  async function findLiveMatch() { return null; }
+
   function device() {
     const t = safe(() => sdk && sdk.user.systemInfo && sdk.user.systemInfo.device && sdk.user.systemInfo.device.type, null);
     if (t) return t;
@@ -160,7 +198,8 @@ const Platform = (() => {
 
   return {
     init, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
-    happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device,
+    happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, findLiveMatch,
+    get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
     get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED; }, get user() { return user; },
     get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },

@@ -25,6 +25,8 @@ const UI = (() => {
   }
   const hex = (id, cls = '') => `<span class="hex ${cls}" style="--c:${colorOf(id)}">${elementIcon(id)}</span>`;
   const NAME = id => (ELEMENT_BY_ID[id] || NEUTRAL).name.toUpperCase();
+  const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ic = (name, cls = '') => `<span class="ic ${cls}" data-icon="${name}"></span>`;
   // key labels follow the player's keyboard layout (AZERTY shows Z/Q/S/D, etc.)
   const keyNames = { KeyW: 'W', KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyQ: 'Q', KeyE: 'E', KeyP: 'P' };
   const key = code => keyNames[code] || code;
@@ -57,7 +59,7 @@ const UI = (() => {
       document.body.classList.remove('previewing'); $('previewBar').classList.add('hidden');
     }
     current = name;
-    for (const id of ['home', 'map', 'codex', 'forge']) $(id).classList.toggle('hidden', id !== name);
+    for (const id of ['home', 'map', 'codex', 'forge', 'hub']) $(id).classList.toggle('hidden', id !== name);
     $('hud').classList.toggle('hidden', name !== null);
     document.body.classList.toggle('playing', name === null);
     if (name === 'home') { Sfx.setMusicPaused(true); refreshHome(); }
@@ -73,6 +75,9 @@ const UI = (() => {
     const all = Object.keys(Save.data.stars).length >= TOTAL_STAGES;
     $('playSub').textContent = all ? 'ALL STAGES CLEAR' : `STAGE ${stageLabel(r, s)} · ${REALMS[r].name.toUpperCase()}`;
     $('endlessSub').textContent = 'BEST ' + Save.data.endlessBest;
+    const tier = Meta.tierOf(Save.data.arena.trophies);
+    $('arenaSub').textContent = tier.label;
+    refreshRail();
     $('homeStars').textContent = Save.totalStars() + '/' + TOTAL_STAGES * 3;
     const cheapest = Math.min(...UPGRADES.map(u => Save.upgradeCost(u.id) ?? Infinity));
     $('homeForge').classList.toggle('hidden', !(cheapest <= Save.data.essence));
@@ -87,7 +92,7 @@ const UI = (() => {
     if (!Platform.accountsAvailable) { chip.classList.add('hidden'); return; }
     chip.classList.remove('hidden');
     const user = Platform.user;
-    chip.innerHTML = user ? `${user.profilePictureUrl ? `<img src="${user.profilePictureUrl}" alt="">` : ''}<b>${String(user.username || 'PLAYER').toUpperCase().slice(0, 16)}</b>` : '<b>LOG IN TO SAVE</b>';
+    chip.innerHTML = user ? `${user.profilePictureUrl ? `<img src="${esc(user.profilePictureUrl)}" alt="">` : ''}<b>${esc(String(user.username || 'PLAYER').toUpperCase().slice(0, 16))}</b>` : '<b>LOG IN TO SAVE</b>';
     chip.onclick = user ? null : async () => { Sfx.click(); await Platform.login(); };
   }
 
@@ -161,98 +166,200 @@ const UI = (() => {
     Icons.hydrate(tabs); Icons.hydrate($('realmHead')); Icons.hydrate(grid);
   }
 
+  /* --------------------------------------------------- element browser */
+  // Shared by the Elements screen and the loadout picker. Built to stay readable with
+  // any number of elements: a search box, filter chips with live counts, an A-Z sort and
+  // a dense auto-filling grid of tiles that scrolls on its own while the rest stays put.
+  const SHOWS = [['all', 'ALL'], ['owned', 'OWNED'], ['locked', 'LOCKED'], ['event', 'EVENT']];
+  const TYPES = [['all', 'ANY'], ['melee', 'MELEE'], ['ranged', 'RANGED']];
+  const mainType = e => (e.moves[0].type === 'melee' ? 'melee' : 'ranged');
+  function elMatch(e, f, skipShow) {
+    const open = Save.elementOpen(e.id);
+    if (!skipShow && ((f.show === 'owned' && !open) || (f.show === 'locked' && open) || (f.show === 'event' && !e.event))) return false;
+    if (f.type !== 'all' && mainType(e) !== f.type) return false;
+    const q = f.q.trim().toLowerCase();
+    if (q && !(e.name.toLowerCase().includes(q) || e.moves.some(m => m.name.toLowerCase().includes(q)))) return false;
+    return true;
+  }
+  function elList(f) {
+    const list = ELEMENTS.filter(e => elMatch(e, f));
+    if (f.sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  }
+  function chipsHtml(f) {
+    const pool = ELEMENTS.filter(e => elMatch(e, f, true));
+    const n = { all: pool.length, owned: pool.filter(e => Save.elementOpen(e.id)).length, event: pool.filter(e => e.event).length };
+    n.locked = n.all - n.owned;
+    return `<div class="chips show" role="group" aria-label="Show">${SHOWS.map(([k, l]) => `<button type="button" class="chip${f.show === k ? ' on' : ''}" data-show="${k}" aria-pressed="${f.show === k}">${l}<i>${n[k]}</i></button>`).join('')}</div>
+      <div class="chips tail"><button type="button" class="chip${f.type !== 'all' ? ' on' : ''}" data-type title="Main attack: tap to cycle">${ic(f.type === 'melee' ? 'fist' : f.type === 'ranged' ? 'fireball' : 'swirl')}${TYPES.find(t => t[0] === f.type)[1]}</button><button type="button" class="chip" data-sort title="Sort order: tap to switch">${ic('ranks')}${f.sort === 'name' ? 'A–Z' : 'PRICE'}</button></div>`;
+  }
+  function mountTools(root, f, onChange) {
+    root.innerHTML = `<label class="search">${ic('search')}<input type="search" placeholder="Search elements or moves" value="${esc(f.q)}" autocomplete="off" spellcheck="false" maxlength="24" aria-label="Search elements"><button type="button" class="clear${f.q ? '' : ' hidden'}" aria-label="Clear search">${ic('close')}</button></label><div class="tool-chips"></div>`;
+    const inp = root.querySelector('input'), clr = root.querySelector('.clear'), chips = root.querySelector('.tool-chips');
+    const drawChips = () => {
+      chips.innerHTML = chipsHtml(f);
+      Icons.hydrate(chips);
+      chips.querySelectorAll('[data-show]').forEach(b => b.onclick = () => { Sfx.click(); f.show = b.dataset.show; update(); });
+      chips.querySelector('[data-type]').onclick = () => { Sfx.click(); f.type = TYPES[(TYPES.findIndex(t => t[0] === f.type) + 1) % TYPES.length][0]; update(); };
+      chips.querySelector('[data-sort]').onclick = () => { Sfx.click(); f.sort = f.sort === 'name' ? 'price' : 'name'; update(); };
+    };
+    const update = () => { clr.classList.toggle('hidden', !f.q); drawChips(); onChange(); };
+    inp.oninput = () => { f.q = inp.value; update(); };
+    inp.onkeydown = e => { e.stopPropagation(); if (e.key === 'Escape' && f.q) { e.preventDefault(); inp.value = ''; f.q = ''; update(); } };
+    clr.onclick = () => { Sfx.click(); inp.value = ''; f.q = ''; update(); inp.focus(); };
+    Icons.hydrate(root);
+    drawChips();
+  }
+  function tileHtml(e, { on = false, slot = 0 } = {}) {
+    const open = Save.elementOpen(e.id);
+    const cost = open ? '' : e.event
+      ? `<i class="et-cost ev">${ic('token')}${e.tokenPrice}</i>`
+      : `<i class="et-cost">${ic('gem', 'gem')}${fmt(e.price)}</i>`;
+    return `<button type="button" class="et${on ? ' on' : ''}${open ? '' : ' locked'}${e.event ? ' event' : ''}" data-el="${e.id}" style="--c:${e.color}" title="${e.name}" aria-label="${e.name}${open ? '' : ', locked'}${slot ? ', equipped in slot ' + slot : ''}">
+      ${hex(e.id, open ? '' : 'locked')}<b>${e.name.toUpperCase()}</b>${cost}${slot ? `<i class="et-slot">${slot}</i>` : ''}${open ? '' : `<span class="et-lock">${ic('lock')}</span>`}${e.event ? '<i class="et-ev" aria-hidden="true"></i>' : ''}</button>`;
+  }
+  const emptyHtml = f => `<div class="et-empty">${ic('search')}<b>NO MATCHES</b><small>${f.q ? `Nothing called "${esc(f.q)}"` : 'Nothing fits these filters'}</small></div>`;
+
   /* ---------------------------------------------------- loadout editor */
+  const loFilter = { q: '', show: 'all', type: 'all', sort: 'price' };
   function openLoadout(after) {
-    let sel = Save.loadout().slice(), drawn = false;
-    const draw = () => {
-      const keep = drawn; drawn = true;
-      applyAccentTheme(sel[0] || Save.loadout()[0]);
-      modal(`
-        <div class="lo-head">
-        <button type="button" class="round sheet-back" id="loBack" aria-label="Back"><span class="ic" data-icon="back"></span></button>
+    let sel = Save.loadout().slice();
+    const inFight = Game.state === 'play';
+    applyAccentTheme(sel[0]);
+    modal(`
+      <div class="lo-head">
+        <button type="button" class="round sheet-back" id="loBack" aria-label="Back">${ic('back')}</button>
         <h2>YOUR ELEMENTS</h2>
-        <div class="lo-slots">${[0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small></button>`).join('')}</div>
-        </div>
-        <p class="hint">Pick up to three. You can swap between them in battle with 1, 2 and 3.</p>
-        <div class="picker">${ELEMENTS.map(e => {
-          const open = Save.elementOpen(e.id);
-          return `<button class="pick${sel.includes(e.id) ? ' on' : ''}${open ? '' : ' locked'}" data-el="${e.id}" style="--c:${e.color}">${hex(e.id, open ? '' : 'locked')}<span>${e.name.toUpperCase()}</span>${open ? '' : `<span class="price">${e.price}</span>`}</button>`;
-        }).join('')}</div>
-        <div class="actions"><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
-        sh.querySelectorAll('.lo-slot:not(:disabled)').forEach(slot => slot.onclick = () => {
-          if (sel.length <= 1) {
-            Sfx.denied();
-            toast('KEEP AT LEAST ONE ELEMENT EQUIPPED');
-            return;
-          }
+        <div class="lo-slots" id="loSlots"></div>
+      </div>
+      <div class="el-tools compact" id="loTools"></div>
+      <div class="el-grid lo-grid" id="loGrid"></div>
+      <div class="lo-foot"><p class="hint">Tap to equip up to three. Swap in battle with 1, 2 and 3.</p><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
+      const slots = sh.querySelector('#loSlots'), grid = sh.querySelector('#loGrid');
+      const drawSlots = () => {
+        slots.innerHTML = [0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small>${sel[i] && sel.length > 1 ? `<i class="x">${ic('close')}</i>` : ''}</button>`).join('');
+        Icons.hydrate(slots);
+        slots.querySelectorAll('.lo-slot:not(:disabled)').forEach(slot => slot.onclick = () => {
+          if (sel.length <= 1) { Sfx.denied(); toast('KEEP AT LEAST ONE ELEMENT EQUIPPED'); return; }
           Sfx.click();
           sel.splice(Number(slot.dataset.slot), 1);
-          draw();
+          refresh();
         });
-        sh.querySelectorAll('.pick').forEach(b => b.onclick = () => {
+      };
+      const drawGrid = () => {
+        const list = elList(loFilter);
+        const own = list.filter(e => Save.elementOpen(e.id)), locked = list.filter(e => !Save.elementOpen(e.id));
+        grid.innerHTML = !list.length ? emptyHtml(loFilter)
+          : own.map(e => tileHtml(e, { on: sel.includes(e.id), slot: sel.indexOf(e.id) + 1 })).join('')
+            + (locked.length ? `<div class="et-divider"><span>${ic('lock')}LOCKED · ${locked.length}</span><small>${inFight ? 'Unlock them from the Elements menu' : 'Tap one to see how to unlock it'}</small></div>${locked.map(e => tileHtml(e)).join('')}` : '');
+        Icons.hydrate(grid);
+        grid.querySelectorAll('.et').forEach(b => b.onclick = () => {
           const id = b.dataset.el;
-          if (!Save.elementOpen(id)) { Sfx.click(); closeModal(); codexSel = id; openCodex(); return; }
+          if (!Save.elementOpen(id)) {
+            if (inFight) { Sfx.denied(); toast('UNLOCK IT FROM THE ELEMENTS MENU'); return; }
+            Sfx.click(); closeModal(); codexSel = id; openCodex(); return;
+          }
           Sfx.click();
-          if (sel.includes(id)) { if (sel.length > 1) sel = sel.filter(x => x !== id); }
+          if (sel.includes(id)) { if (sel.length > 1) sel = sel.filter(x => x !== id); else { Sfx.denied(); toast('KEEP AT LEAST ONE ELEMENT EQUIPPED'); } }
           else if (sel.length < 3) sel.push(id);
           else { sel.shift(); sel.push(id); }
-          draw();
+          refresh();
         });
-        // the back arrow does exactly what DONE does, so nobody has to scroll down to leave
-        sh.querySelector('#loBack').onclick = () => sh.querySelector('#loDone').click();
-        sh.querySelector('#loDone').onclick = () => {
-          Sfx.click(); Save.setLoadout(sel);
-          applyAccentTheme();
-          if (current === 'home') refreshHome();
-          after ? after() : closeModal();
-        };
-      }, 'wide', keep);
-    };
-    draw();
+      };
+      const refresh = () => { applyAccentTheme(sel[0]); drawSlots(); drawGrid(); };
+      mountTools(sh.querySelector('#loTools'), loFilter, drawGrid);
+      refresh();
+      nudgeScroll(grid, 'y');
+      // the back arrow does exactly what DONE does
+      sh.querySelector('#loBack').onclick = () => sh.querySelector('#loDone').click();
+      sh.querySelector('#loDone').onclick = () => {
+        Sfx.click(); Save.setLoadout(sel);
+        applyAccentTheme();
+        if (current === 'home') refreshHome();
+        if (current === 'codex') renderCodex();
+        after ? after() : closeModal();
+      };
+    }, 'wide loadout');
   }
 
   /* -------------------------------------------------------------- codex */
-  function openCodex() { show('codex'); renderCodex(); nudgeScroll($('codex'), 'y'); nudgeScroll($('codexList'), 'x'); }
-  function renderCodex() {
+  const cxFilter = { q: '', show: 'all', type: 'all', sort: 'price' };
+  function openCodex() {
+    show('codex');
+    mountTools($('codexTools'), cxFilter, renderCodexList);
+    renderCodex();
+    const on = $('codexList').querySelector('.et.on');
+    if (on) on.scrollIntoView({ block: 'nearest' });
+    nudgeScroll($('codexList'), 'y');
+  }
+  function renderCodex() { renderCodexList(); renderCodexDetail(); }
+  function renderCodexList() {
     const list = $('codexList');
-    list.innerHTML = '';
-    for (const e of ELEMENTS) {
-      const open = Save.elementOpen(e.id);
-      const b = document.createElement('button');
-      b.className = 'el-pill' + (e.id === codexSel ? ' active' : '');
-      b.style.setProperty('--c', e.color);
-      b.innerHTML = `${hex(e.id, open ? '' : 'locked')}<span>${e.name.toUpperCase()}</span>${open ? '' : `<span class="price"><span class="ic gem" data-icon="gem"></span>${e.price}</span>`}`;
-      b.onclick = () => { Sfx.click(); codexSel = e.id; renderCodex(); };
-      list.appendChild(b);
-    }
+    const els = elList(cxFilter), lo = Save.loadout();
+    list.innerHTML = els.length ? els.map(e => tileHtml(e, { on: e.id === codexSel, slot: lo.indexOf(e.id) + 1 })).join('') : emptyHtml(cxFilter);
     Icons.hydrate(list);
+    list.querySelectorAll('.et').forEach(b => b.onclick = () => {
+      Sfx.click(); codexSel = b.dataset.el;
+      list.querySelectorAll('.et.on').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      renderCodexDetail();
+      // stacked layout: bring the details into view
+      if (getComputedStyle($('codex').querySelector('.codex')).gridTemplateColumns.split(' ').length < 2) $('codexDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     $('codexCount').textContent = Save.unlockedElements().length + '/' + ELEMENTS.length;
-    const e = ELEMENT_BY_ID[codexSel];
+  }
+  function renderCodexDetail() {
+    const e = ELEMENT_BY_ID[codexSel] || ELEMENTS[0];
     const open = Save.elementOpen(e.id);
+    const lo = Save.loadout(), slot = lo.indexOf(e.id) + 1;
     if (open) Game.setPreviewElement(e.id);
     const det = $('codexDetail');
     det.style.setProperty('--c', e.color);
+    let unlock = '';
+    if (!open && e.event) {
+      const ev = Meta.elementEvent(e.id);
+      unlock = `<div class="buy-row ev" style="--ec:${ev.color}">${ic('token')}<p>${ev.live
+        ? `Exclusive to the <b>${ev.name}</b> event, live for <b data-until="${ev.end}">${Meta.fmtLeft(ev.end - Date.now())}</b>. Earn tokens from event quests and Arena matches.`
+        : `Exclusive to the <b>${ev.name}</b> event. It returns in <b data-until="${ev.start}">${Meta.fmtLeft(ev.start - Date.now())}</b>.`}</p><button class="btn${ev.live ? ' primary' : ''}" id="goEvent"><b>${ev.live ? 'GO TO EVENT' : 'VIEW EVENTS'}</b></button></div>`;
+    } else if (!open) {
+      unlock = `<div class="buy-row"><p>Unlock ${e.name} with gems from battles, pickups and stage clears.</p><button class="btn${Save.data.essence >= e.price ? ' primary' : ''}" id="buyEl">${ic('gem')}<b>UNLOCK · ${e.price}</b></button></div>`;
+    }
+    const tags = [mainType(e) === 'melee' ? '<span class="melee">MELEE</span>' : '<span class="ranged">RANGED</span>', e.event ? '<span class="evt">EVENT EXCLUSIVE</span>' : '', slot ? `<span class="eq">EQUIPPED · SLOT ${slot}</span>` : ''].join('');
     det.innerHTML = `
-      <div class="cd-head">${hex(e.id, open ? '' : 'locked')}<div><h3>${e.name.toUpperCase()}</h3><p>${e.blurb}</p></div><button class="btn small preview-btn" id="previewEl"><span class="ic" data-icon="play"></span><b>PREVIEW</b></button></div>
-      ${open ? '' : `<div class="buy-row"><p>Unlock ${e.name} with gems from battles, pickups and stage clears.</p><button class="btn${Save.data.essence >= e.price ? ' primary' : ''}" id="buyEl"><span class="ic" data-icon="gem"></span><b>UNLOCK · ${e.price}</b></button></div>`}
+      <div class="cd-head">${hex(e.id, open ? '' : 'locked')}<div class="cd-title"><h3>${e.name.toUpperCase()}</h3><div class="cd-tags">${tags}</div><p>${e.blurb}</p></div>
+        <div class="cd-btns"><button class="btn small preview-btn" id="previewEl">${ic('play')}<b>PREVIEW</b></button>${open ? `<button class="btn small${slot ? '' : ' primary'}" id="equipEl"><b>${slot ? 'UNEQUIP' : 'EQUIP'}</b></button>` : ''}</div></div>
+      ${unlock}
       <div class="moves">${e.moves.map((mv, i) => `
-        <div class="move"${open ? '' : ' style="opacity:.5"'}>
-          <div class="move-top"><span class="move-ic" style="--c:${e.color};--d:${e.deep}"><span class="ic" data-icon="${mv.icon}"></span></span>
-            <div><h4>${mv.name.toUpperCase()}</h4><div class="tags"><span>${i === 0 ? 'MAIN' : 'POWER'}</span>${mv.type === 'melee' ? '<span class="melee">MELEE</span>' : mv.type === 'ranged' ? '<span class="ranged">RANGED</span>' : ''}</div></div></div>
+        <div class="move"${open ? '' : ' style="opacity:.55"'}>
+          <div class="move-top"><span class="move-ic" style="--c:${e.color};--d:${e.deep}">${ic(mv.icon)}</span>
+            <div><h4>${mv.name.toUpperCase()}</h4><div class="tags"><span>${i === 0 ? 'MAIN' : 'POWER ' + i}</span>${mv.type === 'melee' ? '<span class="melee">MELEE</span>' : mv.type === 'ranged' ? '<span class="ranged">RANGED</span>' : ''}</div></div></div>
           <p>${mv.desc}</p>
           <div class="meta">${mv.dmg ? `<span>${mv.dmg}${mv.count ? '×' + mv.count : ''} DMG</span>` : ''}<span>${mv.cd}S</span><kbd>${KEYS[i]}</kbd></div>
         </div>`).join('')}</div>
       ${(() => {
         const mine = COMBOS.filter(cb => cb.b === e.id || cb.a.includes(e.id));
         if (!mine.length) return '';
-        return `<div class="combos"><h4>COMBOS</h4>${mine.map(cb => `
+        return `<div class="combos"><h4>COMBOS · ${mine.length}</h4><div class="combo-grid">${mine.map(cb => `
           <div class="combo-card">
-            <div class="pair">${(cb.b === e.id ? cb.a : [e.id]).map(id => hex(id)).join('<span class="or">/</span>')}<span class="plus">+</span>${hex(cb.b)}</div>
+            <div class="pair">${(cb.b === e.id ? cb.a.filter(id => ELEMENT_BY_ID[id]).slice(0, 3) : [e.id]).map(id => hex(id)).join('<span class="or">/</span>')}<span class="plus">+</span>${hex(cb.b)}</div>
             <div><b>${cb.name.toUpperCase()}</b><p>${cb.desc}</p></div>
-          </div>`).join('')}</div>`;
+          </div>`).join('')}</div></div>`;
       })()}`;
     Icons.hydrate(det);
-    det.querySelector('#previewEl').onclick = () => { Sfx.click(); openPreview(e); };
+    det.scrollTop = 0;
+    det.querySelector('#previewEl').onclick = () => { Sfx.click(); previewFrom = 'codex'; openPreview(e); };
+    const eq = det.querySelector('#equipEl');
+    if (eq) eq.onclick = () => {
+      let l = Save.loadout();
+      if (l.includes(e.id)) {
+        if (l.length <= 1) { Sfx.denied(); toast('KEEP AT LEAST ONE ELEMENT EQUIPPED'); return; }
+        l = l.filter(x => x !== e.id);
+      } else { if (l.length >= 3) l.shift(); l.push(e.id); }
+      Sfx.click(); Save.setLoadout(l); applyAccentTheme(); renderCodex();
+      toast(l.includes(e.id) ? `${e.name.toUpperCase()} EQUIPPED` : `${e.name.toUpperCase()} UNEQUIPPED`);
+    };
+    const go = det.querySelector('#goEvent');
+    if (go) go.onclick = () => { Sfx.click(); openHub('event'); };
     const buy = det.querySelector('#buyEl');
     if (buy) buy.onclick = () => {
       if (Save.buyElement(e.id)) {
@@ -266,7 +373,9 @@ const UI = (() => {
 
   /* ------------------------------------------------------------ preview */
   // watch an element's whole kit in action before buying or equipping it
+  let previewFrom = 'codex';
   function openPreview(e) {
+    if (current !== 'hub') previewFrom = 'codex';
     const bar = $('previewBar');
     bar.style.setProperty('--c', e.color);
     bar.innerHTML = `<div class="pv-head">${hex(e.id)}<div><small>PREVIEW</small><b>${e.name.toUpperCase()}</b></div></div>
@@ -274,7 +383,7 @@ const UI = (() => {
       <button class="btn primary small" id="pvBack"><b>BACK</b></button>`;
     Icons.hydrate(bar);
     document.body.classList.add('previewing');
-    $('codex').classList.add('hidden');
+    $(previewFrom).classList.add('hidden');
     bar.classList.remove('hidden');
     Game.hooks.onPreviewMove = slot => bar.querySelectorAll('.pv-move').forEach(m => m.classList.toggle('on', +m.dataset.i === slot));
     Game.startPreview(e.id);
@@ -286,8 +395,289 @@ const UI = (() => {
     Game.hooks.onPreviewMove = null;
     document.body.classList.remove('previewing');
     $('previewBar').classList.add('hidden');
-    $('codex').classList.remove('hidden');
-    renderCodex();
+    $(previewFrom).classList.remove('hidden');
+    if (previewFrom === 'hub') renderHub(); else renderCodex();
+  }
+
+  /* ---------------------------------------------------------- live hub */
+  // tier emblem: a shield in the tier colour with its division
+  let badgeN = 0;
+  function tierBadge(t, cls = '') {
+    const id = 'tb' + (++badgeN);
+    const mark = t.div < 0 ? '' : t.div ? `<text x="24" y="32" text-anchor="middle" font-size="${t.div === 3 ? 12 : 14}" font-weight="900" fill="#fff" font-family="Rubik, sans-serif">${['', 'I', 'II', 'III'][t.div]}</text>`
+      : '<path d="m24 16 2.6 5.4 5.9.8-4.3 4.1 1 5.9L24 29.4l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" fill="#fff"/>';
+    return `<svg class="tier-badge ${cls}" viewBox="0 0 48 52" aria-label="${t.label}" role="img"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.color}"/><stop offset="1" stop-color="${mixHex(t.color, '#101320', 0.55)}"/></linearGradient></defs>
+      <path d="M24 2 44 9v17c0 12-9 20-20 24C13 46 4 38 4 26V9z" fill="url(#${id})" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+      <path d="M24 8 38 13v13c0 8.5-6 14.5-14 17.5C16 40.5 10 34.5 10 26V13z" fill="rgba(0,0,0,.24)"/>${mark}</svg>`;
+  }
+  const QUEST_ICON = { kills: 'sword', ringouts: 'burst', stages: 'map', stars3: 'star', duels: 'swords', duelWins: 'trophy', endlessKills: 'infinity', combo: 'bolt', gems: 'gem' };
+  const until = (ts, pre = '') => `<b data-until="${ts}" data-pre="${pre}">${pre}${Meta.fmtLeft(ts - Date.now())}</b>`;
+  function questRow(q, reward, claimAttr) {
+    const pct = Math.round(q.prog / q.n * 100);
+    const icon = q.el ? hex(q.el) : `<span class="q-ic">${ic(QUEST_ICON[q.type] || 'scroll')}</span>`;
+    const right = q.claimed ? `<span class="q-done">${ic('check')}</span>`
+      : q.done ? `<button class="btn small primary claim" ${claimAttr}>${reward}<b>CLAIM</b></button>`
+      : `<span class="q-rw">${reward}</span>`;
+    return `<div class="quest${q.done ? ' done' : ''}${q.claimed ? ' claimed' : ''}">${icon}
+      <div class="q-body"><b>${q.text}</b><div class="q-bar"><i style="width:${pct}%"></i></div><small>${fmt(q.prog)} / ${fmt(q.n)}</small></div>${right}</div>`;
+  }
+  const gemRw = n => `<span class="rw">${ic('gem', 'gem')}${n}</span>`;
+  const tokRw = n => `<span class="rw tok">${ic('token')}${n}</span>`;
+
+  let hubTab = 'event';
+  function openHub(tab) { if (tab) hubTab = tab; show('hub'); renderHub(); }
+  function renderHub() {
+    const c = Meta.claimable();
+    $('hubTabs').querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === hubTab);
+      const dot = b.querySelector('.dot');
+      if (dot) dot.classList.toggle('hidden', !(b.dataset.tab === 'event' ? c.event : c.daily));
+      b.onclick = () => { Sfx.click(); hubTab = b.dataset.tab; renderHub(); };
+    });
+    const body = $('hubBody');
+    body.innerHTML = hubTab === 'event' ? eventTab() : hubTab === 'quests' ? questsTab() : ranksTab();
+    Icons.hydrate(body); Icons.hydrate($('hubTabs'));
+    document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
+    bindHub(body);
+  }
+
+  function eventTab() {
+    const st = Meta.eventState(), ev = st.ev, el = ELEMENT_BY_ID[ev.element];
+    const pct = Math.min(100, Math.round(st.tokens / st.price * 100));
+    const doneN = st.quests.filter(q => q.claimed).length;
+    const cta = st.owned
+      ? `<button class="btn primary" id="evEquip"><b>${Save.loadout().includes(el.id) ? 'EQUIPPED' : 'EQUIP ' + NAME(el.id)}</b></button>`
+      : `<button class="btn${st.tokens >= st.price ? ' primary' : ''}" id="evBuy">${ic('token')}<b>UNLOCK · ${st.price}</b></button>`;
+    return `<div class="hub-grid event-tab" style="--ec:${ev.color};--ed:${ev.deep}">
+      <div class="ev-hero card">
+        <div class="ev-art"><span class="ev-rays"></span>${hex(el.id, 'ev-hex')}</div>
+        <div class="ev-info">
+          <span class="kicker"><i class="live-dot"></i>LIVE EVENT · ENDS IN ${until(ev.end)}</span>
+          <h3>${ev.name.toUpperCase()}</h3>
+          <p class="ev-tag">${ev.tagline}</p>
+          <div class="ev-el"><small>EXCLUSIVE ELEMENT</small><b>${NAME(el.id)}</b><div class="ev-moves">${el.moves.map((mv, i) => `<span class="ev-move" title="${mv.name}"><span class="move-ic" style="--c:${el.color};--d:${el.deep}">${ic(mv.icon)}</span><small>${i ? 'POWER ' + i : 'MAIN'}</small><b>${mv.name.toUpperCase()}</b></span>`).join('')}</div></div>
+          <div class="ev-progress">
+            <div class="tok-line"><span class="tok-bal">${ic('token')}<b>${fmt(st.tokens)}</b><small>/ ${st.price} TOKENS</small></span>${st.owned ? `<span class="owned">${ic('check')}OWNED</span>` : ''}</div>
+            <div class="bar-track"><i style="width:${st.owned ? 100 : pct}%"></i></div>
+          </div>
+          <div class="ev-cta">${cta}<button class="btn" id="evPreview">${ic('play')}<b>PREVIEW</b></button></div>
+        </div>
+      </div>
+      <div class="hub-col">
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('scroll')}EVENT QUESTS</h4><small>${doneN}/${st.quests.length} CLAIMED</small></div>
+          <div class="quest-list">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.id}"`)).join('')}</div>
+        </div>
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('gift')}TOKEN SHOP</h4></div>
+          <div class="shop-row"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
+          <p class="fine">Tokens come from event quests and Arena matches (+15 for a win, +5 for a loss). They expire when the event ends; elements you unlock are yours to keep.</p>
+        </div>
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('clock')}COMING UP</h4></div>
+          <div class="upcoming">${st.upcoming.map(u => `<div class="up-ev" style="--c:${u.color}">${hex(u.element)}<div><b>${u.name.toUpperCase()}</b><small>${NAME(u.element)} · STARTS IN ${until(u.start)}</small></div></div>`).join('')}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function questsTab() {
+    const d = Meta.dailyState(), st = Meta.eventState();
+    const claimed = d.list.filter(q => q.claimed).length;
+    return `<div class="hub-grid quests-tab">
+      <div class="card panel">
+        <div class="panel-head"><h4>${ic('scroll')}DAILY QUESTS</h4><small>NEW QUESTS IN ${until(Date.now() + d.left)}</small></div>
+        <div class="quest-list">${d.list.map(q => questRow(q, gemRw(q.gems), `data-dq="${q.i}"`)).join('')}</div>
+        <div class="bonus${d.bonus ? ' claimed' : d.bonusReady ? ' ready' : ''}">
+          <span class="q-ic gift">${ic('gift')}</span>
+          <div class="q-body"><b>DAILY CHEST</b><small>Claim all three quests to open it</small><div class="pips">${[0, 1, 2].map(i => `<i class="${i < claimed ? 'on' : ''}"></i>`).join('')}</div></div>
+          ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small primary claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
+        </div>
+      </div>
+      <div class="card panel" style="--ec:${st.ev.color}">
+        <div class="panel-head"><h4>${ic('token')}${st.ev.name.toUpperCase()}</h4><small>ENDS IN ${until(st.ev.end)}</small></div>
+        <div class="quest-list">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.id}"`)).join('')}</div>
+        <button class="btn" id="qToEvent"><b>OPEN EVENT</b></button>
+      </div>
+    </div>`;
+  }
+
+  function ranksTab() {
+    const a = Save.data.arena, t = Meta.tierOf(a.trophies);
+    const games = a.wins + a.losses;
+    const recs = [
+      ['trophy', 'PEAK TROPHIES', fmt(a.peak)], ['infinity', 'ENDLESS BEST', fmt(Save.data.endlessBest)],
+      ['star', 'STARS', `${Save.totalStars()}/${TOTAL_STAGES * 3}`], ['crown', 'BOSSES BEATEN', fmt(Save.data.stats.bosses)],
+      ['sword', 'FOES DEFEATED', fmt(Save.data.stats.kills)], ['burst', 'RING OUTS', fmt(Save.data.stats.ringouts)],
+      ['swirl', 'ELEMENTS', `${Save.unlockedElements().length}/${ELEMENTS.length}`], ['bolt', 'BEST STREAK', fmt(a.bestStreak)],
+    ];
+    const global = Platform.leaderboardEnabled
+      ? (Platform.user ? 'Your trophies are posted to the CrazyGames leaderboard after every match, under your CrazyGames username.' : 'Log in to CrazyGames to post your trophies to the global leaderboard.')
+      : Platform.hasSdk ? 'The global leaderboard is coming soon. Your trophies and records are saved, so they will count from day one.'
+      : 'The global leaderboard is available when you play on CrazyGames. Your records are saved on this device.';
+    return `<div class="hub-grid ranks-tab">
+      <div class="hub-col">
+        <div class="card rank-hero" style="--tc:${t.color}">
+          ${tierBadge(t, 'xl')}
+          <div class="rk-info">
+            <small>ARENA RANK</small><h3>${t.label}</h3>
+            <div class="trophies">${ic('trophy')}<b>${fmt(a.trophies)}</b><small>TROPHIES</small></div>
+            <div class="bar-track"><i style="width:${Math.round(t.pct * 100)}%"></i></div>
+            <small class="to-next">${t.next ? `${t.next.min - a.trophies} TO ${t.next.name.toUpperCase()}` : 'TOP TIER REACHED'}</small>
+          </div>
+          <div class="rk-stats">
+            <div><b>${a.wins}</b><small>WINS</small></div><div><b>${a.losses}</b><small>LOSSES</small></div>
+            <div><b>${games ? Math.round(a.wins / games * 100) : 0}%</b><small>WIN RATE</small></div><div><b>${a.streak > 0 ? a.streak : 0}</b><small>STREAK</small></div>
+          </div>
+          <button class="btn primary" id="rkPlay">${ic('swords')}<b>PLAY ARENA</b></button>
+        </div>
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('ranks')}PERSONAL RECORDS</h4></div>
+          <div class="records">${recs.map(([i, l, v]) => `<div>${ic(i)}<b>${v}</b><small>${l}</small></div>`).join('')}</div>
+        </div>
+      </div>
+      <div class="hub-col">
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('trophy')}ARENA TIERS</h4><small>REWARD ON FIRST PROMOTION</small></div>
+          <div class="ladder">${Meta.TIERS.slice().reverse().map(T => {
+            const tt = Meta.tierOf(T.min), here = tt.i === t.i, reached = T.min <= a.peak;
+            return `<div class="rung${here ? ' here' : ''}${reached ? ' reached' : ''}" style="--tc:${T.color}">${tierBadge(Object.assign({}, tt, { div: T.id === 'legend' ? 0 : -1, label: T.name }), 'sm')}
+              <div><b>${T.name.toUpperCase()}</b><small>${fmt(T.min)}+ TROPHIES</small></div>
+              ${here ? '<span class="you">YOU</span>' : ''}<span class="rw">${T.reward ? `${ic('gem', 'gem')}${T.reward}` : ''}${reached && T.reward ? ic('check', 'ok') : ''}</span></div>`;
+          }).join('')}</div>
+        </div>
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('ranks')}GLOBAL LEADERBOARD</h4></div>
+          <p class="fine">${global}</p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function bindHub(body) {
+    const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
+    on('[data-evq]', b => { const n = Meta.claimEvent(b.dataset.evq); if (n) { Sfx.pickup(); toast(`+${n} EVENT TOKENS`); renderHub(); } });
+    on('[data-dq]', b => { const n = Meta.claimDaily(+b.dataset.dq); if (n) { Sfx.pickup(); toast(`+${n} GEMS`); renderHub(); } });
+    on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST · +${n} GEMS`); renderHub(); } });
+    on('#qToEvent', () => { Sfx.click(); hubTab = 'event'; renderHub(); });
+    on('#rkPlay', () => { Sfx.click(); openArena(); });
+    on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); renderHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
+    on('#evBuy', () => {
+      const st = Meta.eventState(), el = ELEMENT_BY_ID[st.ev.element];
+      if (Meta.buyEventElement()) {
+        Sfx.unlock(); Platform.happytime();
+        const l = Save.loadout(); if (l.length < 3 && !l.includes(el.id)) Save.setLoadout(l.concat(el.id));
+        toast(`${el.name.toUpperCase()} UNLOCKED!`); renderHub();
+      } else { Sfx.denied(); toast(`NEED ${st.price - st.tokens} MORE TOKENS`); }
+    });
+    on('#evEquip', () => {
+      const id = Meta.eventState().ev.element; let l = Save.loadout();
+      if (l.includes(id)) return;
+      if (l.length >= 3) l.shift(); l.push(id);
+      Sfx.click(); Save.setLoadout(l); applyAccentTheme(); toast(`${NAME(id)} EQUIPPED`); renderHub();
+    });
+    on('#evPreview', () => { Sfx.click(); const el = ELEMENT_BY_ID[Meta.eventState().ev.element]; previewFrom = 'hub'; openPreview(el); });
+  }
+
+  // home: the live rail on the right (event, quests, rank)
+  function refreshRail() {
+    const es = Meta.eventState(), ds = Meta.dailyState(), c = Meta.claimable(), a = Save.data.arena, t = Meta.tierOf(a.trophies);
+    const badge = n => (n ? `<i class="badge">${n}</i>` : '');
+    const ev = $('railEvent');
+    ev.style.setProperty('--c', es.ev.color);
+    ev.innerHTML = `${hex(es.ev.element)}<span class="rc-t"><small><i class="live-dot"></i>LIVE EVENT</small><b>${es.ev.name.toUpperCase()}</b><em>${until(es.ev.end, 'ENDS IN ')}</em></span>${badge(c.event)}`;
+    $('railQuests').innerHTML = `<span class="rc-ic">${ic('scroll')}</span><span class="rc-t"><small>DAILY QUESTS</small><b>${ds.list.filter(q => q.done).length}/${ds.list.length} DONE</b><em>${until(Date.now() + ds.left, 'NEW IN ')}</em></span>${badge(c.daily)}`;
+    $('railRanks').style.setProperty('--c', t.color);
+    $('railRanks').innerHTML = `${tierBadge(t, 'sm')}<span class="rc-t"><small>RANKS</small><b>${t.label}</b><em>${ic('trophy')}${fmt(a.trophies)} TROPHIES</em></span>`;
+    Icons.hydrate($('homeRail'));
+  }
+  // countdowns tick quietly wherever they are on screen
+  setInterval(() => {
+    document.querySelectorAll('[data-until]').forEach(el => { if (el.offsetParent !== null) el.textContent = (el.dataset.pre || '') + Meta.fmtLeft(+el.dataset.until - Date.now()); });
+  }, 15000);
+
+  /* ------------------------------------------------------------- arena */
+  let mmToken = 0, mmClock = null;
+  function openArena() {
+    const a = Save.data.arena, t = Meta.tierOf(a.trophies);
+    clearInterval(mmClock); mmToken++;
+    modal(`
+      <h2>${ic('swords')} ARENA</h2>
+      <p class="sub">1V1 DUEL · KNOCK OUT OR RING OUT YOUR RIVAL</p>
+      <div class="mm-card" style="--tc:${t.color}">
+        ${tierBadge(t, 'lg')}
+        <div class="mm-rank"><small>YOUR RANK</small><b>${t.label}</b><span>${ic('trophy')}${fmt(a.trophies)} TROPHIES</span></div>
+        <div class="mm-lo"><small>YOUR ELEMENTS</small><div>${Save.loadout().map(id => hex(id)).join('')}<button class="btn small" id="mmLo"><b>CHANGE</b></button></div></div>
+      </div>
+      <div class="mm-stakes">
+        <div class="win"><small>WIN</small><b>${ic('trophy')}+30</b><b>${ic('gem', 'gem')}+${30 + t.i * 8}</b><b>${ic('token')}+15</b></div>
+        <div class="loss"><small>LOSS</small><b>${ic('trophy')}${a.trophies === 0 ? '0' : '−' + (a.trophies < Meta.TIERS[1].min ? 9 : 18)}</b><b>${ic('gem', 'gem')}+10</b><b>${ic('token')}+5</b></div>
+      </div>
+      <div class="mm-status hidden" id="mmStatus"></div>
+      <div class="actions" id="mmActions"><button class="btn" id="mmBack"><b>BACK</b></button><button class="btn primary" id="mmFind">${ic('swords')}<b>FIND MATCH</b></button></div>
+      <p class="fine center">You face a live rival when one is available, otherwise a bot at your level. Bots are always labelled. No chat, and nothing about you is shared.</p>`, sh => {
+      sh.querySelector('#mmBack').onclick = () => { Sfx.click(); mmToken++; closeModal(); if (current === 'home') refreshHome(); };
+      sh.querySelector('#mmLo').onclick = () => { Sfx.click(); openLoadout(() => openArena()); };
+      sh.querySelector('#mmFind').onclick = () => { Sfx.click(); searchMatch(sh); };
+    }, 'arena');
+  }
+  function searchMatch(sh) {
+    const token = ++mmToken, t0 = Date.now();
+    const st = sh.querySelector('#mmStatus'), acts = sh.querySelector('#mmActions');
+    st.classList.remove('hidden');
+    st.innerHTML = `<div class="radar"><i></i><i></i><i></i>${ic('swords')}</div><div><b id="mmText">SEARCHING FOR A RIVAL</b><small id="mmTime">0:00</small></div>`;
+    acts.innerHTML = '<button class="btn" id="mmCancel"><b>CANCEL</b></button>';
+    Icons.hydrate(st);
+    acts.querySelector('#mmCancel').onclick = () => { Sfx.click(); mmToken++; clearInterval(mmClock); openArena(); };
+    clearInterval(mmClock);
+    mmClock = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000), el = $('mmTime'); if (el) el.textContent = `0:${String(s).padStart(2, '0')}`; }, 250);
+    const wait = new Promise(r => setTimeout(r, rand(2200, 3400)));
+    Promise.all([Meta.findMatch(), wait]).then(([rival]) => {
+      if (token !== mmToken || !modalOpen()) return;
+      clearInterval(mmClock);
+      const tx = $('mmText');
+      if (tx) tx.textContent = rival.bot ? 'NO LIVE RIVAL FOUND · MATCHED WITH A BOT' : 'RIVAL FOUND';
+      st.classList.add('found');
+      Sfx.pickup();
+      setTimeout(() => { if (token === mmToken && modalOpen()) showVersus(rival, token); }, 1000);
+    });
+  }
+  function showVersus(rival, token) {
+    const a = Save.data.arena, t = Meta.tierOf(a.trophies), lo = Save.loadout();
+    modal(`
+      <div class="vs">
+        <div class="vs-side you" style="--c:${colorOf(lo[0])}">${hex(lo[0], 'vs-hex')}<small>${ic('user')} YOU</small><b>${t.label}</b><span>${ic('trophy')}${fmt(a.trophies)}</span><div class="vs-lo">${lo.map(id => hex(id)).join('')}</div></div>
+        <div class="vs-mid"><b>VS</b><small>${rival.arena.toUpperCase()}</small></div>
+        <div class="vs-side rival" style="--c:${colorOf(rival.element)}">${hex(rival.element, 'vs-hex')}<small>${rival.bot ? `${ic('bot')} BOT` : 'RIVAL'}</small><b>${esc(rival.name.toUpperCase())}</b><span>${rival.tier.label} · ${ic('trophy')}${fmt(rival.trophies)}</span><div class="vs-lo"><em>${NAME(rival.element)}</em></div></div>
+      </div>
+      <div class="vs-count"><b id="vsCount">3</b><small>GET READY</small></div>`, () => {
+      let n = 3;
+      const step = () => {
+        if (token !== mmToken || !modalOpen()) return;
+        const el = $('vsCount'); if (!el) return;
+        if (n <= 0) { startDuel(rival); return; }
+        el.textContent = n; el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
+        Sfx.click(); n--;
+        setTimeout(step, 750);
+      };
+      step();
+    }, 'versus');
+  }
+  function startDuel(rival) {
+    lastStart = { mode: 'duel', rival };
+    closeModal(); show(null);
+    Game.start({ mode: 'duel', rival });
+    hudCache = {};
+    buildHud();
+    setChip(rival.element, 'ARENA · ' + rival.name.toUpperCase());
+    $('waveDots').innerHTML = ''; $('chipSub').textContent = 'KNOCK OUT OR RING OUT';
+    banner('FIGHT!');
+  }
+  function forfeitDuel() {
+    const rv = lastStart && lastStart.rival;
+    const r = Meta.recordDuel(false, rv);
+    Meta.track('duels');
+    toast(`MATCH FORFEITED · ${r.delta} TROPHIES`);
   }
 
   /* -------------------------------------------------------------- forge */
@@ -406,7 +796,24 @@ const UI = (() => {
     if (Game.state !== 'play') return;
     Game.paused = true;
     Platform.gameplayStop();
-    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : 'ENDLESS';
+    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : Game.mode === 'duel' ? `ARENA · VS ${esc(lastStart.rival.name.toUpperCase())}` : 'ENDLESS';
+    if (Game.mode === 'duel') {
+      // an Arena match cannot be restarted or re-equipped mid-fight; leaving it is a forfeit
+      modal(`
+        <h2>PAUSED</h2>
+        <p class="sub">${label}</p>
+        <div class="pause-stack">
+          <button class="btn primary" id="pResume"><b>RESUME</b></button>
+          <button class="btn" id="pSettings"><b>SETTINGS</b></button>
+          <button class="btn danger" id="pQuit"><b>FORFEIT MATCH</b></button>
+        </div>
+        <p class="fine center">Forfeiting counts as a loss.</p>`, s => {
+        s.querySelector('#pResume').onclick = resume;
+        s.querySelector('#pSettings').onclick = () => openSettings(true);
+        s.querySelector('#pQuit').onclick = () => { Sfx.click(); closeModal(); forfeitDuel(); Game.quit(); Game.idleScene(0); show('home'); };
+      }, 'pause');
+      return;
+    }
     modal(`
       <h2>PAUSED</h2>
       <p class="sub">${label}</p>
@@ -454,6 +861,8 @@ const UI = (() => {
         else { rv.disabled = false; toast('AD UNAVAILABLE'); }
       }); };
     };
+    if (res.mode !== 'duel') Meta.track('gems', res.essence);
+    if (res.mode === 'duel') { showDuelResult(res, tiles); return; }
     if (res.mode === 'endless') {
       modal(`
         <h2 class="${res.best ? 'win' : ''}">${res.best ? 'NEW RECORD!' : 'RUN OVER'}</h2>
@@ -471,6 +880,8 @@ const UI = (() => {
     const { r, s } = res;
     const boss = s === STAGES_PER_REALM - 1;
     if (res.won) {
+      Meta.track('stages');
+      if (res.stars >= 3) Meta.track('stars3');
       const nextR = s + 1 < STAGES_PER_REALM ? r : r + 1;
       const nextS = s + 1 < STAGES_PER_REALM ? s + 1 : 0;
       const hasNext = nextR < REALMS.length;
@@ -514,6 +925,32 @@ const UI = (() => {
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
       }, 'result');
     }
+  }
+
+  function showDuelResult(res, tiles) {
+    const rv = res.rival;
+    const r = Meta.recordDuel(res.won, rv);
+    Meta.track('duels');
+    if (res.won) Meta.track('duelWins');
+    modal(`
+      <h2 class="${res.won ? 'win' : 'lose'}">${res.won ? 'VICTORY!' : 'DEFEAT'}</h2>
+      <div class="result-content">
+        <p class="sub">ARENA · VS ${esc(rv.name.toUpperCase())}${rv.bot ? ' (BOT)' : ''} · ${NAME(rv.element)}</p>
+        <div class="trophy-delta ${res.won ? 'gain' : 'drop'}" style="--tc:${r.tier.color}">${tierBadge(r.tier, 'md')}<div><b>${ic('trophy')}${r.delta > 0 ? '+' : ''}${r.delta}</b><small>${fmt(r.trophies)} TROPHIES · ${r.tier.label}</small></div></div>
+        ${tiles}
+        <div class="payout">${ic('gem')}<span>+${r.gems + res.essence}</span><span class="tok">${ic('token')}+${r.tokens}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
+        ${r.promoted ? `<div class="unlock" style="--c:${r.promoted.color}">${tierBadge(r.tier, 'md')}<div><small>PROMOTED</small><b>${r.promoted.name.toUpperCase()}</b><p>You reached a new Arena tier.</p></div></div>` : ''}
+      </div>
+      <div class="actions result-actions">
+        <button class="btn" id="rMenu"><b>HOME</b></button>
+        <button class="btn" id="rRanks"><b>RANKS</b></button>
+        <button class="btn primary" id="rAgain"><b>NEXT MATCH</b></button>
+      </div>`, sh => {
+      if (r.promoted) { Sfx.unlock(); Platform.happytime(); }
+      sh.querySelector('#rMenu').onclick = toMenu;
+      sh.querySelector('#rRanks').onclick = () => { Sfx.click(); closeModal(); Game.quit(); Game.idleScene(0); openHub('ranks'); };
+      sh.querySelector('#rAgain').onclick = () => { Sfx.click(); Game.quit(); Game.idleScene(0); show('home'); Platform.maybeMidgame(() => openArena()); };
+    }, 'result');
   }
 
   /* --------------------------------------------------------------- run */
@@ -610,7 +1047,7 @@ const UI = (() => {
     startStage(r, s);
   }
 
-  function relaunch() { if (!lastStart) return; lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : lastStart.mode === 'tutorial' ? startTutorial() : lastStart.mode === 'test' ? startTesting() : startEndless(); }
+  function relaunch() { if (!lastStart) return; if (lastStart.mode === 'duel') { startDuel(lastStart.rival); return; } lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : lastStart.mode === 'tutorial' ? startTutorial() : lastStart.mode === 'test' ? startTesting() : startEndless(); }
 
   // Testing ground: the tutorial island with a dummy that respawns; no waves, no rewards
   function startTesting() {
@@ -828,6 +1265,8 @@ const UI = (() => {
     if (matchMedia('(pointer: coarse)').matches || /mobile|tablet/.test(Platform.device())) document.body.classList.add('touch');
     $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); startStage(r, s); };
     $('btnEndless').onclick = () => { Sfx.ensure(); Sfx.click(); startEndless(); };
+    $('btnArena').onclick = () => { Sfx.ensure(); Sfx.click(); openArena(); };
+    document.querySelectorAll('[data-hub]').forEach(b => b.onclick = () => { Sfx.ensure(); Sfx.click(); openHub(b.dataset.hub); });
     document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
       Sfx.ensure(); Sfx.click();
       const k = b.dataset.open;
@@ -849,12 +1288,21 @@ const UI = (() => {
     bindTouch();
 
     Game.hooks.onEnd = res => showResult(res);
-    Game.hooks.onCombo = onCombo;
+    Game.hooks.onCombo = n => { onCombo(n); if (Game.mode === 'stage' || Game.mode === 'endless' || Game.mode === 'duel') Meta.track('combo', n); };
     Game.hooks.onRhythm = mv => Rhythm.start(mv, pct => Game.endRhythm(pct));
     Game.hooks.onBoss = e => banner(e.ai.boss.name.toUpperCase(), 'boss');
     Game.hooks.onToast = (t, big) => (big ? banner(t.toUpperCase()) : toast(t.toUpperCase()));
     Game.hooks.onWave = (i, n, boss) => { if (!boss && Game.mode === 'stage' && i > 0) banner(i === n - 1 ? 'FINAL WAVE' : `WAVE ${i + 1}`); };
-    Game.hooks.onKill = (e, ringout) => { if (ringout) toast('RING OUT! +2'); };
+    Game.hooks.onKill = (e, ringout) => {
+      const m = Game.mode;
+      if (ringout && m !== 'duel') toast('RING OUT! +2');
+      if (m !== 'stage' && m !== 'endless' && m !== 'duel') return;   // training and testing never count
+      Meta.track('kills');
+      if (ringout) Meta.track('ringouts');
+      if (m === 'endless') Meta.track('endlessKills');
+      const h = Game.hud(); if (h) Meta.track('elKills', 1, { el: h.el });
+    };
+    Meta.onNotify(text => toast(text));
 
     Platform.onAuth(() => { Save.load(); applySettings(); if (current === 'home') refreshHome(); });
 
@@ -884,6 +1332,8 @@ const UI = (() => {
       <h2>PRIVACY &amp; TERMS</h2>
       <div class="legal">
         <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
+        <p>Quests, events and Arena trophies are part of that same save. Arena opponents are computer-controlled bots unless a live rival is available; there is no chat, and nothing about you is shown to other players.</p>
+        <p>If the CrazyGames leaderboard is active and you are logged in, your Arena trophy count (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>
         <p>The game does not ask for or collect any other personal information, shows no ads and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
       </div>

@@ -164,6 +164,12 @@ const Game = (() => {
       setRealm(opts.r);
       buildArena(stageDef.arena, 1 + opts.r * 16 + opts.s);
       waveIdx = -1;
+    } else if (mode === 'duel') {
+      // Arena: one rival, one island chain, first knock-out or ring-out wins
+      stageDef = null;
+      run.rival = opts.rival;
+      setRealm(opts.rival.realm % REALMS.length);
+      buildArena(arenaNamed(opts.rival.arena) || ARENAS[opts.rival.realm % ARENAS.length], 900 + opts.rival.seed);
     } else if (mode === 'tutorial' || mode === 'test') {
       stageDef = null;
       setRealm(0);
@@ -184,11 +190,26 @@ const Game = (() => {
       dummy.decor = true; dummy.facing = -1;
     }
     if (mode === 'test') spawnTestDummy();
+    if (mode === 'duel') spawnRival(opts.rival);
     waveTimer = 1.0;
     pickupTimer = rand(9, 13);
     state = 'play';
     Platform.gameplayStart();
     hooks.onStart && hooks.onStart();
+  }
+
+  /* Arena rival: a bot with a full element kit that recovers from falls like a player */
+  function spawnRival(rv) {
+    const sp = islands[0];
+    const x = clamp(sp.x + 240, sp.left + 70, sp.right - 70);
+    const f = spawnEnemyAt({
+      type: 'boss', element: rv.element, d: rv.d, scale: 1.08, weight: 1.15, hp: rv.hp, dmgBoost: rv.dmg,
+      boss: { name: rv.name, title: rv.title }, rival: true,
+    }, x, sp.top, true);
+    f.facing = -1;
+    f.ai.thinkT = 1.6;   // a beat to get ready before the first exchange
+    if (rv.d < 0.55) f.ai.kit.powers = f.ai.kit.powers.slice(0, 1);   // low tiers: one power
+    return f;
   }
 
   /* Testing ground: a passive dummy that can be killed and comes back */
@@ -256,12 +277,12 @@ const Game = (() => {
     const [body, shade] = bodyColors(spec.element, spec.type);
     const f = new Fighter({
       x, y: instant ? y : y - 520, facing: player && x > player.root.x ? -1 : 1, scale: spec.scale || T.scale,
-      kind: spec.type, el: spec.element, body, shade, accent: AURA[spec.element], weight: T.weight,
+      kind: spec.type, el: spec.element, body, shade, accent: AURA[spec.element], weight: spec.weight || T.weight,
       speed: T.speed * (1 + Math.min(spec.d, 1.2) * 0.3), jumpV: 1000, maxJumps: spec.type === 'boss' ? 3 : 2,
-      hp: Math.round(stats.hp * (spec.hpMul || 1)),
+      hp: spec.hp || Math.round(stats.hp * (spec.hpMul || 1)),
     });
     f.team = 'enemy';
-    f.ai = { stats, thinkT: 0.6, kit: enemyKit(spec.element, spec.type, realm.id), boss: spec.boss || null, summoned: 0, d: spec.d, jumpCd: 0 };
+    f.ai = { stats, thinkT: 0.6, kit: enemyKit(spec.element, spec.type, realm.id), boss: spec.boss || null, rival: !!spec.rival, summoned: 0, d: spec.d, jumpCd: 0 };
     if (instant) { f.root.grounded = true; f.root.plat = islands.find(i => x >= i.left && x <= i.right && Math.abs(i.top - y) < 4) || null; }
     else { f.root.grounded = false; f.root.vy = 600; f.root.ghostTo = isl || null; }
     enemies.push(f);
@@ -1282,7 +1303,7 @@ const Game = (() => {
     if (run) {
       run.kills++;
       Save.data.stats.kills++;
-      const reward = (t.kind === 'boss' ? 25 : t.kind === 'brute' ? 4 : 2) + (t.status.gilded > 0 ? 5 : 0);   // golden foes pay out
+      const reward = t.ai && t.ai.rival ? 0 : (t.kind === 'boss' ? 25 : t.kind === 'brute' ? 4 : 2) + (t.status.gilded > 0 ? 5 : 0);   // golden foes pay out; Arena pays on the result screen
       const at = ringout && player ? player.center() : c;
       grantEssence(reward + (ringout ? 1 : 0), clamp(at.x, 60, W - 60), clamp(at.y - 80, 60, H - 60));
     }
@@ -1290,7 +1311,7 @@ const Game = (() => {
     hitstop = Math.max(hitstop, 0.08);
     shake = Math.max(shake, t.kind === 'boss' ? 24 : 10);
     if (t.kind === 'boss') {
-      Sfx.boom(2); fx.ring(c.x, c.y, t.accent, 300, 0.9, 16); slowmo = 1.6; Save.data.stats.bosses++;
+      Sfx.boom(2); fx.ring(c.x, c.y, t.accent, 300, 0.9, 16); slowmo = 1.6; if (!(t.ai && t.ai.rival)) Save.data.stats.bosses++;
       // the boss's reinforcements collapse with it
       if (mode === 'stage') {
         spawns.length = 0;
@@ -2388,12 +2409,12 @@ const Game = (() => {
   /* ----------------------------------------------------------- waves */
   function waveCleared() {
     if (state !== 'play') return;
-    if (mode === 'stage' && waveIdx >= stageDef.waves.length - 1) win();
+    if (mode === 'duel' || (mode === 'stage' && waveIdx >= stageDef.waves.length - 1)) win();
     else waveTimer = 1.2;
   }
 
   function nextWave() {
-    if (mode === 'tutorial' || mode === 'test') return;
+    if (mode === 'tutorial' || mode === 'test' || mode === 'duel') return;
     if (mode === 'stage') {
       waveIdx++;
       queueSpawnWave(stageDef.waves[waveIdx]);
@@ -2438,7 +2459,7 @@ const Game = (() => {
     Platform.gameplayStop();
     const hpRatio = Math.max(0, player.hp) / player.maxHp;
     const res = {
-      mode, won, canRevive: !won && !run.revived, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
+      mode, won, canRevive: !won && !run.revived && mode !== 'duel', rival: run.rival || null, hpLeft: hpRatio, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
       essence: run.essence + Math.round(run.essenceRemainder || 0), stars: 0, unlocked: null, firstClear: false, best: false,
     };
     if (mode === 'stage' && res.won) {
@@ -2534,7 +2555,7 @@ const Game = (() => {
     if (e.action) { e.input.x = 0; return; }
     if (ai.boss) {
       const ratio = e.hp / e.maxHp;
-      if (ratio < 0.5 && ai.summoned === 0) { ai.summoned = 1; summon(e, 1); }
+      if (ratio < 0.5 && ai.summoned === 0 && !ai.rival) { ai.summoned = 1; summon(e, 1); }
     }
     ai.thinkT -= dt;
     if (ai.thinkT > 0) return;
@@ -3390,7 +3411,7 @@ const Game = (() => {
     }
     spawns = spawns.filter(s => !s.done);
 
-    if (state === 'play') {
+    if (state === 'play' && mode !== 'duel') {
       pickupTimer -= dt;
       if (pickupTimer <= 0 && pickups.length < 2) { spawnPickup(); pickupTimer = rand(11, 17); }
     }
