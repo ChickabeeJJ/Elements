@@ -28,10 +28,6 @@ const Save = (() => {
     tutorialDone: false,
     seenHelp: false,
     stats: { kills: 0, ringouts: 0, bosses: 0 },
-    // live features (js/meta.js): Arena trophies, daily quests, event progress
-    arena: { trophies: 0, peak: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, tiersClaimed: 0 },
-    daily: { day: -1, list: [], bonus: false },
-    event: { cycle: -1, id: '', tokens: 0, prog: {}, claimed: [], day: -1, list: [] },
   });
   let data = fresh();
 
@@ -44,9 +40,6 @@ const Save = (() => {
         data.upgrades = Object.assign(fresh().upgrades, d.upgrades || {});
         data.settings = Object.assign(fresh().settings, d.settings || {});
         data.stats = Object.assign(fresh().stats, d.stats || {});
-        data.arena = Object.assign(fresh().arena, d.arena || {});
-        data.daily = Object.assign(fresh().daily, d.daily || {});
-        data.event = Object.assign(fresh().event, d.event || {});
         if (!Array.isArray(data.owned)) data.owned = ['wind'];
       }
     } catch (e) { data = fresh(); }
@@ -61,8 +54,7 @@ const Save = (() => {
     return cleared(r, s - 1);
   }
   function realmOpen(r) { return stageOpen(r, 0); }
-  // elements are bought with gems (essence); Gale is free. Event exclusives are
-  // earned with event tokens (Meta.buyEventElement) and are never free.
+  // elements are bought with gems (essence); Gale is free
   function elementOpen(id) {
     const e = ELEMENT_BY_ID[id];
     return !!e && ((e.price === 0 && !e.event) || (data.owned || []).includes(id));

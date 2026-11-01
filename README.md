@@ -2,7 +2,7 @@
 
 A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**, but careful: if you fall into the void yourself, the run is over.
 
-You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **31 elements**: 30 are unlocked with **gems** earned in battle, and **Glitch** is an event exclusive earned with event tokens. The campaign has **64 stages** across eight realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, an **Arena** (1v1 PvP with trophies), **daily quests**, weekly **events** and a **Ranks** page, plus a short, skippable tutorial on first launch.
+You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **30 elements**, and you unlock them with **gems** earned in battle. The campaign has **64 stages** across eight realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, plus a short, skippable tutorial on first launch.
 
 It's pure HTML5 and vanilla JS, with no build step and no dependencies. All art is drawn procedurally and every sound is synthesized.
 
@@ -41,7 +41,6 @@ To play, serve the folder (for example `python3 -m http.server`) and open `index
 | Joker | Card Toss (hearts and diamonds hit double) | Roll the Dice: one of six random effects | Jackpot: a slot machine; two or three of a kind pay out | 777 |
 | Puppet | Needles (every 3rd stitch pins a foe) | Puppet Strings: a foe fights for you for 5s | Strings Attached: knockback aimed at you goes to a tied foe | 1100 |
 | Gadget | Nail Gun (hold for rapid fire) | Grapple: zip yourself to an island or foe | Jetpack: endless jumps, exhaust scorches foes below | 1300 |
-| Glitch (event) | Bit Burst (skipping pixel shots; 3 hits of Corruption make a foe CRASH) | Cut & Paste: select a foe and paste it where you aim, even over the void | Fatal Error: error windows trap up to 4 foes, then crash and launch them | 600 tokens |
 | Tempo | Sound Wave (piercing, staggers) | Grand Piano: drops a piano on your aim | Encore: time stops for a 15s four-lane rhythm game with tap and hold notes (keys 5 6 7 8 or tap; stray taps count against you); your hit rate becomes a sound blast on every foe | 2500 |
 
 Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements combo (each element's combos are shown in the Elements menu): **Shatter** (Rime → Stone), **Overload** (Tide → Storm), **Wildfire** (Thorn → Ember), **Ignite** (Venom → Ember), **Firestorm** (Ember/Dragon → Gale), **Resonate** (Storm/Echo → Steel), **Starfall** (Gravity → Arcane), **Prismatic** (Crystal → Radiance), **Eclipse** (Radiance → Void), **Singularity** (Void → Gravity), **Inferno** (Ember → Dragon), **Thunderwing** (Storm/Echo → Dragon), plus **Mudslide** (Tide → Sand), **Harmony** (Echo/Gadget/Storm → Tempo), **Smokescreen** (Radiance/Arcane, or any confused foe → Smoke), **Haunt** (Moon/Sand/Rime → Spirit), **Bloodlust** (Thorn/Sand → Crimson), **Blood Moon** (Crimson/Venom → Moon), **Landslide** (Sand/Smoke → Stone), **Frostbite** (Rime → Crystal), **Sticky Situation** (Thorn/Sand → Slime), **Ambush** (Smoke/Shadow → Shadow), **Gold Rush** (Crystal/Radiance → Midas), **Paradox** (Echo/Gadget/Tempo → Chrono), **Overclock** (Storm/Echo/Tempo → Gadget), **Wild Card** (any foe with two effects → Joker), **Cut the Strings** (Thorn/Sand/Shadow → Puppet) and **Snapback** (airborne foes → Rubber). Every element is part of at least two combos, and each element has a **Preview** in the Elements menu that plays its whole kit. Crystal, Radiance and Void hits leave a short mark (glint, dazzle, drain) that their partner cashes in.
@@ -57,14 +56,9 @@ Each realm's warriors share an element. Hitting their weakness deals 160% damage
 
 ## Elements menu
 
-The Elements screen and the loadout picker share one browser built for a long roster. It has a search box (it matches element and move names), filter chips with live counts (All, Owned, Locked, Event), a main-attack filter (Any, Melee, Ranged) and a Price / A-Z sort. Elements show as a dense grid of tiles that scrolls inside its own panel, so the details and DONE button never move. Each tile shows the element's slot number when equipped, a lock and price when locked, and a star when it's an event exclusive. In the picker, owned elements come first and locked ones sit under a divider.
+The Elements screen and the loadout picker share one browser built for a long roster. It has a search box (it matches element and move names), filter chips with live counts (All, Owned, Locked), a main-attack filter (Any, Melee, Ranged) and a Price / A-Z sort. Elements show as a dense grid of tiles that scrolls inside its own panel, so the details and DONE button never move. Each tile shows the element's slot number when equipped, a lock and price when locked. In the picker, owned elements come first and locked ones sit under a divider.
 
-## Arena, quests, events and ranks
-
-- **Arena**: a best-of-three 1v1 duel (knock out or ring out the opponent). Matchmaking looks for a live player through `Platform.findLiveMatch()` for 8-12 seconds. If none is found, a computer opponent built like a real player is used: a player-style name, rank-scaled upgrades, three elements it swaps between, and AI that plays better the higher the rank. These matches move trophies like any other. If a live opponent disconnects mid-match (`rival.onDisconnect`), the AI takes over the same fighter (`Game.rivalTakeover()`). The HUD emblem follows the opponent's equipped element and crossfades when it swaps. Arena matches are fully live: the menu never pauses them. The one exception is Tempo's Encore, which pauses both sides; the opponent sees the same rhythm screen labelled "Opponent is playing a mini game". Fallback opponents never use Tempo. The match starts from a full-screen versus with a bar transition. Trophies move through seven tiers (Bronze to Legend), the first promotion to each tier pays gems, and leaving a match is a forfeit.
-- **Daily quests**: three per day, resetting at 00:00 UTC, paid in gems, plus a daily chest for claiming all three. Training and Testing don't count.
-- **Events**: added by hand in `EVENTS` in `js/meta.js`. Each has an id, its exclusive element and start and end dates (UTC, about a month). The first is **System Error** (Glitch), from 2026-11-01 to 2026-12-01. The Event tab has three **daily event quests** (new each day at 00:00 UTC, 100-120 tokens in total), so the 600-token element takes several days. Event tokens come only from event quests; spare tokens buy gem caches. The element can only be unlocked while its event is live, and tokens expire when the event ends. With no live event, the Event tab shows an empty state and the home card is hidden.
-- **Ranks**: your Arena rank card, a tier strip and personal records. A top-10 leaderboard appears only on CrazyGames and only with real entries from `Platform.fetchLeaderboard()`. The CrazyGames SDK documents score submission but no way to read entries, so the panel stays hidden until such a source exists. A small row in the bottom-right corner of the home screen shows the live event, quest progress and your rank, with a small dot in your theme colour when something can be claimed.
+This `crazygames` branch is the CrazyGames build: the new element browser without the Arena, leaderboard, events or quests. Screenshots: `crazygames/screenshot-main-menu.png`, `crazygames/screenshot-elements.png` and `crazygames/screenshot-element-select.png`.
 
 ## Controls
 
@@ -94,13 +88,12 @@ js/audio.js       synthesized SFX + generative per-realm music
 js/elements.js    element kits (moves as data), affinities, emblems
 js/realms.js      realm themes, arenas, enemy archetypes, stages, endless waves
 js/progress.js    save data, unlocks, loadout, upgrades
-js/meta.js        Arena trophies and tiers, bots, daily quests, hand-scheduled events
 js/ragdoll.js     Fighter: active ragdoll, poses, tumble/recover, hurtboxes
 js/world.js       one-way floating islands (blocky tile pyramids), backdrop, weather
 js/fx.js          particles, rings, arcs, beams, combat text
 js/game.js        moves runtime, hits/knockback/ring-outs, enemy AI, waves, rendering
 js/icons.js       UI and move icons
-js/ui.js          home, stage select, element browser, forge, live hub, arena, pause, tutorial, HUD, touch
+js/ui.js          home, stage select, element browser, forge, pause, tutorial, HUD, touch
 js/main.js        boot, loop, keyboard/mouse
 assets/fonts/     Rubik (SIL Open Font License)
 crazygames/       listing text (CRAZYGAMES_LISTING.md), 3 covers, 2 preview videos
@@ -108,9 +101,6 @@ crazygames/       listing text (CRAZYGAMES_LISTING.md), 3 covers, 2 preview vide
 
 The CrazyGames SDK v3 script is always included. Every call is guarded, so the game also runs offline or on other hosts, and progress falls back to `localStorage`. See `crazygames/CRAZYGAMES_LISTING.md` for the full list of SDK features used.
 
-**Leaderboard:** CrazyGames leaderboards are invite-only. Once your game is invited, put the encryption key from the developer portal in `LEADERBOARD_KEY` in `js/platform.js`. First check the payload format against the [leaderboard docs](https://docs.crazygames.com/sdk/leaderboards/). The game then submits Arena trophies (one number, logged-in players only) after each match. While the key is empty, nothing is sent.
-
-**Live PvP:** CrazyGames does not host real-time game servers. To match real players, implement `Platform.findLiveMatch()` against your own multiplayer backend. Until then, every Arena search falls back after 8 seconds to a computer opponent.
 
 ## Credits
 

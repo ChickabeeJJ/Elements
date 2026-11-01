@@ -461,24 +461,6 @@ const ELEMENTS = [
   },
 ];
 
-/* Event-exclusive elements: earned with event tokens while their event is live
-   (see EVENTS in js/meta.js). They are only obtainable during their event. */
-ELEMENTS.push({
-  id: 'glitch', name: 'Glitch', color: '#ff4fe1', deep: '#19d3ff', price: 0, event: 'syserror', tokenPrice: 600,
-  blurb: 'A fighter who broke out of the game\'s code. Corrupt foes until they crash, cut and paste them anywhere (even off the map) and throw fatal errors. Error (Halloween) Event Exclusive.',
-  moves: [
-    { slot: 'main', id: 'bit_burst', name: 'Bit Burst', type: 'ranged', icon: 'bitburst', kind: 'projectile', pose: 'cast',
-      desc: 'A packet of corrupted pixels that skips through space. Each hit adds Corruption; at 3 the foe CRASHES: frozen, then blasted.', cd: 0.42, windup: 0.05, active: 0.05, recover: 0.13,
-      speed: 1150, grav: 0, radius: 12, dmg: 8, knock: 260, lift: 0.18, life: 0.85, corrupt: 1, style: 'glitch' },
-    { slot: 'p1', id: 'cut_paste', name: 'Cut & Paste', type: 'power', icon: 'cutpaste', kind: 'cutpaste', pose: 'channel',
-      desc: 'Select the foe nearest your aim, cut it out of the world and paste it wherever you are aiming. Pasting it over the void works too.', cd: 9, windup: 0.1, active: 0.1, recover: 0.2,
-      range: 720, dmg: 10, bossRange: 240 },
-    { slot: 'p2', id: 'fatal_error', name: 'Fatal Error', type: 'power', icon: 'fatal', kind: 'fatal', pose: 'raise',
-      desc: 'Error windows pop up around up to four foes and trap them inside, then crash in a burst of pixels that launches them.', cd: 12, windup: 0.18, active: 0.1, recover: 0.2,
-      radius: 620, n: 4, dur: 1.3, dmg: 24, knock: 720, lift: 1.1 },
-  ],
-});
-
 // Apply the global combat balance pass once to the move data.
 // Main ranged attacks gain 5%; non-Gale main melee attacks gain 15%.
 // Every non-main ability gets an additional 5% multiplier on top of its
@@ -593,10 +575,6 @@ const COMBOS = [
     desc: 'Glinting or dazzled foes are worth their weight in gold: Midas deals +50%.', when: (st, el) => el === 'midas' && (st.glint > 0 || st.dazzle > 0) },
   { id: 'paradox', name: 'Paradox', a: ['echo', 'gadget', 'tempo'], b: 'time', mul: 1.5,
     desc: 'Stunned foes are stuck between moments: Chrono deals +50%.', when: (st, el) => el === 'time' && st.shock > 0 },
-  { id: 'exploit', name: 'Exploit', a: ['glitch'], b: 'gadget', mul: 1.5,
-    desc: 'Corrupted foes are full of holes: Gadget deals +50% to them.', when: (st, el, t) => el === 'gadget' && t && t.glitch && t.glitch.n > 0 },
-  { id: 'systemshock', name: 'System Shock', a: ['lightning', 'gadget', 'echo'], b: 'glitch', mul: 1.5,
-    desc: 'Stunned foes short out: Glitch deals +50%.', when: (st, el) => el === 'glitch' && st.shock > 0 },
 ];
 // hitting with these elements leaves a short mark that their combo partner cashes in
 const COMBO_MARKS = { crystal: 'glint', joker: 'dazzle', spirit: 'drain', shadow: 'drain', light: 'dazzle', arcane: 'dazzle', void: 'drain' };
