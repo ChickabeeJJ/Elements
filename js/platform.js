@@ -25,9 +25,13 @@ const Platform = (() => {
   const MIDGAME_GAP = 3 * 60 * 1000;
   const BANNER_GAP = 61 * 1000;
   const PREFIX = 'elementfall_';
-  // Basic Launch builds must not show ads: no midgame, rewarded, banner or ad-block calls.
-  // Flip to true for a Full Launch.
-  const ADS_ENABLED = false;
+  // Ads are for a Full Launch on CrazyGames (Basic Launch builds must not show any:
+  // set this to false for a Basic Launch upload). Off CrazyGames no ad is ever requested.
+  //  - midgame: only at natural breaks, at most one per MIDGAME_GAP, never for brand-new players
+  //  - rewarded: always opt-in, for a clear bonus
+  //  - banner: desktop home screen only, never during gameplay
+  const ADS_ENABLED = true;
+  let midgameGate = () => true;
   // CrazyGames leaderboards are invite-only and need the encryption key from the
   // developer portal. Leave the key empty and no score is ever sent.
   // Before enabling, check the payload format against
@@ -103,10 +107,9 @@ const Platform = (() => {
   function happytime() { safe(() => sdk && sdk.game.happytime()); }
 
   /* --------------------------------------------------------------- ads */
-  // cb(success:boolean). Standalone: rewarded ads succeed so features stay testable.
+  // cb(success:boolean). Without the SDK (other hosts, local testing) no ad runs and no reward is given.
   function requestAd(kind, cb) {
-    if (!ADS_ENABLED) { cb(false); return; }
-    if (!sdk) { cb(kind === 'rewarded'); return; }
+    if (!ADS_ENABLED || !sdk) { cb(false); return; }
     let done = false;
     const wasPlaying = inGameplay;
     const finish = ok => {
@@ -125,7 +128,7 @@ const Platform = (() => {
     } catch (e) { finish(false); }
   }
   function maybeMidgame(cb) {
-    if (!ADS_ENABLED || !sdk || Date.now() - lastMidgame < MIDGAME_GAP) { cb && cb(); return; }
+    if (!ADS_ENABLED || !sdk || Date.now() - lastMidgame < MIDGAME_GAP || !safe(midgameGate, false)) { cb && cb(); return; }
     lastMidgame = Date.now();
     requestAd('midgame', () => cb && cb());
   }
@@ -210,7 +213,9 @@ const Platform = (() => {
     happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, findLiveMatch, fetchLeaderboard,
     get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
-    get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED; }, get user() { return user; },
+    get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED && !!sdk; },
+    get rewardedAvailable() { return ADS_ENABLED && !!sdk && !adBlock; },
+    setMidgameGate(fn) { midgameGate = fn; }, get user() { return user; },
     get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },
   };
 })();

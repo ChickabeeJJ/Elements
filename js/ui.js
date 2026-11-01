@@ -65,6 +65,7 @@ const UI = (() => {
     if (name === 'home') { Sfx.setMusicPaused(true); refreshHome(); }
     else if (name === null) Sfx.setMusicPaused(false);
     homeShift();
+    if (name !== 'home') { $('cgBanner').classList.add('hidden'); Platform.clearBanners(); }
     if (name) Platform.gameplayStop();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
@@ -84,7 +85,49 @@ const UI = (() => {
     $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS</span><div class="row">${Save.loadout().map(id => hex(id)).join('')}<button class="btn small" id="homeChange"><b>CHANGE</b></button></div>`;
     $('homeChange').onclick = () => { Sfx.ensure(); Sfx.click(); openLoadout(); };
     refreshUser();
-    setTimeout(() => { if (current === 'home') Platform.showBanner('cgBanner'); }, 300);
+    setTimeout(() => { if (current === 'home') { placeBanner(); Platform.showBanner('cgBanner'); } }, 300);
+  }
+
+  // Desktop home only: a banner in the open sky to the right of the menu, under the
+  // top-right counters, never over buttons or fighters. Phones and small windows get none.
+  function placeBanner() {
+    const slot = $('cgBanner');
+    const ok = current === 'home' && Platform.adsEnabled && !document.body.classList.contains('touch');
+    const left = ok ? document.querySelector('.home-panel').getBoundingClientRect().right : 0;
+    const room = innerWidth - left - 24, w = room >= 760 && innerHeight >= 620 ? 728 : room >= 500 && innerHeight >= 520 ? 468 : 0;
+    if (!ok || !w) { slot.classList.add('hidden'); return; }
+    const top = document.querySelector('#home .corner.tr').getBoundingClientRect().bottom + 14;
+    Object.assign(slot.style, { width: w + 'px', height: (w === 728 ? 90 : 60) + 'px', left: Math.round(left + (room - w) / 2) + 'px', top: Math.round(top) + 'px' });
+    slot.classList.remove('hidden');
+  }
+
+  // opt-in rewarded "+gems" when you are short, a few times a day
+  const GEM_AD = 60, GEM_AD_CAP = 5;
+  function gemAdsLeft() {
+    const a = Save.data.ads, d = Math.floor(Date.now() / 86400000);
+    if (a.day !== d) { a.day = d; a.n = 0; }
+    return Math.max(0, GEM_AD_CAP - a.n);
+  }
+  function needGems(short, after) {
+    Sfx.denied();
+    if (!Platform.rewardedAvailable || gemAdsLeft() <= 0) { toast(`NEED ${short} MORE GEMS`); return; }
+    modal(`<h2>NEED ${short} MORE GEMS</h2>
+      <p class="tip">Watch a short ad for <b>+${GEM_AD} gems</b>. ${gemAdsLeft()} left today.</p>
+      <div class="actions"><button class="btn" id="gaNo"><b>NOT NOW</b></button><button class="btn ad" id="gaYes">${ic('play')}<b>+${GEM_AD} GEMS · AD</b></button></div>`, sh => {
+      sh.querySelector('#gaNo').onclick = () => { Sfx.click(); closeModal(); };
+      const yes = sh.querySelector('#gaYes');
+      yes.onclick = () => {
+        Sfx.click(); yes.disabled = true;
+        Platform.rewarded(ok => {
+          closeModal();
+          if (!ok) { toast('AD UNAVAILABLE'); return; }
+          Save.data.ads.n++; Save.data.essence += GEM_AD; Save.save();
+          Sfx.pickup(); toast(`+${GEM_AD} GEMS`);
+          document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
+          after && after();
+        });
+      };
+    });
   }
 
   function refreshUser() {
@@ -369,7 +412,7 @@ const UI = (() => {
         const l = Save.loadout(); if (l.length < 3 && !l.includes(e.id)) Save.setLoadout(l.concat(e.id));
         toast(`${e.name.toUpperCase()} UNLOCKED!`);
         show('codex'); renderCodex();
-      } else { Sfx.denied(); toast(`NEED ${e.price - Save.data.essence} MORE GEMS`); }
+      } else needGems(e.price - Save.data.essence, () => renderCodexDetail());
     };
   }
 
@@ -500,7 +543,7 @@ const UI = (() => {
         <div data-part="bonus" class="bonus${d.bonus ? ' claimed' : d.bonusReady ? ' ready' : ''}">
           <span class="q-ic gift">${ic('gift')}</span>
           <div class="q-body"><b>DAILY CHEST</b><small>Claim all three quests to open it</small><div class="pips">${[0, 1, 2].map(i => `<i class="${i < claimed ? 'on' : ''}"></i>`).join('')}</div></div>
-          ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small primary claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
+          ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `${Platform.rewardedAvailable ? `<button class="btn small ad claim" id="dqBonusAd">${ic('play')}<b>×2 · AD</b></button>` : ''}<button class="btn small primary claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
         </div>
       </div>
     </div>`;
@@ -581,6 +624,12 @@ const UI = (() => {
     const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
     on('[data-evq]', b => { const n = Meta.claimEvent(+b.dataset.evq); if (n) { Sfx.pickup(); toast(`+${n} EVENT TOKENS`); softRefreshHub(); } });
     on('[data-dq]', b => { const n = Meta.claimDaily(+b.dataset.dq); if (n) { Sfx.pickup(); toast(`+${n} GEMS`); softRefreshHub(); } });
+    on('#dqBonusAd', b => { Sfx.click(); b.disabled = true; Platform.rewarded(ok => {
+      if (!ok) { b.disabled = false; toast('AD UNAVAILABLE'); return; }
+      const n = Meta.claimBonus(); if (!n) return;
+      Save.data.essence += n; Save.save();
+      Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST ×2 · +${n * 2} GEMS`); softRefreshHub();
+    }); });
     on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST · +${n} GEMS`); softRefreshHub(); } });
     on('#rkPlay', () => { Sfx.click(); openArena(); });
     on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); softRefreshHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
@@ -746,7 +795,7 @@ const UI = (() => {
         b.innerHTML = `<span class="ic" data-icon="gem"></span><b>${cost}</b>`;
         b.onclick = () => {
           if (Save.buy(u.id)) { Sfx.pickup(); show('forge'); renderForge(); }
-          else { Sfx.denied(); toast('NOT ENOUGH GEMS'); }
+          else needGems(cost - Save.data.essence, () => renderForge());
         };
       }
       card.appendChild(b);
@@ -895,7 +944,7 @@ const UI = (() => {
     $('bossBar').classList.add('hidden');
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
     const reward = `<div class="payout"><span class="ic" data-icon="gem"></span><span id="payoutNum">+${res.essence}</span>${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
-    const adRow = !Platform.adsEnabled ? '' : `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
+    const adRow = !Platform.rewardedAvailable ? '' : `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
     const bindAds = sh => {
       const d = sh.querySelector('#rDouble');
       if (d) d.onclick = () => { Sfx.click(); d.disabled = true; Platform.rewarded(ok => {
@@ -985,7 +1034,8 @@ const UI = (() => {
         <p class="sub">ARENA · VS ${esc(rv.name.toUpperCase())}${res.rounds ? ` · ROUNDS ${res.rounds.me} – ${res.rounds.them}` : ''}</p>
         <div class="trophy-delta ${res.won ? 'gain' : 'drop'}" style="--tc:${r.tier.color}">${tierBadge(r.tier, 'md')}<div><b>${ic('trophy')}${r.delta > 0 ? '+' : ''}${r.delta}</b><small>${fmt(r.trophies)} TROPHIES · ${r.tier.label}</small></div></div>
         ${tiles}
-        <div class="payout">${ic('gem')}<span>+${r.gems + res.essence}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
+        <div class="payout">${ic('gem')}<span id="payoutNum">+${r.gems + res.essence}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
+        ${Platform.rewardedAvailable ? '<div class="revive-row"><button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button></div>' : ''}
         ${r.promoted ? `<div class="unlock" style="--c:${r.promoted.color}">${tierBadge(r.tier, 'md')}<div><small>PROMOTED</small><b>${r.promoted.name.toUpperCase()}</b><p>You reached a new Arena tier.</p></div></div>` : ''}
       </div>
       <div class="actions result-actions">
@@ -994,6 +1044,11 @@ const UI = (() => {
         <button class="btn primary" id="rAgain"><b>NEXT MATCH</b></button>
       </div>`, sh => {
       if (r.promoted) { Sfx.unlock(); Platform.happytime(); }
+      const dbl = sh.querySelector('#rDouble'), total = r.gems + res.essence;
+      if (dbl) dbl.onclick = () => { Sfx.click(); dbl.disabled = true; Platform.rewarded(ok => {
+        if (ok) { Save.data.essence += total; Save.save(); sh.querySelector('#payoutNum').textContent = '+' + total * 2; toast('GEMS DOUBLED!'); dbl.remove(); }
+        else { dbl.disabled = false; toast('AD UNAVAILABLE'); }
+      }); };
       sh.querySelector('#rMenu').onclick = toMenu;
       sh.querySelector('#rRanks').onclick = () => { Sfx.click(); closeModal(); Game.quit(); Game.idleScene(0); openHub('ranks'); };
       sh.querySelector('#rAgain').onclick = () => { Sfx.click(); Game.quit(); Game.idleScene(0); show('home'); Platform.maybeMidgame(() => openArena()); };
@@ -1314,6 +1369,8 @@ const UI = (() => {
 
   /* -------------------------------------------------------------- init */
   function init() {
+    // no interstitials while someone is still learning the game (first three stages)
+    Platform.setMidgameGate(() => Save.data.tutorialDone && Object.keys(Save.data.stars).length >= 3);
     Icons.hydrate();
     applyUiScale();
     loadKeyLayout();
@@ -1378,6 +1435,7 @@ const UI = (() => {
     const k = clamp(Math.min(innerWidth / 1280, innerHeight / 760), 1, 1.75);
     document.documentElement.style.setProperty('--ui', k.toFixed(3));
     homeShift();
+    if (current === 'home') placeBanner();
   }
 
   // the home menu is a column on the left, so frame the arena in the space to its right
@@ -1394,7 +1452,7 @@ const UI = (() => {
         <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
         <p>Quests, events and Arena trophies are part of that same save. There is no chat, and nothing about you is shown to other players.</p>
         <p>If the CrazyGames leaderboard is active and you are logged in, your Arena trophy count (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>
-        <p>The game does not ask for or collect any other personal information, shows no ads and has no purchases.</p>
+        <p>On CrazyGames the game shows ads served by CrazyGames: a short ad now and then between stages, optional ads you can choose to watch for a bonus, and a banner on the home screen on computers. The game itself does not ask for or collect any other personal information and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
       </div>
       <div class="actions"><button class="btn primary" id="prBack"><b>BACK</b></button></div>`, s => {

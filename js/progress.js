@@ -31,6 +31,7 @@ const Save = (() => {
     // live features (js/meta.js): Arena trophies, daily quests, event progress
     arena: { trophies: 0, peak: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, tiersClaimed: 0 },
     daily: { day: -1, list: [], bonus: false },
+    ads: { day: -1, n: 0 },   // opt-in "+gems" rewarded ads watched today (capped)
     event: { cycle: -1, id: '', tokens: 0, prog: {}, claimed: [], day: -1, list: [] },
   });
   let data = fresh();
@@ -46,6 +47,7 @@ const Save = (() => {
         data.stats = Object.assign(fresh().stats, d.stats || {});
         data.arena = Object.assign(fresh().arena, d.arena || {});
         data.daily = Object.assign(fresh().daily, d.daily || {});
+        data.ads = Object.assign(fresh().ads, d.ads || {});
         data.event = Object.assign(fresh().event, d.event || {});
         if (!Array.isArray(data.owned)) data.owned = ['wind'];
       }

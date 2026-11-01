@@ -71,9 +71,12 @@ The covers come from real gameplay. The only text on them is the game title, wit
 
 ## CrazyGames SDK v3 integration (`js/platform.js`)
 
-**Basic Launch build: ads are switched off.** SDK order: init > loadingStart > loadingStop > gameplayStart (the tutorial on a first visit starts after loadingStop). Settings has an in-game Privacy & Terms note.
+**Full Launch build: ads are on.** (For a Basic Launch upload set `ADS_ENABLED = false` in `js/platform.js`; CrazyGames does not allow ads in Basic Launch.) SDK order: init > loadingStart > loadingStop > gameplayStart (the tutorial on a first visit starts after loadingStop). Settings has an in-game Privacy & Terms note.
 
-**Ads:** (`ADS_ENABLED = false` in `js/platform.js`). No midgame, rewarded or banner ads are requested, there is no ad-block check, and the Revive / Double Gems ad buttons are hidden. Set the flag to `true` for a Full Launch.
+**Ads** (`ADS_ENABLED` in `js/platform.js`), tuned to earn without driving players off. No ad is requested off CrazyGames, so no rewards are handed out for free elsewhere, and rewarded buttons hide when an ad-blocker is detected.
+- Midgame: only at natural breaks (Next, Retry, Again, Next Match), at most one every 3 minutes, and never until the player has finished the tutorial and cleared 3 stages.
+- Rewarded, always opt-in: revive once per stage run; double gems on stage, Endless and Arena results; double the daily chest; and "+60 gems" when short of gems for an element or upgrade (5 a day).
+- Banner: desktop home screen only, 728×90 (or 468×60 in smaller windows) in the open sky right of the menu. It is never shown during gameplay or on phones, and is cleared whenever the home screen is left.
 
 - `SDK.init()`, `environment`
 - `game.loadingStart` / `loadingStop` around boot
