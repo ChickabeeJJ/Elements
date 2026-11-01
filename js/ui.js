@@ -437,6 +437,7 @@ const UI = (() => {
     });
     const body = $('hubBody');
     body.innerHTML = hubTab === 'event' ? eventTab() : hubTab === 'quests' ? questsTab() : ranksTab();
+    if (hubTab === 'ranks') loadLeaderboard();
     Icons.hydrate(body); Icons.hydrate($('hubTabs'));
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
     bindHub(body);
@@ -478,7 +479,7 @@ const UI = (() => {
         <div class="card panel">
           <div class="panel-head"><h4>${ic('gift')}TOKEN SHOP</h4></div>
           <div class="shop-row"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
-          <p class="fine">Tokens come from daily event quests and Arena matches (+15 for a win, +5 for a loss). They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
+          <p class="fine">Tokens come only from daily event quests. They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
         </div>
         ${st.upcoming.length ? `<div class="card panel">
           <div class="panel-head"><h4>${ic('clock')}COMING UP</h4></div>
@@ -518,7 +519,7 @@ const UI = (() => {
       return `<div class="tier-cell${here ? ' here' : ''}${reached ? ' reached' : ''}" style="--tc:${T.color}">${here ? '<span class="you">YOU</span>' : ''}${tierBadge(Object.assign({}, tt, { div: T.id === 'legend' ? 0 : -1, label: T.name }), 'sm')}<b>${T.name.toUpperCase()}</b><small>${fmt(T.min)}+</small><span class="rw">${T.reward ? `${ic('gem', 'gem')}${T.reward}` : '&nbsp;'}</span></div>`;
     }).join('');
     return `<div class="hub-grid ranks-tab">
-      <div class="hub-col">
+      <div class="hub-col" id="rkLeft">
         <div class="card rank-hero" style="--tc:${t.color}">
           ${tierBadge(t, 'xl')}
           <div class="rk-info">
@@ -533,6 +534,8 @@ const UI = (() => {
           </div>
           <button class="btn primary" id="rkPlay">${ic('swords')}<b>PLAY ARENA</b></button>
         </div>
+      </div>
+      <div class="hub-col">
         <div class="card panel">
           <div class="panel-head"><h4>${ic('trophy')}ARENA TIERS</h4><small>GEMS ON FIRST PROMOTION</small></div>
           <div class="tier-strip">${strip}</div>
@@ -542,22 +545,24 @@ const UI = (() => {
           <div class="records">${recs.map(([i, l, v]) => `<div>${ic(i)}<b>${v}</b><small>${l}</small></div>`).join('')}</div>
         </div>
       </div>
-      <div class="hub-col">
-        <div class="card panel lb-panel">
-          <div class="panel-head"><h4>${ic('ranks')}LEADERBOARD</h4><small class="lb-live"><i class="live-dot"></i>LIVE · TOP 10</small></div>
-          <div class="lb" id="lbRows">${leaderboardRows()}</div>
-        </div>
-      </div>
     </div>`;
   }
-  function leaderboardRows() {
-    const lb = Meta.leaderboard();
-    const row = r => `<div class="lb-row${r.you ? ' you' : ''}${r.rank <= 3 ? ' top top' + r.rank : ''}" style="--tc:${r.tier.color}">
-        <span class="lb-rank">${r.rank <= 3 ? ic('crown') : ''}<b>${fmt(r.rank)}</b></span>${hex(r.el)}
-        <span class="lb-name"><b>${r.you ? (Platform.user ? `${esc(myName())}<em>YOU</em>` : 'YOU') : esc(r.name)}</b><small>${r.tier.label}</small></span>
-        <span class="lb-tro">${ic('trophy')}${fmt(r.trophies)}</span></div>`;
-    const inTop = lb.rows.some(r => r.you);
-    return lb.rows.map(row).join('') + (inTop ? '' : `<div class="lb-gap"><i></i><i></i><i></i></div>${row(lb.you)}`);
+  // CrazyGames only, and only with real entries: a top-10 panel under your rank card
+  function loadLeaderboard() {
+    if (!Platform.hasSdk) return;
+    Platform.fetchLeaderboard().then(rows => {
+      const left = $('rkLeft');
+      if (!rows || !rows.length || !left || hubTab !== 'ranks') return;
+      const panel = document.createElement('div');
+      panel.className = 'card panel lb-panel';
+      panel.innerHTML = `<div class="panel-head"><h4>${ic('ranks')}LEADERBOARD</h4><small>TOP 10</small></div>
+        <div class="lb">${rows.slice(0, 10).map((r, i) => {
+          const rank = r.rank || i + 1, tt = Meta.tierOf(r.score || 0);
+          return `<div class="lb-row${rank <= 3 ? ' top top' + rank : ''}" style="--tc:${tt.color}"><span class="lb-rank">${rank <= 3 ? ic('crown') : ''}<b>${rank}</b></span><span class="lb-name"><b>${esc(String(r.name || ''))}</b><small>${tt.label}</small></span><span class="lb-tro">${ic('trophy')}${fmt(r.score || 0)}</span></div>`;
+        }).join('')}</div>`;
+      left.appendChild(panel);
+      Icons.hydrate(panel);
+    }).catch(() => {});
   }
   function bindHub(body) {
     const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
@@ -602,8 +607,6 @@ const UI = (() => {
   }
   // countdowns tick quietly wherever they are on screen
   setInterval(() => {
-    const lb = $('lbRows');
-    if (lb && lb.offsetParent !== null) { lb.innerHTML = leaderboardRows(); Icons.hydrate(lb); }
     document.querySelectorAll('[data-until]').forEach(el => { if (el.offsetParent !== null) el.textContent = (el.dataset.pre || '') + Meta.fmtLeft(+el.dataset.until - Date.now()); });
   }, 15000);
 
@@ -621,12 +624,12 @@ const UI = (() => {
         <div class="mm-lo"><small>YOUR ELEMENTS</small><div>${Save.loadout().map(id => hex(id)).join('')}<button class="btn small" id="mmLo"><b>CHANGE</b></button></div></div>
       </div>
       <div class="mm-stakes">
-        <div class="win"><small>WIN</small><b>${ic('trophy')}+30</b><b>${ic('gem', 'gem')}+${30 + t.i * 8}</b><b>${ic('token')}+15</b></div>
-        <div class="loss"><small>LOSS</small><b>${ic('trophy')}${a.trophies === 0 ? '0' : '−' + (a.trophies < Meta.TIERS[1].min ? 9 : 18)}</b><b>${ic('gem', 'gem')}+10</b><b>${ic('token')}+5</b></div>
+        <div class="win"><small>WIN</small><b>${ic('trophy')}+30</b><b>${ic('gem', 'gem')}+${30 + t.i * 8}</b></div>
+        <div class="loss"><small>LOSS</small><b>${ic('trophy')}${a.trophies === 0 ? '0' : '−' + (a.trophies < Meta.TIERS[1].min ? 9 : 18)}</b><b>${ic('gem', 'gem')}+10</b></div>
       </div>
       <div class="mm-status hidden" id="mmStatus"></div>
       <div class="actions" id="mmActions"><button class="btn" id="mmBack"><b>BACK</b></button><button class="btn primary" id="mmFind">${ic('swords')}<b>FIND MATCH</b></button></div>
-      <p class="fine center">You're matched with an opponent at your rank. First to win two rounds takes the match. No chat, and nothing about you is shared.</p>`, sh => {
+`, sh => {
       sh.querySelector('#mmBack').onclick = () => { Sfx.click(); mmToken++; closeModal(); if (current === 'home') refreshHome(); };
       sh.querySelector('#mmLo').onclick = () => { Sfx.click(); openLoadout(() => openArena()); };
       sh.querySelector('#mmFind').onclick = () => { Sfx.click(); searchMatch(sh); };
@@ -652,26 +655,41 @@ const UI = (() => {
       setTimeout(() => { if (token === mmToken && modalOpen()) showVersus(rival, token); }, 1000);
     });
   }
+  // full-screen versus: the two sides split the screen and VS sits on the exact centre line
   function showVersus(rival, token) {
     const a = Save.data.arena, t = Meta.tierOf(a.trophies), lo = Save.loadout();
-    modal(`
-      <div class="vs">
+    closeModal();
+    const v = $('versus');
+    v.innerHTML = `
+      <div class="vs-half you" style="--c:${colorOf(lo[0])}"></div><div class="vs-half rival" style="--c:${colorOf(rival.element)}"></div><div class="vs-seam"></div>
+      <div class="vs-stage">
         <div class="vs-side you" style="--c:${colorOf(lo[0])}">${hex(lo[0], 'vs-hex')}<small>${ic('user')} YOU</small><b>${esc(myName())}</b><span>${t.label} · ${ic('trophy')}${fmt(a.trophies)}</span><div class="vs-lo">${lo.map(id => hex(id)).join('')}</div></div>
-        <div class="vs-mid"><b>VS</b><small>${rival.arena.toUpperCase()}</small></div>
+        <div class="vs-mid"><b>VS</b><small>${rival.arena.toUpperCase()}</small><div class="vs-count"><b id="vsCount">3</b><small>GET READY</small></div></div>
         <div class="vs-side rival" style="--c:${colorOf(rival.element)}">${hex(rival.element, 'vs-hex')}<small>${ic('user')} RIVAL</small><b>${esc(rival.name.toUpperCase())}</b><span>${rival.tier.label} · ${ic('trophy')}${fmt(rival.trophies)}</span><div class="vs-lo">${(rival.loadout || [rival.element]).map(id => hex(id)).join('')}</div></div>
-      </div>
-      <div class="vs-count"><b id="vsCount">3</b><small>GET READY</small></div>`, () => {
-      let n = 3;
-      const step = () => {
-        if (token !== mmToken || !modalOpen()) return;
-        const el = $('vsCount'); if (!el) return;
-        if (n <= 0) { startDuel(rival); return; }
-        el.textContent = n; el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
-        Sfx.click(); n--;
-        setTimeout(step, 750);
-      };
-      step();
-    }, 'versus');
+      </div>`;
+    Icons.hydrate(v);
+    v.classList.remove('hidden');
+    let n = 3;
+    const step = () => {
+      if (token !== mmToken || v.classList.contains('hidden')) return;
+      const el = $('vsCount'); if (!el) return;
+      if (n <= 0) { barWipe(() => { v.classList.add('hidden'); v.innerHTML = ''; startDuel(rival); }); return; }
+      el.textContent = n; el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
+      Sfx.click(); n--;
+      setTimeout(step, 750);
+    };
+    setTimeout(step, 450);
+  }
+  // bar transition: bars drop to cover the screen, the swap happens behind them, then they lift
+  function barWipe(mid) {
+    const b = $('bars');
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { mid(); return; }
+    b.className = 'in';
+    Sfx.whoosh();
+    setTimeout(() => {
+      mid();
+      requestAnimationFrame(() => { b.className = 'out'; setTimeout(() => { b.className = ''; }, 900); });
+    }, 760);
   }
   // your own name on the versus screen: your CrazyGames username if logged in, otherwise YOU
   const myName = () => String((Platform.user && Platform.user.username) || 'YOU').toUpperCase().slice(0, 16);
@@ -680,6 +698,7 @@ const UI = (() => {
     lastStart = { mode: 'duel', rival };
     closeModal(); show(null);
     Game.start({ mode: 'duel', rival });
+    if (rival.live && typeof rival.onDisconnect === 'function') rival.onDisconnect(() => Game.rivalTakeover());
     hudCache = {};
     buildHud();
     setChip(rival.element, 'ARENA · ' + rival.name.toUpperCase());
@@ -951,7 +970,7 @@ const UI = (() => {
         <p class="sub">ARENA · VS ${esc(rv.name.toUpperCase())}${res.rounds ? ` · ROUNDS ${res.rounds.me} – ${res.rounds.them}` : ''}</p>
         <div class="trophy-delta ${res.won ? 'gain' : 'drop'}" style="--tc:${r.tier.color}">${tierBadge(r.tier, 'md')}<div><b>${ic('trophy')}${r.delta > 0 ? '+' : ''}${r.delta}</b><small>${fmt(r.trophies)} TROPHIES · ${r.tier.label}</small></div></div>
         ${tiles}
-        <div class="payout">${ic('gem')}<span>+${r.gems + res.essence}</span><span class="tok">${ic('token')}+${r.tokens}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
+        <div class="payout">${ic('gem')}<span>+${r.gems + res.essence}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
         ${r.promoted ? `<div class="unlock" style="--c:${r.promoted.color}">${tierBadge(r.tier, 'md')}<div><small>PROMOTED</small><b>${r.promoted.name.toUpperCase()}</b><p>You reached a new Arena tier.</p></div></div>` : ''}
       </div>
       <div class="actions result-actions">
@@ -1074,6 +1093,11 @@ const UI = (() => {
     $('tut').classList.add('hidden');
   }
 
+  function fadeEmblem(e, el) {
+    clearTimeout(e._fade);
+    e.classList.add('em-out');
+    e._fade = setTimeout(() => { e.style.setProperty('--c', colorOf(el)); e.innerHTML = elementIcon(el); e.classList.remove('em-out'); }, 160);
+  }
   function setChip(el, title) {
     const e = $('chipEmblem');
     e.style.setProperty('--c', colorOf(el));
@@ -1160,7 +1184,10 @@ const UI = (() => {
         $('bossName').textContent = h.boss.name.toUpperCase();
         $('bossTitle').textContent = h.boss.title.toUpperCase();
         const em = $('bossEmblem'); em.style.setProperty('--c', colorOf(h.boss.el)); em.innerHTML = elementIcon(h.boss.el);
+        hudCache.rivalEl = h.boss.el;
       }
+      // Arena: the emblems show the opponent's equipped element and fade when it swaps
+      if (Game.mode === 'duel') set('rivalEl', h.boss.el, el => { fadeEmblem($('chipEmblem'), el); fadeEmblem($('bossEmblem'), el); });
       set('boss', Math.round(h.boss.ratio * 300), () => { $('bossFill').style.width = h.boss.ratio * 100 + '%'; });
     } else if (!bb.classList.contains('hidden')) bb.classList.add('hidden');
   }
@@ -1307,7 +1334,7 @@ const UI = (() => {
       else { hudCache = {}; buildHud(); banner(r.n === 3 ? 'FINAL ROUND' : `ROUND ${r.n}`); }
     };
     Game.hooks.onCombo = n => { onCombo(n); if (Game.mode === 'stage' || Game.mode === 'endless' || Game.mode === 'duel') Meta.track('combo', n); };
-    Game.hooks.onRhythm = mv => Rhythm.start(mv, pct => Game.endRhythm(pct));
+    Game.hooks.onRhythm = (mv, o = {}) => Rhythm.start(mv, pct => Game.endRhythm(pct, o.owner), o);
     Game.hooks.onBoss = e => banner(e.ai.boss.name.toUpperCase(), 'boss');
     Game.hooks.onToast = (t, big) => (big ? banner(t.toUpperCase()) : toast(t.toUpperCase()));
     Game.hooks.onWave = (i, n, boss) => { if (!boss && Game.mode === 'stage' && i > 0) banner(i === n - 1 ? 'FINAL WAVE' : `WAVE ${i + 1}`); };

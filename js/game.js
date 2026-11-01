@@ -212,6 +212,7 @@ const Game = (() => {
     f.facing = -1;
     const ai = f.ai;
     ai.rv = u; ai.loadout = rv.loadout; ai.elIdx = 0; ai.swapT = rand(3, 5);
+    ai.net = !!rv.live && !rv.dropped;   // a live opponent drives this fighter over the network
     ai.stats.cdMul = u.cdMul;
     ai.thinkT = 1.4;   // a beat to get ready before the first exchange
     setRivalElement(f, rv.loadout[0], true);
@@ -227,6 +228,12 @@ const Game = (() => {
       fx.ring(f.center().x, f.center().y, ELEMENT_BY_ID[id].color, 70, 0.35);
       Sfx.swap(id);
     }
+  }
+
+  // a live opponent left: the AI quietly takes over the same fighter, mid-round
+  function rivalTakeover() {
+    if (run && run.rival) run.rival.dropped = true;
+    for (const e of enemies) if (e.ai && e.ai.rival) { e.ai.net = false; e.ai.thinkT = 0.2; }
   }
 
   // Arena rounds: first to two
@@ -269,7 +276,7 @@ const Game = (() => {
     return [body, shade];
   }
 
-  const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance', 'fatal']);
+  const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance', 'fatal', 'rhythm']);
   function enemyKit(el, type, realmId) {
     const E = ELEMENT_BY_ID[el];
     if (!E) return { melee: type === 'caster' ? null : ENEMY_PUNCH, ranged: type === 'grunt' ? null : ENEMY_ROCK, powers: [] };
@@ -987,7 +994,12 @@ const Game = (() => {
         if (f.isPlayer && state === 'play' && hooks.onRhythm) {
           rhythmFreeze = true;
           f.cds[mv.id] = 999;   // the real cooldown starts when the song ends
-          hooks.onRhythm(mv);
+          hooks.onRhythm(mv, { owner: f });
+        } else if (f.ai && f.ai.rival && state === 'play' && hooks.onRhythm) {
+          // the Arena opponent plays its own Encore: the match pauses and the player watches
+          rhythmFreeze = true;
+          f.cds[mv.id] = 999;
+          hooks.onRhythm(mv, { owner: f, spectate: true, skill: 0.45 + 0.45 * Math.min(f.ai.d, 1) });
         } else soundBlast(f, mv, 0.75);
         break;
       default: break;
@@ -1688,12 +1700,13 @@ const Game = (() => {
     shake = Math.max(shake, 10 + pct * 10); realmFlash = Math.max(realmFlash, 0.15 + pct * 0.2);
     Sfx.chord(0.6 + pct * 0.6); Sfx.boom(0.6 + pct * 0.8);
   }
-  function endRhythm(pct) {
+  function endRhythm(pct, owner) {
     rhythmFreeze = false;
-    if (!player) return;
+    const f = owner || player;
+    if (!f || !f.alive) return;
     const mv = ELEMENT_BY_ID.tempo.moves[2];
-    player.cds[mv.id] = mv.cd * pStats.cdMul;
-    soundBlast(player, mv, clamp(pct, 0, 1));
+    f.cds[mv.id] = mv.cd * (f.isPlayer ? pStats.cdMul : f.ai ? f.ai.stats.cdMul : 1);
+    soundBlast(f, mv, clamp(pct, 0, 1));
   }
 
   function payJackpot(sl) {
@@ -2787,6 +2800,7 @@ const Game = (() => {
     if (e.mode !== 'active') { e.input.x = 0; return; }
     if (e.engulf || e.stopT > 0) { e.input.x = 0; return; }
     if (e.puppet) { puppetAI(e, dt); return; }
+    if (ai.net) { e.input.x = e.netInput || 0; return; }
     if (player && player.vanish > 0 && me.grounded) {
       // New Moon: the hero is gone; mill about where they were last seen
       if (!ai.wander || Math.random() < dt * 1.2) ai.wander = pick([-1, 0, 0, 1]);
@@ -2866,6 +2880,7 @@ const Game = (() => {
         : k === 'crush' ? !player.root.grounded && dd < 650
         : k === 'resonance' ? dd < 520
         : k === 'fatal' ? dd < 560
+        : k === 'rhythm' ? ai.rival && dd < 650
         : true;
       if (ok) { tryMove(e, pw, pc.x + err(), pc.y + err()); return; }
     }
@@ -4525,7 +4540,7 @@ const Game = (() => {
   };
 
   return {
-    dev, init, resize, update, render, start, quit, revive, idleScene, hud, hooks, setShift,
+    dev, init, resize, update, render, start, quit, revive, idleScene, hud, hooks, setShift, rivalTakeover,
     press, release, setKey, setJoy, setDirAim, setMouse, selectSlot, cycleSlot,
     startPreview, stopPreview, get previewing() { return !!preview; }, endRhythm, get rhythm() { return rhythmFreeze; },
     setPreviewElement(id) { if (player && state === 'idle') { player.loadout = [id]; setPlayerElement(player, id, true); idleDemo.t = 0.3; } },

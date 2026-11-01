@@ -190,6 +190,15 @@ const Platform = (() => {
   // Plug one in here: resolve to a match object, or null to fall back to a bot.
   async function findLiveMatch() { return null; }
 
+  // Arena leaderboard entries for the in-game top 10, CrazyGames only. Resolve to
+  // [{ rank, name, score }] from a real source; null hides the leaderboard panel.
+  // The CrazyGames SDK documents score submission but no way to read entries yet,
+  // so this stays null until such an API (or your own backend) is available.
+  async function fetchLeaderboard() {
+    if (!sdk) return null;
+    return null;
+  }
+
   function device() {
     const t = safe(() => sdk && sdk.user.systemInfo && sdk.user.systemInfo.device && sdk.user.systemInfo.device.type, null);
     if (t) return t;
@@ -198,7 +207,7 @@ const Platform = (() => {
 
   return {
     init, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
-    happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, findLiveMatch,
+    happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, findLiveMatch, fetchLeaderboard,
     get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
     get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED; }, get user() { return user; },

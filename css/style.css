@@ -1534,3 +1534,68 @@ body:not(.touch) .lo-slot .x { right: 10px; }
   .rc-gl .tier-badge.sm { width: 14px; height: 16px; }
   .rc-t > b { font-size: 10.5px; }
 }
+
+/* =========================================================================
+   Arena versus: full screen, split by element colour, VS on the exact centre
+   ========================================================================= */
+#versus { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #0a0c13; animation: fade 0.25s ease; }
+.vs-half { position: absolute; top: 0; bottom: 0; width: 58%;
+  background: radial-gradient(70% 60% at 50% 50%, color-mix(in srgb, var(--c) 30%, transparent), transparent 70%), linear-gradient(180deg, #121624, #0a0c13); }
+.vs-half.you { left: 0; clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); animation: vsHalfL 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.vs-half.rival { right: 0; clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%); animation: vsHalfR 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@keyframes vsHalfL { from { transform: translateX(-60%); } }
+@keyframes vsHalfR { from { transform: translateX(60%); } }
+.vs-seam { position: absolute; left: 50%; top: -10%; bottom: -10%; width: 4px; transform: translateX(-50%) skewX(-9deg); background: linear-gradient(180deg, transparent, var(--acc), transparent); box-shadow: 0 0 24px var(--acc); opacity: 0.8; }
+.vs-stage { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) 240px minmax(0, 1fr); align-items: center; justify-items: center; zoom: var(--ui); }
+#versus .vs-side { width: 100%; max-width: 420px; padding: 0 16px; }
+#versus .hex.vs-hex { width: 128px; height: 128px; border-radius: 26px; }
+#versus .vs-side > b { font-size: clamp(22px, 3vw, 34px); }
+#versus .vs-lo .hex { width: 36px; height: 36px; border-radius: 8px; }
+#versus .vs-mid { gap: 10px; }
+#versus .vs-mid b { font-size: clamp(60px, 9vw, 104px); }
+#versus .vs-count { margin-top: 18px; }
+#versus .vs-count b { font-size: 42px; }
+@media (max-height: 560px) {
+  #versus .hex.vs-hex { width: 84px; height: 84px; border-radius: 18px; }
+  .vs-stage { grid-template-columns: minmax(0, 1fr) 160px minmax(0, 1fr); }
+  #versus .vs-mid b { font-size: 56px; }
+  #versus .vs-count { margin-top: 6px; }
+}
+
+/* bar transition into the fight: bars drop in from the top, then lift away */
+#bars { position: fixed; inset: 0; z-index: 70; pointer-events: none; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); }
+#bars i { position: relative; background: linear-gradient(180deg, #161b2a, #0b0e16 80%); transform: translateY(-102%); }
+#bars i::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--acc); box-shadow: 0 0 12px var(--acc); }
+#bars.in { pointer-events: auto; }
+#bars.in i { animation: barDown 0.42s cubic-bezier(0.65, 0, 0.35, 1) both; animation-delay: calc(var(--i) * 38ms); }
+#bars.out i { transform: none; animation: barUp 0.46s cubic-bezier(0.65, 0, 0.35, 1) both; animation-delay: calc(var(--i) * 38ms); }
+@keyframes barDown { from { transform: translateY(-102%); } to { transform: none; } }
+@keyframes barUp { from { transform: none; } to { transform: translateY(-102%); } }
+
+/* opponent emblem crossfades when they swap element */
+.chip-emblem, #bossEmblem { transition: opacity 0.16s ease, transform 0.16s ease; }
+.chip-emblem.em-out, #bossEmblem.em-out { opacity: 0; transform: scale(0.75); }
+
+/* result: the gem payout sits evenly between the stat tiles and the buttons */
+.sheet.result .payout, body.touch .sheet.result .payout { margin: 4px 0; }
+
+/* home chips, a size smaller with the same look */
+.live-rail { gap: 6px; }
+.rail-card { height: 38px; padding: 0 14px 0 11px; gap: 9px; }
+.rail-card::after { left: 11px; right: 14px; }
+.rc-gl, .rc-gl svg, .rc-gl .ic { width: 15px; height: 15px; }
+.rc-gl .tier-badge.sm { width: 14px; height: 16px; }
+.rc-t small { font-size: 7.5px; }
+.rc-t > b { font-size: 10.5px; }
+.rail-card .badge { top: 5px; right: 5px; width: 6px; height: 6px; }
+.rail-card:has(.badge) { padding-right: 18px; }
+@media (max-width: 1000px) {
+  .rail-card { height: 33px; padding: 0 11px 0 9px; gap: 7px; }
+  .rc-gl, .rc-gl svg, .rc-gl .ic { width: 13px; height: 13px; }
+  .rc-gl .tier-badge.sm { width: 12px; height: 14px; }
+  .rc-t > b { font-size: 9.5px; }
+}
+
+/* leaderboard rows (CrazyGames, real entries only) */
+.lb-row { grid-template-columns: 46px minmax(0, 1fr) auto; }
+.vs-seam { opacity: 0.35; -webkit-mask: linear-gradient(180deg, #000 30%, transparent 42%, transparent 64%, #000 76%); mask: linear-gradient(180deg, #000 30%, transparent 42%, transparent 64%, #000 76%); }

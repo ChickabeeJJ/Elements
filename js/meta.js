@@ -55,31 +55,6 @@ const Meta = (() => {
     }
   }
 
-  /* ----------------------------------------------------- leaderboard */
-  // Arena top 10. The ladder is seeded per day and its trophy counts move minute by
-  // minute; the player's own row is placed by their real trophies.
-  function leaderboard() {
-    const day = today(), rng = mulberry32(day * 7919 + 13);
-    const mins = (Date.now() % DAY) / 60000, dayFrac = mins / 1440;
-    const rare = ELEMENTS.slice().sort((a, b) => (b.event ? b.tokenPrice : b.price) - (a.event ? a.tokenPrice : a.price)).slice(0, 18);
-    let base = 4300 + rng() * 500;
-    const rows = [];
-    for (let i = 0; i < 10; i++) {
-      const name = playerName(rng), el = rare[Math.floor(rng() * rare.length)].id;
-      const gain = rng() * 160 * dayFrac, wobble = Math.sin(mins / (6 + rng() * 8) + i * 1.7) * (12 + rng() * 18);
-      rows.push({ name, el, trophies: Math.round(base + gain + wobble) });
-      base -= 60 + rng() * 170;
-    }
-    const mine = Save.data.arena.trophies;
-    rows.sort((a, b) => b.trophies - a.trophies);
-    const you = { name: '', el: Save.loadout()[0], trophies: mine, you: true };
-    let yourRank;
-    const at = rows.findIndex(r => mine > r.trophies);
-    if (at >= 0) { rows.splice(at, 0, you); rows.length = 10; yourRank = at + 1; }
-    else yourRank = 10 + Math.max(1, Math.round(16000 * Math.exp(-mine / 650)));
-    rows.forEach((r, i) => { r.rank = i + 1; r.tier = tierOf(r.trophies); });
-    return { rows, you: Object.assign(you, { rank: yourRank, tier: tierOf(mine) }) };
-  }
   const BODIES = ['#f1ece4', '#e6e9f2', '#efe6f2', '#e9f0e6', '#f3e9e1', '#e4edf0'];
   const DUEL_ARENAS = ['Mainland', 'Summit', 'Crossing', 'Islets', 'Drift', 'Twin Peaks'];
   function statsFrom(up) {
@@ -110,15 +85,16 @@ const Meta = (() => {
       realm: randi(0, REALMS.length - 1), arena: pick(DUEL_ARENAS), seed: randi(1, 999),
     };
   }
-  // Look for a live opponent for up to 8 seconds; only then fall back to a computer opponent.
-  const SEARCH_MS = 8000;
+  // Look for a live opponent for 8-12 seconds; only then fall back to a computer opponent.
+  // A live opponent is filled out with a full profile, so if they disconnect mid-match
+  // the AI can take over the same fighter (see Game.rivalTakeover).
   async function findMatch(isCancelled = () => false) {
-    const t0 = Date.now();
+    const t0 = Date.now(), SEARCH_MS = rand(8000, 12000);
     while (Date.now() - t0 < SEARCH_MS) {
       if (isCancelled()) return null;
       let live = null;
       try { live = await Promise.race([Platform.findLiveMatch(), new Promise(r => setTimeout(() => r(null), 1000))]); } catch (e) { live = null; }
-      if (live) return live;
+      if (live) return Object.assign(makeRival(), live, { live: true, bot: false });
       await new Promise(r => setTimeout(r, Math.max(0, Math.min(1000, SEARCH_MS - (Date.now() - t0)))));
     }
     return isCancelled() ? null : makeRival();
@@ -150,8 +126,7 @@ const Meta = (() => {
     }
     const gems = (won ? 30 + t.i * 8 : 10) + tierGems;
     const ev = syncEvent();
-    const tokens = ev ? (won ? 15 : 5) : 0;   // tokens only while an event is live
-    Save.data.event.tokens += tokens;
+    const tokens = 0;   // event tokens come from event quests only
     Save.data.essence += gems;
     Save.save();
     Platform.submitScore(a.trophies);
@@ -325,6 +300,6 @@ const Meta = (() => {
   return {
     TIERS, EVENTS, tierOf, makeRival, findMatch, recordDuel,
     track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyCache, elementEvent, liveEvent,
-    claimable, fmtLeft, leaderboard, onNotify: cb => listeners.push(cb), questText,
+    claimable, fmtLeft, onNotify: cb => listeners.push(cb), questText,
   };
 })();

@@ -12,7 +12,7 @@ const Rhythm = (() => {
   const KEYS = { Digit5: 0, Digit6: 1, Digit7: 2, Digit8: 3, Numpad5: 0, Numpad6: 1, Numpad7: 2, Numpad8: 3 };
   const LANE_COL = ['#7ad8ff', '#b9a8ff', '#ff7ad9', '#ffd36b'];
   let el = null, cv = null, ctx = null, active = false, notes = [], t = 0, last = 0, done = null;
-  let tip = -1, ghostTimes = [];   // spam warning: when it last appeared
+  let tip = -1, ghostTimes = [], spectate = null;   // spectate: the opponent is playing; notes play themselves   // spam warning: when it last appeared
   let hits = 0, ghosts = 0, units = 0, combo = 0, best = 0, held = [null, null, null, null], pointers = new Map(), pops = [], flashes = [0, 0, 0, 0], sparks = [], beatNo = -1, result = null;
 
   // random but fair chart: 16th grid at 150 BPM, no jacks faster than 0.2s, chords only on open lanes
@@ -54,16 +54,16 @@ const Rhythm = (() => {
     el.innerHTML = '<canvas></canvas>';
     document.body.appendChild(el);
     cv = el.querySelector('canvas'); ctx = cv.getContext('2d');
-    el.addEventListener('pointerdown', e => { if (!active) return; e.preventDefault(); const l = laneAt(e.clientX); if (l >= 0) { pointers.set(e.pointerId, l); press(l); } });
+    el.addEventListener('pointerdown', e => { if (!active || spectate) return; e.preventDefault(); const l = laneAt(e.clientX); if (l >= 0) { pointers.set(e.pointerId, l); press(l); } });
     const up = e => { const l = pointers.get(e.pointerId); pointers.delete(e.pointerId); if (active && l != null && ![...pointers.values()].includes(l)) release(l); };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
     window.addEventListener('keydown', e => {
-      if (!active || !(e.code in KEYS)) return;
+      if (!active || spectate || !(e.code in KEYS)) return;
       e.preventDefault(); e.stopImmediatePropagation();
       if (!e.repeat) press(KEYS[e.code]);
     }, true);
     window.addEventListener('keyup', e => {
-      if (!active || !(e.code in KEYS)) return;
+      if (!active || spectate || !(e.code in KEYS)) return;
       e.preventDefault(); e.stopImmediatePropagation();
       release(KEYS[e.code]);
     }, true);
@@ -77,9 +77,12 @@ const Rhythm = (() => {
   }
   function laneAt(x) { const g = geom(); const l = Math.floor((x - g.x0) / g.lw); return l >= 0 && l < 4 ? l : -1; }
 
-  function start(mv, cb) {
+  // opts.spectate: watch the opponent play (no input; each note is hit with opts.skill)
+  function start(mv, cb, opts = {}) {
     if (!el) build();
     notes = chart(); t = 0; last = performance.now(); done = cb;
+    spectate = opts.spectate ? { skill: opts.skill == null ? 0.75 : opts.skill } : null;
+    if (spectate) for (const n of notes) { n.auto = Math.random() < spectate.skill; n.off = (Math.random() - 0.5) * 0.07; }
     hits = 0; ghosts = 0; combo = 0; best = 0; pops = []; sparks = []; flashes = [0, 0, 0, 0]; beatNo = -1; result = null;
     held = [null, null, null, null]; pointers.clear(); tip = -1; ghostTimes = [];
     units = notes.length + notes.filter(n => n.len).length;   // a hold counts its head and its tail
@@ -141,6 +144,7 @@ const Rhythm = (() => {
     t += dt;
     const s = songT();
     // metronome so the beat is easy to feel
+    if (spectate) for (const n of notes) if (n.state === 'live' && n.auto && s >= n.at + n.off) press(n.lane);
     const bn = Math.floor(s / 0.4);
     if (s >= 0 && s < SONG && bn !== beatNo) { beatNo = bn; Sfx.beat(bn % 4 === 0); }
     for (const n of notes) if (n.state === 'live' && s - n.at > WIN.good) { n.state = 'miss'; combo = 0; pops.push({ lane: n.lane, text: 'MISS', t: 0 }); Sfx.note(n.lane, false); }
@@ -255,7 +259,7 @@ const Rhythm = (() => {
     const judged = notes.filter(n => n.state !== 'live' && n.state !== 'holding').length + notes.filter(n => n.len && (n.state === 'hit' || n.state === 'broken' || n.state === 'miss')).length;
     const pct = judged + ghosts ? Math.min(1, hits / (judged + ghosts)) : 1;
     ctx.font = '900 14px Rubik, sans-serif'; ctx.fillStyle = '#ffffff';
-    ctx.fillText('ENCORE', cx, g.topY - 6 > 14 ? g.topY + 4 : 18);
+    ctx.fillText(spectate ? 'OPPONENT\'S ENCORE' : 'ENCORE', cx, g.topY - 6 > 14 ? g.topY + 4 : 18);
     const bw = Math.min(g.width, 360), by = g.topY + 22;
     ctx.fillStyle = 'rgba(255,255,255,0.15)'; roundRect(ctx, cx - bw / 2, by, bw, 5, 3); ctx.fill();
     const prog = Math.min(1, Math.max(0, s / SONG));
@@ -288,6 +292,14 @@ const Rhythm = (() => {
     }
     ctx.restore();
     // result card
+    if (spectate && !result) {
+      const y = g.H * 0.5, w = Math.min(g.W - 32, 560), pulse = 0.85 + Math.sin(t * 4) * 0.15;
+      ctx.fillStyle = 'rgba(8,9,16,0.82)'; roundRect(ctx, cx - w / 2, y - 34, w, 68, 12); ctx.fill();
+      ctx.strokeStyle = `rgba(255,61,154,${0.6 * pulse})`; ctx.lineWidth = 2; roundRect(ctx, cx - w / 2, y - 34, w, 68, 12); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `900 ${Math.min(24, g.W * 0.045)}px Rubik, sans-serif`; ctx.fillStyle = '#ffffff'; ctx.fillText('OPPONENT IS PLAYING A MINI GAME', cx, y - 8);
+      ctx.font = '800 12px Rubik, sans-serif'; ctx.fillStyle = '#b9a8ff'; ctx.fillText('THE MATCH IS PAUSED UNTIL IT ENDS', cx, y + 16);
+    }
     if (result) {
       const k = ease(result.t / 0.35), fade = 1 - ease((result.t - (OUTRO - 0.5)) / 0.4);
       ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(cx, g.H * 0.45); ctx.scale(0.7 + 0.3 * k, 0.7 + 0.3 * k);
@@ -304,5 +316,5 @@ const Rhythm = (() => {
   function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
   function roundRect(c, x, y, w, h, r) { c.beginPath(); c.roundRect(x, y, Math.max(0, w), Math.max(0, h), Math.max(0, Math.min(r, w / 2, h / 2))); }
 
-  return { start, abort, get active() { return active; }, _press: press, _notes: () => notes };
+  return { start, abort, get active() { return active; }, get spectating() { return !!spectate; }, _press: press, _notes: () => notes };
 })();

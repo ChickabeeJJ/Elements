@@ -465,7 +465,7 @@ const ELEMENTS = [
    (see EVENTS in js/meta.js). They are only obtainable during their event. */
 ELEMENTS.push({
   id: 'glitch', name: 'Glitch', color: '#ff4fe1', deep: '#19d3ff', price: 0, event: 'syserror', tokenPrice: 600,
-  blurb: 'A fighter who broke out of the game\'s code. Corrupt foes until they crash, cut and paste them anywhere (even off the map) and throw fatal errors. Event exclusive.',
+  blurb: 'A fighter who broke out of the game\'s code. Corrupt foes until they crash, cut and paste them anywhere (even off the map) and throw fatal errors. Error (Halloween) Event Exclusive.',
   moves: [
     { slot: 'main', id: 'bit_burst', name: 'Bit Burst', type: 'ranged', icon: 'bitburst', kind: 'projectile', pose: 'cast',
       desc: 'A packet of corrupted pixels that skips through space. Each hit adds Corruption; at 3 the foe CRASHES: frozen, then blasted.', cd: 0.42, windup: 0.05, active: 0.05, recover: 0.13,
