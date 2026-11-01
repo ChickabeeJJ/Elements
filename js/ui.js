@@ -318,9 +318,10 @@ const UI = (() => {
     let unlock = '';
     if (!open && e.event) {
       const ev = Meta.elementEvent(e.id);
-      unlock = `<div class="buy-row ev" style="--ec:${ev.color}">${ic('token')}<p>${ev.live
-        ? `Exclusive to the <b>${ev.name}</b> event, live for <b data-until="${ev.end}">${Meta.fmtLeft(ev.end - Date.now())}</b>. Earn tokens from event quests and Arena matches.`
-        : `Exclusive to the <b>${ev.name}</b> event. It returns in <b data-until="${ev.start}">${Meta.fmtLeft(ev.start - Date.now())}</b>.`}</p><button class="btn${ev.live ? ' primary' : ''}" id="goEvent"><b>${ev.live ? 'GO TO EVENT' : 'VIEW EVENTS'}</b></button></div>`;
+      unlock = `<div class="buy-row ev" style="--ec:${ev ? ev.color : e.color}">${ic('token')}<p>${!ev ? 'Exclusive to an event.'
+        : ev.live ? `Exclusive to the <b>${ev.name}</b> event, live for <b data-until="${ev.end}">${Meta.fmtLeft(ev.end - Date.now())}</b>. Earn tokens from event quests and Arena matches.`
+        : ev.upcoming ? `Exclusive to the <b>${ev.name}</b> event, which starts in <b data-until="${ev.start}">${Meta.fmtLeft(ev.start - Date.now())}</b>.`
+        : `Exclusive to the <b>${ev.name}</b> event, which has ended.`}</p>${ev && ev.live ? '<button class="btn primary" id="goEvent"><b>GO TO EVENT</b></button>' : ''}</div>`;
     } else if (!open) {
       unlock = `<div class="buy-row"><p>Unlock ${e.name} with gems from battles, pickups and stage clears.</p><button class="btn${Save.data.essence >= e.price ? ' primary' : ''}" id="buyEl">${ic('gem')}<b>UNLOCK · ${e.price}</b></button></div>`;
     }
@@ -404,8 +405,8 @@ const UI = (() => {
   let badgeN = 0;
   function tierBadge(t, cls = '') {
     const id = 'tb' + (++badgeN);
-    const mark = t.div < 0 ? '' : t.div ? `<text x="24" y="32" text-anchor="middle" font-size="${t.div === 3 ? 12 : 14}" font-weight="900" fill="#fff" font-family="Rubik, sans-serif">${['', 'I', 'II', 'III'][t.div]}</text>`
-      : '<path d="m24 16 2.6 5.4 5.9.8-4.3 4.1 1 5.9L24 29.4l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" fill="#fff"/>';
+    const mark = t.div < 0 ? '' : t.div ? `<text x="24" y="26" text-anchor="middle" dominant-baseline="central" font-size="${t.div === 3 ? 12 : 14}" font-weight="900" fill="#fff" font-family="Rubik, sans-serif">${['', 'I', 'II', 'III'][t.div]}</text>`
+      : '<path d="m24 18 2.6 5.4 5.9.8-4.3 4.1 1 5.9L24 31.4l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" fill="#fff"/>';
     return `<svg class="tier-badge ${cls}" viewBox="0 0 48 52" aria-label="${t.label}" role="img"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.color}"/><stop offset="1" stop-color="${mixHex(t.color, '#101320', 0.55)}"/></linearGradient></defs>
       <path d="M24 2 44 9v17c0 12-9 20-20 24C13 46 4 38 4 26V9z" fill="url(#${id})" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
       <path d="M24 8 38 13v13c0 8.5-6 14.5-14 17.5C16 40.5 10 34.5 10 26V13z" fill="rgba(0,0,0,.24)"/>${mark}</svg>`;
@@ -442,7 +443,9 @@ const UI = (() => {
   }
 
   function eventTab() {
-    const st = Meta.eventState(), ev = st.ev, el = ELEMENT_BY_ID[ev.element];
+    const st = Meta.eventState();
+    if (!st) return `<div class="hub-empty card">${ic('clock')}<h3>NO EVENT RIGHT NOW</h3><p>There's no event running at the moment. New events bring exclusive elements, event quests and tokens. Check back soon.</p></div>`;
+    const ev = st.ev, el = ELEMENT_BY_ID[ev.element];
     const pct = Math.min(100, Math.round(st.tokens / st.price * 100));
     const doneN = st.quests.filter(q => q.claimed).length;
     const cta = st.owned
@@ -450,7 +453,10 @@ const UI = (() => {
       : `<button class="btn${st.tokens >= st.price ? ' primary' : ''}" id="evBuy">${ic('token')}<b>UNLOCK · ${st.price}</b></button>`;
     return `<div class="hub-grid event-tab" style="--ec:${ev.color};--ed:${ev.deep}">
       <div class="ev-hero card">
-        <div class="ev-art"><span class="ev-rays"></span>${hex(el.id, 'ev-hex')}</div>
+        <div class="ev-art" style="background:radial-gradient(60% 50% at 50% 46%, ${ev.color}40, transparent 72%), linear-gradient(180deg, #171c2c, #0b0e16)">
+          <span class="ev-glow" style="background:radial-gradient(closest-side, ${ev.color}66, ${ev.deep}22 60%, transparent)"></span>
+          <span class="ev-grid" style="background-image:linear-gradient(${ev.color}55 1px, transparent 1px), linear-gradient(90deg, ${ev.deep}55 1px, transparent 1px)"></span>
+          ${hex(el.id, 'ev-hex')}<span class="ev-floor"></span></div>
         <div class="ev-info">
           <span class="kicker"><i class="live-dot"></i>LIVE EVENT · ENDS IN ${until(ev.end)}</span>
           <h3>${ev.name.toUpperCase()}</h3>
@@ -471,12 +477,12 @@ const UI = (() => {
         <div class="card panel">
           <div class="panel-head"><h4>${ic('gift')}TOKEN SHOP</h4></div>
           <div class="shop-row"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
-          <p class="fine">Tokens come from event quests and Arena matches (+15 for a win, +5 for a loss). They expire when the event ends; elements you unlock are yours to keep.</p>
+          <p class="fine">Tokens come from event quests and Arena matches (+15 for a win, +5 for a loss). They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
         </div>
-        <div class="card panel">
+        ${st.upcoming.length ? `<div class="card panel">
           <div class="panel-head"><h4>${ic('clock')}COMING UP</h4></div>
           <div class="upcoming">${st.upcoming.map(u => `<div class="up-ev" style="--c:${u.color}">${hex(u.element)}<div><b>${u.name.toUpperCase()}</b><small>${NAME(u.element)} · STARTS IN ${until(u.start)}</small></div></div>`).join('')}</div>
-        </div>
+        </div>` : ''}
       </div>
     </div>`;
   }
@@ -494,11 +500,11 @@ const UI = (() => {
           ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small primary claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
         </div>
       </div>
-      <div class="card panel" style="--ec:${st.ev.color}">
+      ${st ? `<div class="card panel" style="--ec:${st.ev.color}">
         <div class="panel-head"><h4>${ic('token')}${st.ev.name.toUpperCase()}</h4><small>ENDS IN ${until(st.ev.end)}</small></div>
         <div class="quest-list">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.id}"`)).join('')}</div>
         <button class="btn" id="qToEvent"><b>OPEN EVENT</b></button>
-      </div>
+      </div>` : `<div class="card panel"><div class="panel-head"><h4>${ic('token')}EVENT QUESTS</h4></div><p class="fine">No event is running right now, so there are no event quests.</p></div>`}
     </div>`;
   }
 
@@ -563,7 +569,8 @@ const UI = (() => {
     on('#rkPlay', () => { Sfx.click(); openArena(); });
     on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); renderHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
     on('#evBuy', () => {
-      const st = Meta.eventState(), el = ELEMENT_BY_ID[st.ev.element];
+      const st = Meta.eventState(); if (!st) return;
+      const el = ELEMENT_BY_ID[st.ev.element];
       if (Meta.buyEventElement()) {
         Sfx.unlock(); Platform.happytime();
         const l = Save.loadout(); if (l.length < 3 && !l.includes(el.id)) Save.setLoadout(l.concat(el.id));
@@ -571,12 +578,13 @@ const UI = (() => {
       } else { Sfx.denied(); toast(`NEED ${st.price - st.tokens} MORE TOKENS`); }
     });
     on('#evEquip', () => {
-      const id = Meta.eventState().ev.element; let l = Save.loadout();
+      const st = Meta.eventState(); if (!st) return;
+      const id = st.ev.element; let l = Save.loadout();
       if (l.includes(id)) return;
       if (l.length >= 3) l.shift(); l.push(id);
       Sfx.click(); Save.setLoadout(l); applyAccentTheme(); toast(`${NAME(id)} EQUIPPED`); renderHub();
     });
-    on('#evPreview', () => { Sfx.click(); const el = ELEMENT_BY_ID[Meta.eventState().ev.element]; previewFrom = 'hub'; openPreview(el); });
+    on('#evPreview', () => { Sfx.click(); const st = Meta.eventState(); if (!st) return; previewFrom = 'hub'; openPreview(ELEMENT_BY_ID[st.ev.element]); });
   }
 
   // home: the live rail on the right (event, quests, rank)
@@ -584,11 +592,14 @@ const UI = (() => {
     const es = Meta.eventState(), ds = Meta.dailyState(), c = Meta.claimable(), a = Save.data.arena, t = Meta.tierOf(a.trophies);
     const badge = n => (n ? `<i class="badge">${n}</i>` : '');
     const ev = $('railEvent');
-    ev.style.setProperty('--c', es.ev.color);
-    ev.innerHTML = `${hex(es.ev.element)}<span class="rc-t"><small><i class="live-dot"></i>LIVE EVENT</small><b>${es.ev.name.toUpperCase()}</b><em>${until(es.ev.end, 'ENDS IN ')}</em></span>${badge(c.event)}`;
-    $('railQuests').innerHTML = `<span class="rc-ic">${ic('scroll')}</span><span class="rc-t"><small>DAILY QUESTS</small><b>${ds.list.filter(q => q.done).length}/${ds.list.length} DONE</b><em>${until(Date.now() + ds.left, 'NEW IN ')}</em></span>${badge(c.daily)}`;
+    ev.classList.toggle('hidden', !es);   // no event, no card
+    if (es) {
+      ev.style.setProperty('--c', es.ev.color);
+      ev.innerHTML = `${hex(es.ev.element)}<span class="rc-t"><small><i class="live-dot"></i>EVENT · ${until(es.ev.end)}</small><b>${es.ev.name.toUpperCase()}</b></span>${badge(c.event)}`;
+    }
+    $('railQuests').innerHTML = `<span class="rc-ic">${ic('scroll')}</span><span class="rc-t"><small>QUESTS</small><b>${ds.list.filter(q => q.done).length}/${ds.list.length} DONE</b></span>${badge(c.daily)}`;
     $('railRanks').style.setProperty('--c', t.color);
-    $('railRanks').innerHTML = `${tierBadge(t, 'sm')}<span class="rc-t"><small>RANKS</small><b>${t.label}</b><em>${ic('trophy')}${fmt(a.trophies)} TROPHIES</em></span>`;
+    $('railRanks').innerHTML = `${tierBadge(t, 'sm')}<span class="rc-t"><small>RANKS</small><b>${t.label}</b></span>`;
     Icons.hydrate($('homeRail'));
   }
   // countdowns tick quietly wherever they are on screen

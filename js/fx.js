@@ -93,6 +93,8 @@ class FX {
         ctx.strokeStyle = p.color; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.arc(0, 18, 36, -Math.PI * 0.8, -Math.PI * 0.2); ctx.stroke();
         ctx.restore();
+      } else if (p.kind === 'pixel') {
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
       } else {
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.kind === 'smoke' ? 1 + (1 - a) : 1), 0, TAU); ctx.fill();
       }

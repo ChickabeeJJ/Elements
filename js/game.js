@@ -26,6 +26,7 @@ const Game = (() => {
   let vineSwing = null, enemyVines = [];
   let lavas = [], coils = [], links = [], pianos = [], blasts = [];   // newer element powers
   let pads = [], grasps = [], slots = [], geysers = [];
+  let clips = [], errors = [], glitchFx = 0;   // Glitch: cut & paste selections, error windows, screen tearing
   let rhythmFreeze = false;   // Tempo's Encore: the world holds still while the song plays
   let dummyTimer = 0;
   let time = 0, timeScale = 1, slowmo = 0, hitstop = 0, shake = 0, hurtFlash = 0, healFlash = 0, acc = 0, endTimer = 0, realmFlash = 0;
@@ -134,7 +135,7 @@ const Game = (() => {
   function clearField() {
     fx.clear();
     enemies = []; projectiles = []; zones = []; waves = []; strikes = []; spawns = []; pickups = [];
-    eruptions = []; walls = []; mines = []; resonances = []; dragons = []; lavas = []; coils = []; links = []; pianos = []; blasts = []; rhythmFreeze = false; pads = []; grasps = []; slots = []; geysers = [];
+    eruptions = []; walls = []; mines = []; resonances = []; dragons = []; lavas = []; coils = []; links = []; pianos = []; blasts = []; rhythmFreeze = false; pads = []; grasps = []; slots = []; geysers = []; clips = []; errors = []; glitchFx = 0;
     timeScale = 1; slowmo = 0; hitstop = 0; shake = 0; hurtFlash = 0; healFlash = 0; acc = 0;
     combo.n = 0; combo.t = 0; combo.best = 0;
     input.attack = false; input.queued = {}; vineSwing = null; enemyVines = [];
@@ -232,7 +233,7 @@ const Game = (() => {
     return [body, shade];
   }
 
-  const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance']);
+  const AI_KINDS = new Set(['nova', 'updraft', 'dash', 'wave', 'slam', 'strike', 'zone', 'blink', 'shield', 'heal', 'beam', 'projectile', 'pillars', 'orbit', 'pull', 'crush', 'resonance', 'fatal']);
   function enemyKit(el, type, realmId) {
     const E = ELEMENT_BY_ID[el];
     if (!E) return { melee: type === 'caster' ? null : ENEMY_PUNCH, ranged: type === 'grunt' ? null : ENEMY_ROCK, powers: [] };
@@ -853,6 +854,8 @@ const Game = (() => {
         Sfx.click(); Sfx.pickup();
         break;
       }
+      case 'cutpaste': startCutPaste(f, mv, act); break;
+      case 'fatal': startFatal(f, mv); break;
       case 'jackpot': {
         const SYM = ['cherry', 'bell', 'seven', 'gem'];
         const reels = [0, 1, 2].map(() => SYM[Math.floor(Math.random() * SYM.length)]);
@@ -1227,6 +1230,7 @@ const Game = (() => {
     if (mv.root) st.root = Math.max(st.root, mv.root * bossy);
     if (mv.freeze) { st.freeze = Math.max(st.freeze, mv.freeze * bossy); t.action = null; }
     if (mv.shock) st.shock = Math.max(st.shock, mv.shock * bossy);
+    if (mv.corrupt) corrupt(att, t, mv.corrupt);
     if (mv.leech && att) heal(att, dmg * mv.leech);
     if (o.zoneRoot) st.root = Math.max(st.root, o.zoneRoot * bossy);
 
@@ -1532,6 +1536,7 @@ const Game = (() => {
   function emitTrail(p) {
     const r = Math.random();
     switch (p.mv.style) {
+      case 'glitch': if (r < 0.9) fx.add({ kind: 'pixel', x: (p.gx ?? p.x) + rand(-10, 10), y: (p.gy ?? p.y) + rand(-10, 10), color: pick(['#ff4fe1', '#19d3ff', '#ffffff']), size: rand(3, 7), life: rand(0.15, 0.3), add: false }); break;
       case 'dragonfire': for (let i = 0; i < 2; i++) fx.add({ kind: 'ember', x: p.x + rand(-8, 8), y: p.y + rand(-8, 8), vx: p.vx * 0.15 + rand(-40, 40), vy: rand(-90, -20), color: pick(['#ffcf5a', '#ff8a3d', '#ff5a1f']), size: rand(7, 12), life: rand(0.25, 0.4), drag: 2 }); break;
       case 'fireball': if (r < 0.8) fx.add({ x: p.x, y: p.y, vx: rand(-30, 30), vy: rand(-60, 0), color: pick(['#ffb347', '#ff6a2a', '#ffd76a']), size: rand(6, 11), life: rand(0.25, 0.45) }); break;
       case 'shard': case 'lance': if (r < 0.4) fx.add({ x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-20, 20), color: '#c9f2ff', size: rand(3, 5), life: 0.4 }); break;
@@ -1786,6 +1791,7 @@ const Game = (() => {
 
   function updateSpecials(dt) {
     updateNewPowers(dt);
+    updateGlitch(dt);
     for (const e of eruptions) {
       e.t -= dt;
       e.x = e.isl.x + e.ox; e.y = e.isl.top;
@@ -2142,6 +2148,227 @@ const Game = (() => {
     if (Math.random() < 0.25) fx.add({ x: bx + rand(-6, 6), y: gy - rand(0, h), vx: rand(-12, 12), vy: -rand(30, 70), color: pick(['#2b2140', '#6b4fb0']), size: rand(3, 6), life: 0.5 });
   }
 
+  /* ------------------------------------------------------------ Glitch */
+  // Corruption, Cut & Paste and Fatal Error. Everything is drawn as pixels,
+  // marching-ants selections and little OS windows, with RGB-split edges.
+  const GL_M = '#ff4fe1', GL_C = '#19d3ff';
+  const glPix = (x, y, o = {}) => fx.add(Object.assign({ kind: 'pixel', x, y, color: pick([GL_M, GL_C, '#ffffff']), size: rand(4, 8), life: rand(0.25, 0.5), add: false }, o));
+  function corrupt(att, t, n = 1) {
+    if (!t || !t.alive || t.decor || t.gone) return;
+    const g = t.glitch || (t.glitch = { n: 0, t: 0, crash: 0 });
+    g.n += n; g.t = 4;
+    const c = t.center();
+    for (let i = 0; i < 6; i++) glPix(c.x + rand(-26, 26), c.y + rand(-50, 40), { vx: rand(-60, 60), vy: rand(-60, 20), size: rand(3, 6) });
+    if (g.n >= 3) { g.n = 0; g.crash = 0.07; g.att = att; }
+  }
+  function crash(t) {
+    const g = t.glitch, c = t.center();
+    const k = t.kind === 'boss' ? 0.4 : t.kind === 'brute' ? 0.7 : 1;
+    t.status.freeze = Math.max(t.status.freeze, 0.75 * k); t.action = null;
+    for (let i = 0; i < 34; i++) { const a = rand(0, TAU), v = rand(120, 460); glPix(c.x, c.y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, g: 700, drag: 1.5, size: rand(4, 10), life: rand(0.4, 0.8) }); }
+    fx.ring(c.x, c.y, GL_M, 120, 0.35, 8); fx.ring(c.x + 6, c.y, GL_C, 100, 0.3, 6);
+    fx.text(c.x, c.y - 110, 'CRASH!', GL_C, 30, { dur: 1 });
+    glitchFx = Math.max(glitchFx, 0.16); shake = Math.max(shake, 8); hitstop = Math.max(hitstop, 0.05);
+    Sfx.blink();
+    applyHit(g.att, t, { mv: null, el: 'glitch', dmg: 16, knock: 380, lift: 0.6, dirX: g.att ? Math.sign(c.x - g.att.root.x) || 1 : 1, dirY: 0, idx: P.PELVIS, px: c.x, py: c.y });
+  }
+  function startCutPaste(f, mv, act) {
+    const c = f.center();
+    const t = opponents(f).filter(e => e.alive && !blocked(e) && !e.engulf && !e.gone && dist(e.center().x, e.center().y, c.x, c.y) < mv.range)
+      .sort((a, b) => dist(a.center().x, a.center().y, act.tx, act.ty) - dist(b.center().x, b.center().y, act.tx, act.ty))[0];
+    if (!t) { Sfx.denied(); f.cds[mv.id] = 0.5; return; }
+    const from = t.center();
+    const to = { x: act.tx, y: act.ty };
+    if (t.kind === 'boss') {   // bosses and rivals only shift a little
+      const d = dist(from.x, from.y, to.x, to.y);
+      if (d > mv.bossRange) { to.x = from.x + (to.x - from.x) / d * mv.bossRange; to.y = from.y + (to.y - from.y) / d * mv.bossRange; }
+    }
+    to.x = clamp(to.x, 40, W - 40); to.y = clamp(to.y, 60, H - 40);
+    clips.push({ owner: f, mv, target: t, from, to, t: 0, done: false, w: 74 * t.s, h: 150 * t.s });
+    t.status.freeze = Math.max(t.status.freeze, 0.5); t.action = null;
+    Sfx.charge();
+  }
+  function startFatal(f, mv) {
+    const c = f.center();
+    const foes = opponents(f).filter(e => e.alive && !blocked(e) && !e.gone && dist(e.center().x, e.center().y, c.x, c.y) < mv.radius)
+      .sort((a, b) => dist(a.center().x, a.center().y, c.x, c.y) - dist(b.center().x, b.center().y, c.x, c.y)).slice(0, mv.n);
+    if (!foes.length) { Sfx.denied(); f.cds[mv.id] = 0.5; return; }
+    foes.forEach((t, i) => errors.push({ owner: f, mv, target: t, t: -i * 0.13, dur: mv.dur * (t.kind === 'boss' ? 0.55 : 1), x: t.center().x, y: t.center().y, s: t.s, code: '0x' + randi(4096, 65535).toString(16).toUpperCase(), crashed: false, popped: false }));
+    glitchFx = Math.max(glitchFx, 0.22);
+    Sfx.blink();
+  }
+  function updateGlitch(dt) {
+    glitchFx = Math.max(0, glitchFx - dt);
+    const fighters = player ? enemies.concat([player]) : enemies;
+    for (const f of fighters) {
+      const g = f.glitch;
+      if (g) {
+        if (g.crash > 0) { g.crash -= dt; if (g.crash <= 0 && f.alive) crash(f); }
+        if (g.n > 0 && (g.t -= dt) <= 0) g.n = 0;
+        if (g.n > 0 && f.alive && Math.random() < dt * 5 * g.n) { const c = f.center(); glPix(c.x + rand(-24, 24), c.y + rand(-50, 40), { size: rand(3, 5), life: 0.25 }); }
+      }
+      // a Glitch fighter leaks pixels and occasionally tears
+      if (f.el === 'glitch' && f.alive && !f.gone && Math.random() < dt * 9) {
+        const q = f.pts[randi(0, f.pts.length - 1)];
+        glPix(q.x + rand(-6, 6), q.y + rand(-6, 6), { vx: rand(-30, 30), vy: rand(-50, -10), size: rand(3, 6), life: rand(0.2, 0.4) });
+      }
+    }
+    for (const cl of clips) {
+      cl.t += dt;
+      const t = cl.target;
+      if (cl.done) continue;
+      if (t.alive && !t.gone) { cl.from = t.center(); t.status.freeze = Math.max(t.status.freeze, 0.05); t.action = null; }
+      if (Math.random() < dt * 40) glPix(cl.from.x + rand(-cl.w / 2, cl.w / 2), cl.from.y + rand(-cl.h / 2, cl.h / 2), { size: rand(3, 6), life: 0.3 });
+      if (cl.t < 0.42) continue;
+      cl.done = true;
+      if (!t.alive || t.gone) continue;
+      // dissolve into a stream of pixels, then paste
+      for (let i = 0; i < 30; i++) {
+        const sx = cl.from.x + rand(-cl.w / 2, cl.w / 2), sy = cl.from.y + rand(-cl.h / 2, cl.h / 2), life = rand(0.18, 0.32);
+        glPix(sx, sy, { vx: (cl.to.x - sx) / life, vy: (cl.to.y - sy) / life, life, size: rand(4, 8), add: true });
+      }
+      const off = t.root.y - t.center().y;
+      teleport(t, cl.to.x, cl.to.y + off);
+      t.root.vx = 0; t.root.vy = 0; t.knockT = Math.max(t.knockT || 0, 0.3);
+      t.status.freeze = Math.max(t.status.freeze, 0.3);
+      applyHit(cl.owner, t, { mv: null, el: 'glitch', dmg: cl.mv.dmg, knock: 0, lift: 0, dirX: 0, dirY: 0, idx: P.PELVIS, px: cl.to.x, py: cl.to.y, quiet: true });
+      corrupt(cl.owner, t);
+      fx.text(cl.to.x, cl.to.y - cl.h / 2 - 30, 'CTRL+V', GL_C, 24, { dur: 0.8 });
+      for (let i = 0; i < 18; i++) glPix(cl.to.x + rand(-cl.w / 2, cl.w / 2), cl.to.y + rand(-cl.h / 2, cl.h / 2), { vx: rand(-80, 80), vy: rand(-80, 80) });
+      glitchFx = Math.max(glitchFx, 0.2); shake = Math.max(shake, 7);
+      Sfx.blink();
+    }
+    clips = clips.filter(cl => cl.t < 1);
+    for (const e of errors) {
+      e.t += dt;
+      if (e.t < 0) continue;
+      const t = e.target;
+      if (!e.popped) { e.popped = true; Sfx.click(); glitchFx = Math.max(glitchFx, 0.08); }
+      if (t.alive && !t.gone) { const c = t.center(); e.x = c.x; e.y = c.y; }
+      if (e.crashed) continue;
+      if (t.alive && !t.gone) { t.status.freeze = Math.max(t.status.freeze, 0.05); t.action = null; if (t.mode === 'active') { t.root.vx *= 0.5; t.root.vy = Math.min(t.root.vy, 60); } }
+      if (e.t < e.dur) continue;
+      e.crashed = true;
+      if (!t.alive || t.gone) continue;
+      const w = 128 * e.s, h = 176 * e.s;
+      for (let i = 0; i < 44; i++) {
+        const x = e.x + rand(-w / 2, w / 2), y = e.y + rand(-h / 2, h / 2), a = Math.atan2(y - e.y, x - e.x), v = rand(160, 520);
+        glPix(x, y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v - 160, g: 900, drag: 1.2, color: pick([GL_M, GL_C, '#ffffff', '#d7dbe8', '#2a2f45']), size: rand(5, 11), life: rand(0.5, 0.9) });
+      }
+      fx.ring(e.x, e.y, '#ffffff', 140, 0.3, 6);
+      applyHit(e.owner, t, { mv: e.mv, el: 'glitch', dmg: e.mv.dmg, knock: e.mv.knock, lift: e.mv.lift, dirX: Math.sign(e.x - e.owner.root.x) || 1, dirY: 0, idx: P.PELVIS, px: e.x, py: e.y });
+      glitchFx = Math.max(glitchFx, 0.28); shake = Math.max(shake, 12); hitstop = Math.max(hitstop, 0.06);
+      Sfx.boom(0.7);
+    }
+    errors = errors.filter(e => e.t < e.dur + 0.4);
+  }
+  function marchingRect(c, x, y, w, h, a) {
+    c.globalAlpha = a; c.lineWidth = 2;
+    c.setLineDash([7, 5]);
+    c.strokeStyle = '#0b0d14'; c.lineDashOffset = -time * 40; c.strokeRect(x, y, w, h);
+    c.strokeStyle = '#ffffff'; c.lineDashOffset = -time * 40 + 6; c.strokeRect(x, y, w, h);
+    c.setLineDash([]);
+    c.fillStyle = '#ffffff'; c.strokeStyle = '#0b0d14'; c.lineWidth = 1.5;
+    for (const [hx, hy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h], [x + w / 2, y], [x + w / 2, y + h], [x, y + h / 2], [x + w, y + h / 2]]) { c.fillRect(hx - 4, hy - 4, 8, 8); c.strokeRect(hx - 4, hy - 4, 8, 8); }
+    c.globalAlpha = 1;
+  }
+  function glitchLabel(c, text, x, y, color) {
+    c.font = '900 13px Rubik, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    const w = c.measureText(text).width + 14;
+    c.fillStyle = '#0b0d14'; c.fillRect(x - w / 2, y - 11, w, 22);
+    c.fillStyle = GL_M; c.fillText(text, x - 1.5, y); c.fillStyle = GL_C; c.fillText(text, x + 1.5, y);
+    c.fillStyle = color; c.fillText(text, x, y);
+  }
+  function drawGlitch(c) {
+    for (const cl of clips) {
+      const { from, to, w, h } = cl;
+      if (!cl.done) {
+        const k = Math.min(1, cl.t / 0.12);
+        // the selection snaps on with a little overshoot, the paste target pulses where you aim
+        const sw = w * (1.25 - 0.25 * easeOutBack(k)), sh = h * (1.25 - 0.25 * easeOutBack(k));
+        c.fillStyle = 'rgba(25,211,255,0.10)'; c.fillRect(from.x - sw / 2, from.y - sh / 2, sw, sh);
+        marchingRect(c, from.x - sw / 2, from.y - sh / 2, sw, sh, k);
+        glitchLabel(c, 'CTRL+X', from.x, from.y - sh / 2 - 20, '#ffffff');
+        c.globalAlpha = 0.45 + Math.sin(time * 20) * 0.2;
+        c.strokeStyle = GL_C; c.setLineDash([4, 6]); c.lineWidth = 2;
+        c.beginPath(); c.moveTo(from.x, from.y); c.lineTo(to.x, to.y); c.stroke();
+        c.strokeStyle = GL_M; c.strokeRect(to.x - w / 2, to.y - h / 2, w, h); c.setLineDash([]);
+        c.beginPath(); c.moveTo(to.x - 10, to.y); c.lineTo(to.x + 10, to.y); c.moveTo(to.x, to.y - 10); c.lineTo(to.x, to.y + 10); c.stroke();
+        c.globalAlpha = 1;
+      } else {
+        const k = clamp((cl.t - 0.42) / 0.58, 0, 1), a = 1 - k, g = 1 + k * 0.35;
+        c.globalCompositeOperation = 'lighter';
+        c.strokeStyle = rgba(GL_M, a); c.lineWidth = 3; c.strokeRect(to.x - w * g / 2 - 4, to.y - h * g / 2, w * g, h * g);
+        c.strokeStyle = rgba(GL_C, a); c.strokeRect(to.x - w * g / 2 + 4, to.y - h * g / 2, w * g, h * g);
+        c.globalCompositeOperation = 'source-over';
+        if (k < 0.5) marchingRect(c, to.x - w / 2, to.y - h / 2, w, h, 1 - k * 2);
+      }
+    }
+    for (const e of errors) {
+      if (e.t < 0) continue;
+      const pop = easeOutBack(Math.min(1, e.t / 0.2));
+      const fade = e.crashed ? Math.max(0, 1 - (e.t - e.dur) / 0.15) : 1;
+      if (fade <= 0) continue;
+      const late = e.crashed ? 1 : clamp((e.t - e.dur + 0.45) / 0.45, 0, 1);
+      const w = 128 * e.s, h = 176 * e.s, bar = 20, jx = late > 0 ? rand(-5, 5) * late : 0, jy = late > 0 ? rand(-3, 3) * late : 0;
+      c.save(); c.translate(e.x + jx, e.y + jy); c.scale(pop, pop); c.globalAlpha = fade;
+      // RGB-split ghosts of the frame tear apart as it is about to crash
+      if (late > 0) {
+        c.globalCompositeOperation = 'lighter';
+        c.strokeStyle = rgba(GL_M, 0.8 * late); c.lineWidth = 3; c.strokeRect(-w / 2 - 6 * late, -h / 2 - bar, w, h + bar);
+        c.strokeStyle = rgba(GL_C, 0.8 * late); c.strokeRect(-w / 2 + 6 * late, -h / 2 - bar, w, h + bar);
+        c.globalCompositeOperation = 'source-over';
+      }
+      c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(-w / 2 + 6, -h / 2 - bar + 8, w, h + bar);
+      // glass pane: the trapped foe shows through, with scanlines
+      c.fillStyle = 'rgba(160,230,255,0.16)'; c.fillRect(-w / 2, -h / 2, w, h);
+      c.fillStyle = 'rgba(255,255,255,0.07)';
+      for (let y = -h / 2 + ((time * 60) % 6); y < h / 2; y += 6) c.fillRect(-w / 2, y, w, 2);
+      c.strokeStyle = '#d7dbe8'; c.lineWidth = 4; c.strokeRect(-w / 2, -h / 2 - bar, w, h + bar);
+      // title bar
+      const tg = c.createLinearGradient(-w / 2, 0, w / 2, 0); tg.addColorStop(0, '#2b0d6b'); tg.addColorStop(1, '#c0187f');
+      c.fillStyle = tg; c.fillRect(-w / 2, -h / 2 - bar, w, bar);
+      c.fillStyle = '#ffffff'; c.font = '800 10px Rubik, sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle';
+      c.fillText('fatal_error.exe', -w / 2 + 6, -h / 2 - bar / 2);
+      c.fillStyle = '#ff3b4f'; c.fillRect(w / 2 - 17, -h / 2 - bar + 3, 14, 14);
+      c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.beginPath(); c.moveTo(w / 2 - 14, -h / 2 - bar + 6); c.lineTo(w / 2 - 6, -h / 2 - bar + 14); c.moveTo(w / 2 - 6, -h / 2 - bar + 6); c.lineTo(w / 2 - 14, -h / 2 - bar + 14); c.stroke();
+      // warning badge and code
+      c.fillStyle = '#ffcc33'; c.beginPath(); c.moveTo(-w / 2 + 16, -h / 2 + 6); c.lineTo(-w / 2 + 28, -h / 2 + 26); c.lineTo(-w / 2 + 4, -h / 2 + 26); c.closePath(); c.fill();
+      c.fillStyle = '#1a1424'; c.font = '900 13px Rubik, sans-serif'; c.textAlign = 'center'; c.fillText('!', -w / 2 + 16, -h / 2 + 19);
+      c.fillStyle = '#ffffff'; c.font = '900 11px Rubik, sans-serif'; c.textAlign = 'left'; c.fillText('FATAL ERROR', -w / 2 + 34, -h / 2 + 12);
+      c.fillStyle = 'rgba(255,255,255,0.7)'; c.font = '700 9px Rubik, sans-serif'; c.fillText(e.code, -w / 2 + 34, -h / 2 + 24);
+      // crash progress bar
+      const pr = clamp(e.t / e.dur, 0, 1);
+      c.fillStyle = 'rgba(11,13,20,0.85)'; c.fillRect(-w / 2 + 6, h / 2 - 16, w - 12, 10);
+      c.fillStyle = pr > 0.75 ? '#ff3b4f' : GL_C; c.fillRect(-w / 2 + 8, h / 2 - 14, (w - 16) * pr, 6);
+      c.restore();
+    }
+    // corruption pips over each corrupted fighter
+    const fighters = player ? enemies.concat([player]) : enemies;
+    for (const f of fighters) {
+      const g = f.glitch;
+      if (!g || g.n <= 0 || !f.alive || f.gone) continue;
+      const hd = f.head();
+      for (let i = 0; i < 3; i++) {
+        const x = hd.x - 16 + i * 12 + (Math.random() < 0.08 ? rand(-3, 3) : 0), y = hd.y - 44 * f.s;
+        c.fillStyle = i < g.n ? (i % 2 ? GL_C : GL_M) : 'rgba(255,255,255,0.18)';
+        c.fillRect(x - 4, y - 4, 8, 8);
+      }
+    }
+  }
+  // screen-space tearing: horizontal slices of the frame slide sideways for a moment
+  function drawGlitchScreen(c) {
+    if (glitchFx <= 0 || !Save.data.settings.shake) return;
+    const cw = view.cw, ch = view.ch, k = Math.min(1, glitchFx / 0.2);
+    for (let i = 0; i < 6; i++) {
+      const y = Math.random() * ch, h = rand(6, 34), dx = rand(-28, 28) * k;
+      try { c.drawImage(canvas, 0, y * dpr, canvas.width, h * dpr, dx, y, cw, h); } catch (err) { /* ignore */ }
+    }
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 4; i++) { c.fillStyle = Math.random() < 0.5 ? `rgba(255,79,225,${0.14 * k})` : `rgba(25,211,255,${0.14 * k})`; c.fillRect(0, Math.random() * ch, cw, rand(2, 10)); }
+    c.globalCompositeOperation = 'source-over';
+  }
+
   function drawNewPowers(c) {
     for (const sl of slots) {
       const a = Math.min(1, sl.t * 8, ((sl.kind === 'slot' ? 2.4 : 1.2) - sl.t) * 4);
@@ -2312,6 +2539,7 @@ const Game = (() => {
   function drawSpecials(c) {
     drawGeysers(c);
     drawNewPowers(c);
+    drawGlitch(c);
     for (const d of dragons) drawDragon(c, d);
     for (const e of eruptions) {
       if (e.done) continue;
@@ -2587,6 +2815,7 @@ const Game = (() => {
         : k === 'pull' ? dd < 400 && dd > 120
         : k === 'crush' ? !player.root.grounded && dd < 650
         : k === 'resonance' ? dd < 520
+        : k === 'fatal' ? dd < 560
         : true;
       if (ok) { tryMove(e, pw, pc.x + err(), pc.y + err()); return; }
     }
@@ -3702,7 +3931,7 @@ const Game = (() => {
       c.strokeStyle = rgba('#b9a6ff', 0.85); c.lineWidth = 3; c.setLineDash([8, 6]);
       c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(p.x, p.y); c.stroke(); c.setLineDash([]);
     }
-    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble', 'soundwave', 'coin', 'card', 'needle'].includes(st)) {
+    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble', 'soundwave', 'coin', 'card', 'needle', 'glitch'].includes(st)) {
       c.globalCompositeOperation = 'lighter';
       c.strokeStyle = rgba(el.deep, st === 'bolt' ? 0.9 : 0.4); c.lineWidth = st === 'bolt' ? 5 : p.r * 0.9; c.lineCap = 'round';
       c.beginPath(); c.moveTo(tr[0], tr[1]);
@@ -3712,6 +3941,19 @@ const Game = (() => {
     }
     c.save(); c.translate(p.x, p.y);
     switch (st) {
+      case 'glitch': {
+        // the packet skips: it is drawn at a position that only updates every few frames
+        if (p.gt == null || time - p.gt > 0.045) { p.gt = time; p.gx = p.x; p.gy = p.y; p.j1 = rand(-4, 4); p.j2 = rand(-4, 4); }
+        c.translate(p.gx - p.x, p.gy - p.y);
+        const r = p.r;
+        c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#ff4fe1', 0, 0, r * 2.8, 0.5);
+        c.fillStyle = 'rgba(255,79,225,0.9)'; c.fillRect(-r - 4 + p.j1, -r, r * 2, r * 2);
+        c.fillStyle = 'rgba(25,211,255,0.9)'; c.fillRect(-r + 4 + p.j2, -r, r * 2, r * 2);
+        c.globalCompositeOperation = 'source-over';
+        c.fillStyle = '#ffffff'; c.fillRect(-r * 0.75, -r * 0.75, r * 1.5, r * 1.5);
+        c.fillStyle = '#16121f'; c.fillRect(-r * 0.35, -r * 0.35, r * 0.4, r * 0.4); c.fillRect(r * 0.1, r * 0.05, r * 0.3, r * 0.3);
+        break;
+      }
       case 'bubble': {
         const pulse = 0.85 + Math.sin(time * 12 + p.rot) * 0.12;
         c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#7cc8ff', 0, 0, p.r * 2.5, 0.45); c.globalCompositeOperation = 'source-over';
@@ -4195,6 +4437,7 @@ const Game = (() => {
       c.fillStyle = g; c.fillRect(0, 0, cw, ch);
     }
     if (realmFlash > 0) { c.fillStyle = `rgba(255,255,255,${realmFlash * 0.6})`; c.fillRect(0, 0, cw, ch); }
+    drawGlitchScreen(c);
   }
 
   /* ------------------------------------------------------------- api */

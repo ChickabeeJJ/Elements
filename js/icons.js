@@ -52,6 +52,9 @@ const Icons = (() => {
     bot: `<rect x="4" y="7.5" width="16" height="12" rx="3.5" ${F}/><path d="M12 7.5V4M12 3.5h.01" ${S} stroke-width="2.4"/><circle cx="9" cy="13" r="1.7" fill="rgba(0,0,0,.45)"/><circle cx="15" cy="13" r="1.7" fill="rgba(0,0,0,.45)"/><path d="M2 12.5v3M22 12.5v3" ${S} stroke-width="2.2"/>`,
     user: `<circle cx="12" cy="8" r="4.3" ${F}/><path d="M3.5 21c.8-4.6 4.2-7 8.5-7s7.7 2.4 8.5 7z" ${F}/>`,
     flame: ICON_PATHS.fire,
+    bitburst: `<rect x="12" y="8" width="8" height="8" ${F}/><rect x="6" y="9" width="4" height="4" ${F} opacity=".7"/><rect x="2" y="13" width="3" height="3" ${F} opacity=".45"/><rect x="7" y="15" width="3" height="3" ${F} opacity=".55"/><path d="M14 10h4v4h-4z" fill="rgba(0,0,0,.3)"/>`,
+    cutpaste: `<rect x="3" y="3" width="13" height="13" ${S} stroke-width="2" stroke-dasharray="3 2.4"/><path d="M11 11h10v10H11z" ${F}/><path d="M14 14h4M14 17h3" stroke="rgba(0,0,0,.35)" stroke-width="1.6" stroke-linecap="round"/>`,
+    fatal: `<rect x="2.5" y="4" width="19" height="16" rx="2" ${F}/><path d="M2.5 8.5h19" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/><circle cx="18.5" cy="6.3" r="1.1" fill="rgba(0,0,0,.45)"/><path d="M12 11v4.2M12 17.4v.2" stroke="rgba(0,0,0,.55)" stroke-width="2.2" stroke-linecap="round"/>`,
     // moves
     breath: `<path d="M3 12c3-1 4.5-3 5-5.5 1 2 1 3.5.5 5 2-1 3.5-3.5 3.5-6 3 2.5 4 6 3 9 1-.5 2-1.6 2.5-3 1.4 2.5 1.6 5.2.5 7.5A8 8 0 0 1 3 12z" ${F}/>`,
     dive: `<path d="M12 2.5v12M7 10l5 5 5-5" ${S} stroke-width="3"/><path d="M3 21h18" ${S} stroke-width="2.6"/><path d="M5 18.5l2-2.5M19 18.5 17 16" ${S} stroke-width="2"/>`,

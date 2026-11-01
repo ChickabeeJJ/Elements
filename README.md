@@ -2,7 +2,7 @@
 
 A ragdoll brawler set on floating islands. Every fighter is an **active ragdoll**: a verlet skeleton held upright by muscle springs, so bodies wobble, flinch and get flung around. Big hits make them go limp and tumble, and they pick themselves back up once they land. Knock a foe off the islands for an instant **ring-out**, but careful: if you fall into the void yourself, the run is over.
 
-You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **33 elements**: 30 are unlocked with **gems** earned in battle, and 3 are **event exclusives** earned with event tokens. The campaign has **64 stages** across eight realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, an **Arena** (1v1 PvP with trophies), **daily quests**, weekly **events** and a **Ranks** page, plus a short, skippable tutorial on first launch.
+You don't use a bow. You fight with **elements**: each one has a **main attack** (melee or ranged) plus **two element powers**. There are **31 elements**: 30 are unlocked with **gems** earned in battle, and **Glitch** is an event exclusive earned with event tokens. The campaign has **64 stages** across eight realms. Your loadout of up to three elements is saved. **Play** drops you straight into your next stage, and **Stage Select** lets you replay any cleared one. Change your loadout from the home screen, the map or the pause menu, and swap between the three mid-combo. There's also an **Endless** mode, an **Arena** (1v1 PvP with trophies), **daily quests**, weekly **events** and a **Ranks** page, plus a short, skippable tutorial on first launch.
 
 It's pure HTML5 and vanilla JS, with no build step and no dependencies. All art is drawn procedurally and every sound is synthesized.
 
@@ -41,9 +41,7 @@ To play, serve the folder (for example `python3 -m http.server`) and open `index
 | Joker | Card Toss (hearts and diamonds hit double) | Roll the Dice: one of six random effects | Jackpot: a slot machine; two or three of a kind pay out | 777 |
 | Puppet | Needles (every 3rd stitch pins a foe) | Puppet Strings: a foe fights for you for 5s | Strings Attached: knockback aimed at you goes to a tied foe | 1100 |
 | Gadget | Nail Gun (hold for rapid fire) | Grapple: zip yourself to an island or foe | Jetpack: endless jumps, exhaust scorches foes below | 1300 |
-| Magma (event) | Magma Fist (heavy melee, burns) | Eruption: three vents hurl foes skyward | Lava Bomb: a wide burning blast | 400 tokens |
-| Aurora (event) | Aurora Bolts (2 homing bolts, chill) | Polar Burst: freeze foes around you | Aurora Ribbon: a channelled beam of cold light | 400 tokens |
-| Tempest (event) | Thunder Palm (melee, jolts) | Squall: charged updraft | Eye of the Storm: lightning on 5 foes | 400 tokens |
+| Glitch (event) | Bit Burst (skipping pixel shots; 3 hits of Corruption make a foe CRASH) | Cut & Paste: select a foe and paste it where you aim, even over the void | Fatal Error: error windows trap up to 4 foes, then crash and launch them | 600 tokens |
 | Tempo | Sound Wave (piercing, staggers) | Grand Piano: drops a piano on your aim | Encore: time stops for a 15s four-lane rhythm game with tap and hold notes (keys 5 6 7 8 or tap; stray taps count against you); your hit rate becomes a sound blast on every foe | 2500 |
 
 Each realm's warriors share an element. Hitting their weakness deals 160% damage and resisted hits deal 55%. The battle-prep screen marks which of your elements are **strong** against the stage. Elements combo (each element's combos are shown in the Elements menu): **Shatter** (Rime → Stone), **Overload** (Tide → Storm), **Wildfire** (Thorn → Ember), **Ignite** (Venom → Ember), **Firestorm** (Ember/Dragon → Gale), **Resonate** (Storm/Echo → Steel), **Starfall** (Gravity → Arcane), **Prismatic** (Crystal → Radiance), **Eclipse** (Radiance → Void), **Singularity** (Void → Gravity), **Inferno** (Ember → Dragon), **Thunderwing** (Storm/Echo → Dragon), plus **Mudslide** (Tide → Sand), **Harmony** (Echo/Gadget/Storm → Tempo), **Smokescreen** (Radiance/Arcane, or any confused foe → Smoke), **Haunt** (Moon/Sand/Rime → Spirit), **Bloodlust** (Thorn/Sand → Crimson), **Blood Moon** (Crimson/Venom → Moon), **Landslide** (Sand/Smoke → Stone), **Frostbite** (Rime → Crystal), **Sticky Situation** (Thorn/Sand → Slime), **Ambush** (Smoke/Shadow → Shadow), **Gold Rush** (Crystal/Radiance → Midas), **Paradox** (Echo/Gadget/Tempo → Chrono), **Overclock** (Storm/Echo/Tempo → Gadget), **Wild Card** (any foe with two effects → Joker), **Cut the Strings** (Thorn/Sand/Shadow → Puppet) and **Snapback** (airborne foes → Rubber). Every element is part of at least two combos, and each element has a **Preview** in the Elements menu that plays its whole kit. Crystal, Radiance and Void hits leave a short mark (glint, dazzle, drain) that their partner cashes in.
@@ -65,8 +63,8 @@ The Elements screen and the loadout picker share one browser built for a long ro
 
 - **Arena**: a 1v1 duel (knock out or ring out the rival). Matchmaking asks `Platform.findLiveMatch()` for a live rival. This build has no game server, so it always resolves to a **bot** at your level, and bots are clearly labelled. Wins and losses move your **trophies** through seven tiers (Bronze to Legend, each with divisions III to I). The first time you reach a tier you get a gem reward. Leaving a match is a forfeit.
 - **Daily quests**: three per day, resetting at 00:00 UTC, paid in gems, plus a daily chest for claiming all three. Training and Testing don't count.
-- **Events**: a new event every Monday at 00:00 UTC, rotating Molten Rising (Magma), Polar Lights (Aurora) and Eye of the Storm (Tempest). Event quests and Arena matches pay tokens, which unlock the event's exclusive element or buy gem caches. Tokens expire with the event; unlocked elements are kept, and every event returns.
-- **Ranks**: your Arena tier, the tier ladder, personal records and the global leaderboard status. The home screen's right-hand rail shows the live event, quest progress and your rank, with badges when something can be claimed.
+- **Events**: added by hand in `EVENTS` in `js/meta.js`. Each has an id, its exclusive element, start and end dates (UTC, about a month) and its own quests. The first is **System Error** (Glitch), from 2026-11-01 to 2026-12-01. Event quests and Arena matches pay tokens, which unlock the event's element or buy gem caches. The element can only be unlocked while its event is live, and tokens expire when the event ends. When no event is running, the Event tab shows an empty state and the home event card is hidden until you add the next one.
+- **Ranks**: your Arena tier, the tier ladder, personal records and the global leaderboard status. A compact row under the top-right counters shows the live event, quest progress and your rank, with badges when something can be claimed.
 
 ## Controls
 
@@ -96,7 +94,7 @@ js/audio.js       synthesized SFX + generative per-realm music
 js/elements.js    element kits (moves as data), affinities, emblems
 js/realms.js      realm themes, arenas, enemy archetypes, stages, endless waves
 js/progress.js    save data, unlocks, loadout, upgrades
-js/meta.js        Arena trophies and tiers, bots, daily quests, weekly events
+js/meta.js        Arena trophies and tiers, bots, daily quests, hand-scheduled events
 js/ragdoll.js     Fighter: active ragdoll, poses, tumble/recover, hurtboxes
 js/world.js       one-way floating islands (blocky tile pyramids), backdrop, weather
 js/fx.js          particles, rings, arcs, beams, combat text

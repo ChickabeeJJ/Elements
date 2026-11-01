@@ -5,7 +5,8 @@
      platform can provide one (Platform.findLiveMatch); otherwise a clearly
      labelled bot is matched at the player's level.
    - Daily quests (reset at 00:00 UTC) paid in gems.
-   - Weekly events, each with an exclusive element earned with event tokens.
+   - Hand-scheduled events (about a month each) with an exclusive element
+     earned with event tokens. No event scheduled means no Event content.
    Everything is stored in the regular save. No personal data is used: bot
    names are generated, and nothing about the player is shared with anyone.
    ========================================================================= */
@@ -13,9 +14,6 @@
 const Meta = (() => {
   const DAY = 86400000;
   const today = () => Math.floor(Date.now() / DAY);
-  const EPOCH = Math.floor(Date.UTC(2026, 0, 5) / DAY);   // a Monday: events turn over on Mondays 00:00 UTC
-  const EVENT_DAYS = 7;
-  const mod = (a, n) => ((a % n) + n) % n;
   const listeners = [];
   const notify = text => listeners.forEach(cb => { try { cb(text); } catch (e) { /* ignore */ } });
 
@@ -88,7 +86,7 @@ const Meta = (() => {
     }
     const gems = (won ? 30 + t.i * 8 : 10) + tierGems;
     const ev = syncEvent();
-    const tokens = won ? 15 : 5;
+    const tokens = ev ? (won ? 15 : 5) : 0;   // tokens only while an event is live
     Save.data.event.tokens += tokens;
     Save.data.essence += gems;
     Save.save();
@@ -131,49 +129,56 @@ const Meta = (() => {
   const questText = q => (POOL_BY_TYPE[q.type] || { text: () => q.type }).text(q);
 
   /* ---------------------------------------------------------- events */
+  // Events are added by hand: give each one an id, its exclusive element, the dates
+  // it runs (UTC, about a month) and its quests. Outside those dates the Event tab is
+  // empty. An event's element can only be unlocked while that event is live.
   const EVENTS = [
-    { id: 'molten', name: 'Molten Rising', element: 'magma', color: '#ff8a4a', deep: '#a8240e', tagline: 'The islands crack open and lava floods the realms. Master the Magma.' },
-    { id: 'polar', name: 'Polar Lights', element: 'aurora', color: '#8ff7e4', deep: '#5b4fd8', tagline: 'The night sky ignites over the islands. Bend the Aurora to your will.' },
-    { id: 'tempest', name: 'Eye of the Storm', element: 'tempest', color: '#bfe3ff', deep: '#2f63d8', tagline: 'Wind and thunder merge into one. Ride the Tempest.' },
-  ];
-  const EVENT_QUESTS = [
-    { id: 'duels', type: 'duels', n: 3, tokens: 60 },
-    { id: 'wins', type: 'duelWins', n: 2, tokens: 80 },
-    { id: 'kills', type: 'kills', n: 60, tokens: 60 },
-    { id: 'ringouts', type: 'ringouts', n: 15, tokens: 60 },
-    { id: 'stages', type: 'stages', n: 4, tokens: 70 },
-    { id: 'combo', type: 'combo', n: 10, tokens: 50, max: true },
-    { id: 'endless', type: 'endlessKills', n: 40, tokens: 70 },
-  ];
+    {
+      id: 'syserror', name: 'System Error', element: 'glitch', color: '#ff4fe1', deep: '#19d3ff',
+      start: '2026-11-01T00:00:00Z', end: '2026-12-01T00:00:00Z',
+      tagline: 'Something broke out of the game\'s code. Corrupt, cut, paste and crash your way to the Glitch.',
+      quests: [
+        { id: 'duels', type: 'duels', n: 10, tokens: 80 },
+        { id: 'wins', type: 'duelWins', n: 6, tokens: 100 },
+        { id: 'kills', type: 'kills', n: 250, tokens: 80 },
+        { id: 'ringouts', type: 'ringouts', n: 60, tokens: 80 },
+        { id: 'stages', type: 'stages', n: 12, tokens: 90 },
+        { id: 'stars', type: 'stars3', n: 5, tokens: 80 },
+        { id: 'combo', type: 'combo', n: 15, tokens: 70, max: true },
+        { id: 'endless', type: 'endlessKills', n: 150, tokens: 90 },
+      ],
+    },
+  ].map(e => Object.assign({}, e, { start: Date.parse(e.start), end: Date.parse(e.end) }));
   const CACHE = { cost: 100, gems: 150 };
 
-  function eventInfo(offset = 0) {
-    const cycle = Math.floor((today() - EPOCH) / EVENT_DAYS) + offset;
-    const ev = EVENTS[mod(cycle, EVENTS.length)];
-    const start = (EPOCH + cycle * EVENT_DAYS) * DAY;
-    return Object.assign({}, ev, { cycle, start, end: start + EVENT_DAYS * DAY });
-  }
+  const liveEvent = () => { const now = Date.now(); return EVENTS.find(e => now >= e.start && now < e.end) || null; };
+  const upcomingEvents = () => EVENTS.filter(e => e.start > Date.now()).sort((a, b) => a.start - b.start);
   function syncEvent() {
-    const ev = eventInfo(), s = Save.data.event;
-    if (s.cycle !== ev.cycle) { Object.assign(s, { cycle: ev.cycle, id: ev.id, tokens: 0, prog: {}, claimed: [] }); Save.save(); }
+    const ev = liveEvent(), s = Save.data.event;
+    if (ev && s.id !== ev.id) { Object.assign(s, { cycle: 0, id: ev.id, tokens: 0, prog: {}, claimed: [] }); Save.save(); }
     return ev;
   }
+  // null when no event is running
   function eventState() {
-    const ev = syncEvent(), s = Save.data.event;
-    const quests = EVENT_QUESTS.map(q => {
+    const ev = syncEvent();
+    if (!ev) return null;
+    const s = Save.data.event;
+    const quests = ev.quests.map(q => {
       const prog = Math.min(q.n, s.prog[q.id] || 0);
       return Object.assign({}, q, { prog, done: prog >= q.n, claimed: s.claimed.includes(q.id), text: questText(q) });
     });
-    return { ev, tokens: s.tokens, quests, owned: Save.elementOpen(ev.element), price: ELEMENT_BY_ID[ev.element].tokenPrice, left: ev.end - Date.now(), upcoming: [1, 2].map(o => eventInfo(o)), cache: CACHE };
+    return { ev, tokens: s.tokens, quests, owned: Save.elementOpen(ev.element), price: ELEMENT_BY_ID[ev.element].tokenPrice, left: ev.end - Date.now(), upcoming: upcomingEvents(), cache: CACHE };
   }
   function claimEvent(id) {
-    const s = Save.data.event, q = EVENT_QUESTS.find(x => x.id === id);
+    const ev = syncEvent(), s = Save.data.event, q = ev && ev.quests.find(x => x.id === id);
     if (!q || s.claimed.includes(id) || (s.prog[id] || 0) < q.n) return 0;
     s.claimed.push(id); s.tokens += q.tokens; Save.save();
     return q.tokens;
   }
   function buyEventElement() {
-    const ev = syncEvent(), s = Save.data.event, el = ELEMENT_BY_ID[ev.element];
+    const ev = syncEvent();
+    if (!ev) return false;
+    const s = Save.data.event, el = ELEMENT_BY_ID[ev.element];
     if (Save.elementOpen(el.id) || s.tokens < el.tokenPrice) return false;
     s.tokens -= el.tokenPrice;
     Save.grantElement(el.id);
@@ -181,16 +186,18 @@ const Meta = (() => {
   }
   function buyCache() {
     const s = Save.data.event;
-    if (s.tokens < CACHE.cost) return false;
+    if (!syncEvent() || s.tokens < CACHE.cost) return false;
     s.tokens -= CACHE.cost; Save.data.essence += CACHE.gems; Save.save();
     return true;
   }
-  // which event an exclusive element belongs to, and when it is next live
+  // the event an exclusive element belongs to: live, upcoming or ended
   function elementEvent(id) {
     const e = ELEMENT_BY_ID[id];
     if (!e || !e.event) return null;
-    for (let o = 0; o <= EVENTS.length; o++) { const ev = eventInfo(o); if (ev.id === e.event) return Object.assign(ev, { live: o === 0 }); }
-    return null;
+    const now = Date.now();
+    const evs = EVENTS.filter(x => x.element === id);
+    const ev = evs.find(x => now >= x.start && now < x.end) || evs.filter(x => x.start > now).sort((a, b) => a.start - b.start)[0] || evs[evs.length - 1];
+    return ev ? Object.assign({}, ev, { live: now >= ev.start && now < ev.end, upcoming: ev.start > now }) : null;
   }
 
   /* -------------------------------------------------------- tracking */
@@ -203,9 +210,10 @@ const Meta = (() => {
       q.prog = Math.min(q.n, p && p.max ? Math.max(q.prog, n) : q.prog + n);
       if (q.prog >= q.n) notify('QUEST COMPLETE · ' + questText(q).toUpperCase());
     }
-    syncEvent();
+    const ev = syncEvent();
+    if (!ev) return;
     const s = Save.data.event;
-    for (const q of EVENT_QUESTS) {
+    for (const q of ev.quests) {
       if (q.type !== type || (s.prog[q.id] || 0) >= q.n) continue;
       s.prog[q.id] = Math.min(q.n, q.max ? Math.max(s.prog[q.id] || 0, n) : (s.prog[q.id] || 0) + n);
       if (s.prog[q.id] >= q.n) notify('EVENT QUEST COMPLETE · ' + questText(q).toUpperCase());
@@ -235,7 +243,7 @@ const Meta = (() => {
     const d = dailyState(), e = eventState();
     return {
       daily: d.list.filter(q => q.done && !q.claimed).length + (d.bonusReady ? 1 : 0),
-      event: e.quests.filter(q => q.done && !q.claimed).length + (!e.owned && e.tokens >= e.price ? 1 : 0),
+      event: e ? e.quests.filter(q => q.done && !q.claimed).length + (!e.owned && e.tokens >= e.price ? 1 : 0) : 0,
     };
   }
 
@@ -246,7 +254,7 @@ const Meta = (() => {
 
   return {
     TIERS, EVENTS, tierOf, makeRival, findMatch, recordDuel,
-    track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyCache, elementEvent, eventInfo,
+    track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyCache, elementEvent, liveEvent,
     claimable, fmtLeft, onNotify: cb => listeners.push(cb), questText,
   };
 })();
