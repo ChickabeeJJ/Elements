@@ -1463,3 +1463,50 @@ body:not(.touch) .lo-slot .x { right: 10px; }
 .vs-mid b { font-style: normal; transform: skewX(-10deg); }
 .vs { grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); }
 .rail-card:has(.badge) { padding-right: 17px; }
+
+/* =========================================================================
+   Hub tabs end on one straight line: both columns stretch to the same
+   height and the last card in each column fills what is left.
+   ========================================================================= */
+.hub-grid { align-items: stretch; }
+.hub-grid > .hub-col > :last-child { flex: 1 1 auto; }
+.event-tab .ev-hero { align-self: stretch; }
+.quests-tab { grid-template-columns: minmax(0, 760px); justify-content: center; }
+
+/* arena tiers: one horizontal strip */
+.tier-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.tier-cell { --tc: #fff; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 2px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.035); opacity: 0.5; text-align: center; min-width: 0; }
+.tier-cell.reached { opacity: 1; }
+.tier-cell.here { opacity: 1; background: color-mix(in srgb, var(--tc) 14%, transparent); box-shadow: inset 0 0 0 1.5px var(--tc); }
+.tier-cell .tier-badge.sm { width: 30px; height: 33px; margin-bottom: 3px; }
+.tier-cell b { font-weight: 900; font-size: 10px; letter-spacing: 0.05em; color: var(--tc); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tier-cell small { font-weight: 700; font-size: 10px; color: var(--muted); }
+.tier-cell .rw { font-size: 10px; gap: 2px; }
+.tier-cell .rw .ic { width: 11px; height: 11px; }
+.tier-cell .you { position: absolute; top: -7px; left: 50%; transform: translateX(-50%); font-weight: 900; font-size: 9px; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 4px; background: var(--tc); color: #10131c; }
+.ranks-tab .ladder .rung .you { margin-left: auto; }
+
+/* live leaderboard */
+.lb-live { display: inline-flex; align-items: center; gap: 6px; color: var(--red) !important; }
+.lb { display: flex; flex-direction: column; gap: 4px; }
+.lb-row { --tc: #fff; display: grid; grid-template-columns: 46px 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 12px 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); animation: fade 0.25s ease; }
+.lb-row .hex { width: 32px; height: 32px; border-radius: 7px; }
+.lb-rank { display: flex; align-items: center; justify-content: center; gap: 3px; font-weight: 900; font-size: 15px; color: var(--muted); }
+.lb-rank .ic { width: 14px; height: 14px; }
+.lb-row.top1 .lb-rank { color: #ffcf4a; } .lb-row.top2 .lb-rank { color: #cfd8e6; } .lb-row.top3 .lb-rank { color: #d9925e; }
+.lb-row.top1 { background: linear-gradient(90deg, rgba(255, 207, 74, 0.14), rgba(255, 255, 255, 0.03) 60%); }
+.lb-name { display: flex; flex-direction: column; min-width: 0; }
+.lb-name b { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-name em { font-style: normal; font-weight: 900; font-size: 9px; letter-spacing: 0.1em; padding: 2px 5px; border-radius: 3px; background: var(--acc); color: var(--acc-ink); }
+.lb-name small { font-weight: 800; font-size: 10px; letter-spacing: 0.06em; color: var(--tc); }
+.lb-tro { display: inline-flex; align-items: center; gap: 5px; font-weight: 900; font-size: 14px; font-variant-numeric: tabular-nums; }
+.lb-tro .ic { width: 14px; height: 14px; color: var(--acc); }
+.lb-row.you { background: color-mix(in srgb, var(--acc) 14%, transparent); box-shadow: inset 0 0 0 1.5px var(--acc); }
+.lb-gap { display: flex; justify-content: center; gap: 5px; padding: 3px 0; }
+.lb-gap i { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+@media (max-height: 560px) {
+  .lb-row { padding: 4px 10px 4px 6px; grid-template-columns: 38px 26px minmax(0, 1fr) auto; }
+  .lb-row .hex { width: 26px; height: 26px; }
+  .tier-cell { padding: 10px 2px 6px; }
+  .tier-cell .tier-badge.sm { width: 24px; height: 26px; }
+}

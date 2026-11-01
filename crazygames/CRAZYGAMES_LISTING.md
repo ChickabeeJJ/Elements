@@ -89,6 +89,6 @@ The covers come from real gameplay. The only text on them is the game title, wit
 - `user.submitScore({ encryptedScore })`: Arena trophies, for logged-in players only. This is inactive until `LEADERBOARD_KEY` is set (leaderboards are invite-only)
 - `data.getItem` / `setItem` / `removeItem` for cloud saves
 
-Not used: `game.inviteLink` / `showInviteButton`. There is no real-time server, so Arena searches fall back after 8 seconds to a computer opponent (disclosed in Privacy & Terms). The hook for live players is `Platform.findLiveMatch()`.
+Not used: `game.inviteLink` / `showInviteButton`. There is no real-time server, so Arena searches fall back after 8 seconds to a computer opponent. The hook for live players is `Platform.findLiveMatch()`.
 
 **Privacy:** No new data is collected. Quests, events and trophies live in the same save. Fallback opponents' names are generated, there is no chat, and nothing about a player is shown to anyone else. The in-game Privacy & Terms note describes the optional leaderboard submission.

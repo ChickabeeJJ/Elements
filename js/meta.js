@@ -43,15 +43,42 @@ const Meta = (() => {
   // three-element loadout, all scaled to their rank, so higher ranks meet stronger play.
   const NAME_A = ['Ash', 'Brisk', 'Cinder', 'Dusk', 'Ember', 'Flint', 'Grit', 'Haze', 'Iris', 'Jolt', 'Kite', 'Lumen', 'Moss', 'Nova', 'Onyx', 'Pike', 'Quill', 'Rook', 'Sable', 'Thistle', 'Umber', 'Vex', 'Wren', 'Zephyr', 'Blaze', 'Echo', 'Frost', 'Gale', 'Pixel', 'Storm'];
   const NAME_B = ['fang', 'wick', 'spark', 'hollow', 'strike', 'vale', 'crest', 'shade', 'bloom', 'ward', 'drift', 'rune', 'claw', 'fox', 'byte', 'wolf', 'blade', 'star'];
-  function playerName() {
-    const a = pick(NAME_A), b = pick(NAME_B), n = randi(2, 99);
-    switch (randi(0, 4)) {
+  function playerName(rng = Math.random) {
+    const pk = arr => arr[Math.floor(rng() * arr.length)], ri = (lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
+    const a = pk(NAME_A), b = pk(NAME_B), n = ri(2, 99);
+    switch (ri(0, 4)) {
       case 0: return a + b[0].toUpperCase() + b.slice(1);
       case 1: return (a + '_' + b).toLowerCase() + n;
       case 2: return a + n;
       case 3: return a.toLowerCase() + b;
-      default: return a + b[0].toUpperCase() + b.slice(1) + randi(1, 9);
+      default: return a + b[0].toUpperCase() + b.slice(1) + ri(1, 9);
     }
+  }
+
+  /* ----------------------------------------------------- leaderboard */
+  // Arena top 10. The ladder is seeded per day and its trophy counts move minute by
+  // minute; the player's own row is placed by their real trophies.
+  function leaderboard() {
+    const day = today(), rng = mulberry32(day * 7919 + 13);
+    const mins = (Date.now() % DAY) / 60000, dayFrac = mins / 1440;
+    const rare = ELEMENTS.slice().sort((a, b) => (b.event ? b.tokenPrice : b.price) - (a.event ? a.tokenPrice : a.price)).slice(0, 18);
+    let base = 4300 + rng() * 500;
+    const rows = [];
+    for (let i = 0; i < 10; i++) {
+      const name = playerName(rng), el = rare[Math.floor(rng() * rare.length)].id;
+      const gain = rng() * 160 * dayFrac, wobble = Math.sin(mins / (6 + rng() * 8) + i * 1.7) * (12 + rng() * 18);
+      rows.push({ name, el, trophies: Math.round(base + gain + wobble) });
+      base -= 60 + rng() * 170;
+    }
+    const mine = Save.data.arena.trophies;
+    rows.sort((a, b) => b.trophies - a.trophies);
+    const you = { name: '', el: Save.loadout()[0], trophies: mine, you: true };
+    let yourRank;
+    const at = rows.findIndex(r => mine > r.trophies);
+    if (at >= 0) { rows.splice(at, 0, you); rows.length = 10; yourRank = at + 1; }
+    else yourRank = 10 + Math.max(1, Math.round(16000 * Math.exp(-mine / 650)));
+    rows.forEach((r, i) => { r.rank = i + 1; r.tier = tierOf(r.trophies); });
+    return { rows, you: Object.assign(you, { rank: yourRank, tier: tierOf(mine) }) };
   }
   const BODIES = ['#f1ece4', '#e6e9f2', '#efe6f2', '#e9f0e6', '#f3e9e1', '#e4edf0'];
   const DUEL_ARENAS = ['Mainland', 'Summit', 'Crossing', 'Islets', 'Drift', 'Twin Peaks'];
@@ -174,25 +201,34 @@ const Meta = (() => {
       id: 'syserror', name: 'System Error', element: 'glitch', color: '#ff4fe1', deep: '#19d3ff',
       start: '2026-11-01T00:00:00Z', end: '2026-12-01T00:00:00Z',
       tagline: 'Something broke out of the game\'s code. Corrupt, cut, paste and crash your way to the Glitch.',
-      quests: [
-        { id: 'duels', type: 'duels', n: 10, tokens: 80 },
-        { id: 'wins', type: 'duelWins', n: 6, tokens: 100 },
-        { id: 'kills', type: 'kills', n: 250, tokens: 80 },
-        { id: 'ringouts', type: 'ringouts', n: 60, tokens: 80 },
-        { id: 'stages', type: 'stages', n: 12, tokens: 90 },
-        { id: 'stars', type: 'stars3', n: 5, tokens: 80 },
-        { id: 'combo', type: 'combo', n: 15, tokens: 70, max: true },
-        { id: 'endless', type: 'endlessKills', n: 150, tokens: 90 },
-      ],
     },
   ].map(e => Object.assign({}, e, { start: Date.parse(e.start), end: Date.parse(e.end) }));
   const CACHE = { cost: 100, gems: 150 };
+  // Event quests: three new ones every day (00:00 UTC), worth 100-120 tokens in total,
+  // so an event element takes several days of play. Spare tokens go to the gem cache.
+  const EVENT_POOL = [
+    { type: 'duels', n: [3, 4] }, { type: 'duelWins', n: [2, 2] }, { type: 'kills', n: [35, 50] },
+    { type: 'ringouts', n: [10, 15] }, { type: 'stages', n: [2, 3] }, { type: 'stars3', n: [1, 2] },
+    { type: 'combo', n: [8, 12], max: true }, { type: 'endlessKills', n: [25, 40] },
+  ];
+  function syncEventDaily() {
+    const s = Save.data.event, t = today();
+    if (s.day === t && Array.isArray(s.list) && s.list.length) return s.list;
+    const picks = EVENT_POOL.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+    const total = round5(rand(100, 120));
+    const a = round5(total / 3), b = round5(total / 3);
+    const tokens = [a, b, total - a - b];
+    s.day = t;
+    s.list = picks.map((p, i) => ({ type: p.type, n: p.n[0] >= 20 ? round5(rand(p.n[0], p.n[1])) : randi(p.n[0], p.n[1]), tokens: tokens[i], max: !!p.max, prog: 0, claimed: false }));
+    Save.save();
+    return s.list;
+  }
 
   const liveEvent = () => { const now = Date.now(); return EVENTS.find(e => now >= e.start && now < e.end) || null; };
   const upcomingEvents = () => EVENTS.filter(e => e.start > Date.now()).sort((a, b) => a.start - b.start);
   function syncEvent() {
     const ev = liveEvent(), s = Save.data.event;
-    if (ev && s.id !== ev.id) { Object.assign(s, { cycle: 0, id: ev.id, tokens: 0, prog: {}, claimed: [] }); Save.save(); }
+    if (ev && s.id !== ev.id) { Object.assign(s, { cycle: 0, id: ev.id, tokens: 0, prog: {}, claimed: [], day: -1, list: [] }); Save.save(); }
     return ev;
   }
   // null when no event is running
@@ -200,16 +236,14 @@ const Meta = (() => {
     const ev = syncEvent();
     if (!ev) return null;
     const s = Save.data.event;
-    const quests = ev.quests.map(q => {
-      const prog = Math.min(q.n, s.prog[q.id] || 0);
-      return Object.assign({}, q, { prog, done: prog >= q.n, claimed: s.claimed.includes(q.id), text: questText(q) });
-    });
-    return { ev, tokens: s.tokens, quests, owned: Save.elementOpen(ev.element), price: ELEMENT_BY_ID[ev.element].tokenPrice, left: ev.end - Date.now(), upcoming: upcomingEvents(), cache: CACHE };
+    const quests = syncEventDaily().map((q, i) => Object.assign({}, q, { i, done: q.prog >= q.n, text: questText(q) }));
+    return { ev, tokens: s.tokens, quests, refresh: (today() + 1) * DAY, owned: Save.elementOpen(ev.element), price: ELEMENT_BY_ID[ev.element].tokenPrice, left: ev.end - Date.now(), upcoming: upcomingEvents(), cache: CACHE };
   }
-  function claimEvent(id) {
-    const ev = syncEvent(), s = Save.data.event, q = ev && ev.quests.find(x => x.id === id);
-    if (!q || s.claimed.includes(id) || (s.prog[id] || 0) < q.n) return 0;
-    s.claimed.push(id); s.tokens += q.tokens; Save.save();
+  function claimEvent(i) {
+    if (!syncEvent()) return 0;
+    const s = Save.data.event, q = syncEventDaily()[i];
+    if (!q || q.claimed || q.prog < q.n) return 0;
+    q.claimed = true; s.tokens += q.tokens; Save.save();
     return q.tokens;
   }
   function buyEventElement() {
@@ -249,11 +283,10 @@ const Meta = (() => {
     }
     const ev = syncEvent();
     if (!ev) return;
-    const s = Save.data.event;
-    for (const q of ev.quests) {
-      if (q.type !== type || (s.prog[q.id] || 0) >= q.n) continue;
-      s.prog[q.id] = Math.min(q.n, q.max ? Math.max(s.prog[q.id] || 0, n) : (s.prog[q.id] || 0) + n);
-      if (s.prog[q.id] >= q.n) notify('EVENT QUEST COMPLETE · ' + questText(q).toUpperCase());
+    for (const q of syncEventDaily()) {
+      if (q.type !== type || q.claimed || q.prog >= q.n) continue;
+      q.prog = Math.min(q.n, q.max ? Math.max(q.prog, n) : q.prog + n);
+      if (q.prog >= q.n) notify('EVENT QUEST COMPLETE · ' + questText(q).toUpperCase());
     }
   }
   function claimDaily(i) {
@@ -292,6 +325,6 @@ const Meta = (() => {
   return {
     TIERS, EVENTS, tierOf, makeRival, findMatch, recordDuel,
     track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyCache, elementEvent, liveEvent,
-    claimable, fmtLeft, onNotify: cb => listeners.push(cb), questText,
+    claimable, fmtLeft, leaderboard, onNotify: cb => listeners.push(cb), questText,
   };
 })();

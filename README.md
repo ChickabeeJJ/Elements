@@ -63,8 +63,8 @@ The Elements screen and the loadout picker share one browser built for a long ro
 
 - **Arena**: a best-of-three 1v1 duel (knock out or ring out the opponent). Matchmaking looks for a live player through `Platform.findLiveMatch()` for 8 seconds. If none is found, a computer opponent built like a real player is used: a player-style name, rank-scaled upgrades, three elements it swaps between, and AI that plays better the higher the rank. These matches move trophies like any other. Trophies move through seven tiers (Bronze to Legend, divisions III to I), and the first promotion to each tier pays gems. Leaving a match is a forfeit.
 - **Daily quests**: three per day, resetting at 00:00 UTC, paid in gems, plus a daily chest for claiming all three. Training and Testing don't count.
-- **Events**: added by hand in `EVENTS` in `js/meta.js`. Each has an id, its exclusive element, start and end dates (UTC, about a month) and its own quests. The first is **System Error** (Glitch), from 2026-11-01 to 2026-12-01. Event quests and Arena matches pay tokens, which unlock the event's element or buy gem caches. The element can only be unlocked while its event is live, and tokens expire when the event ends. When no event is running, the Event tab shows an empty state and the home event card is hidden until you add the next one.
-- **Ranks**: your Arena tier, the tier ladder, personal records and the global leaderboard status. A small row in the bottom-right corner of the home screen shows the live event, quest progress and your rank, with a small dot in your theme colour when something can be claimed.
+- **Events**: added by hand in `EVENTS` in `js/meta.js`. Each has an id, its exclusive element and start and end dates (UTC, about a month). The first is **System Error** (Glitch), from 2026-11-01 to 2026-12-01. The Event tab has three **daily event quests** (new each day at 00:00 UTC, 100-120 tokens in total), so the 600-token element takes several days. Arena matches also pay tokens, and spare tokens buy gem caches. The element can only be unlocked while its event is live, and tokens expire when the event ends. With no live event, the Event tab shows an empty state and the home card is hidden.
+- **Ranks**: your Arena rank card, a tier strip, personal records and a **live top-10 leaderboard** with your own position pinned. Until a real leaderboard feed is connected, the top 10 is a seeded ladder of player-like competitors whose trophy counts move through the day (`Meta.leaderboard()`); your own row uses your real trophies. A small row in the bottom-right corner of the home screen shows the live event, quest progress and your rank, with a small dot in your theme colour when something can be claimed.
 
 ## Controls
 
@@ -110,7 +110,7 @@ The CrazyGames SDK v3 script is always included. Every call is guarded, so the g
 
 **Leaderboard:** CrazyGames leaderboards are invite-only. Once your game is invited, put the encryption key from the developer portal in `LEADERBOARD_KEY` in `js/platform.js`. First check the payload format against the [leaderboard docs](https://docs.crazygames.com/sdk/leaderboards/). The game then submits Arena trophies (one number, logged-in players only) after each match. While the key is empty, nothing is sent.
 
-**Live PvP:** CrazyGames does not host real-time game servers. To match real players, implement `Platform.findLiveMatch()` against your own multiplayer backend. Until then, every Arena search falls back after 8 seconds to a computer opponent, which the in-game Privacy & Terms note discloses.
+**Live PvP:** CrazyGames does not host real-time game servers. To match real players, implement `Platform.findLiveMatch()` against your own multiplayer backend. Until then, every Arena search falls back after 8 seconds to a computer opponent.
 
 ## Credits
 

@@ -31,7 +31,7 @@ const Save = (() => {
     // live features (js/meta.js): Arena trophies, daily quests, event progress
     arena: { trophies: 0, peak: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, tiersClaimed: 0 },
     daily: { day: -1, list: [], bonus: false },
-    event: { cycle: -1, id: '', tokens: 0, prog: {}, claimed: [] },
+    event: { cycle: -1, id: '', tokens: 0, prog: {}, claimed: [], day: -1, list: [] },
   });
   let data = fresh();
 

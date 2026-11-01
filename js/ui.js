@@ -471,13 +471,14 @@ const UI = (() => {
       </div>
       <div class="hub-col">
         <div class="card panel">
-          <div class="panel-head"><h4>${ic('scroll')}EVENT QUESTS</h4><small>${doneN}/${st.quests.length} CLAIMED</small></div>
-          <div class="quest-list">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.id}"`)).join('')}</div>
+          <div class="panel-head"><h4>${ic('scroll')}DAILY EVENT QUESTS</h4><small>NEW QUESTS IN ${until(st.refresh)}</small></div>
+          <div class="quest-list">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.i}"`)).join('')}</div>
+          <p class="fine">${doneN}/${st.quests.length} claimed today · up to ${st.quests.reduce((t, q) => t + q.tokens, 0)} tokens a day</p>
         </div>
         <div class="card panel">
           <div class="panel-head"><h4>${ic('gift')}TOKEN SHOP</h4></div>
           <div class="shop-row"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
-          <p class="fine">Tokens come from event quests and Arena matches (+15 for a win, +5 for a loss). They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
+          <p class="fine">Tokens come from daily event quests and Arena matches (+15 for a win, +5 for a loss). They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
         </div>
         ${st.upcoming.length ? `<div class="card panel">
           <div class="panel-head"><h4>${ic('clock')}COMING UP</h4></div>
@@ -488,7 +489,7 @@ const UI = (() => {
   }
 
   function questsTab() {
-    const d = Meta.dailyState(), st = Meta.eventState();
+    const d = Meta.dailyState();
     const claimed = d.list.filter(q => q.claimed).length;
     return `<div class="hub-grid quests-tab">
       <div class="card panel">
@@ -500,11 +501,6 @@ const UI = (() => {
           ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small primary claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
         </div>
       </div>
-      ${st ? `<div class="card panel" style="--ec:${st.ev.color}">
-        <div class="panel-head"><h4>${ic('token')}${st.ev.name.toUpperCase()}</h4><small>ENDS IN ${until(st.ev.end)}</small></div>
-        <div class="quest-list">${st.quests.map(q => questRow(q, tokRw(q.tokens), `data-evq="${q.id}"`)).join('')}</div>
-        <button class="btn" id="qToEvent"><b>OPEN EVENT</b></button>
-      </div>` : `<div class="card panel"><div class="panel-head"><h4>${ic('token')}EVENT QUESTS</h4></div><p class="fine">No event is running right now, so there are no event quests.</p></div>`}
     </div>`;
   }
 
@@ -517,10 +513,10 @@ const UI = (() => {
       ['sword', 'FOES DEFEATED', fmt(Save.data.stats.kills)], ['burst', 'RING OUTS', fmt(Save.data.stats.ringouts)],
       ['swirl', 'ELEMENTS', `${Save.unlockedElements().length}/${ELEMENTS.length}`], ['bolt', 'BEST STREAK', fmt(a.bestStreak)],
     ];
-    const global = Platform.leaderboardEnabled
-      ? (Platform.user ? 'Your trophies are posted to the CrazyGames leaderboard after every match, under your CrazyGames username.' : 'Log in to CrazyGames to post your trophies to the global leaderboard.')
-      : Platform.hasSdk ? 'The global leaderboard is coming soon. Your trophies and records are saved, so they will count from day one.'
-      : 'The global leaderboard is available when you play on CrazyGames. Your records are saved on this device.';
+    const strip = Meta.TIERS.map(T => {
+      const tt = Meta.tierOf(T.min), here = tt.i === t.i, reached = T.min <= a.peak;
+      return `<div class="tier-cell${here ? ' here' : ''}${reached ? ' reached' : ''}" style="--tc:${T.color}">${here ? '<span class="you">YOU</span>' : ''}${tierBadge(Object.assign({}, tt, { div: T.id === 'legend' ? 0 : -1, label: T.name }), 'sm')}<b>${T.name.toUpperCase()}</b><small>${fmt(T.min)}+</small><span class="rw">${T.reward ? `${ic('gem', 'gem')}${T.reward}` : '&nbsp;'}</span></div>`;
+    }).join('');
     return `<div class="hub-grid ranks-tab">
       <div class="hub-col">
         <div class="card rank-hero" style="--tc:${t.color}">
@@ -538,34 +534,36 @@ const UI = (() => {
           <button class="btn primary" id="rkPlay">${ic('swords')}<b>PLAY ARENA</b></button>
         </div>
         <div class="card panel">
+          <div class="panel-head"><h4>${ic('trophy')}ARENA TIERS</h4><small>GEMS ON FIRST PROMOTION</small></div>
+          <div class="tier-strip">${strip}</div>
+        </div>
+        <div class="card panel">
           <div class="panel-head"><h4>${ic('ranks')}PERSONAL RECORDS</h4></div>
           <div class="records">${recs.map(([i, l, v]) => `<div>${ic(i)}<b>${v}</b><small>${l}</small></div>`).join('')}</div>
         </div>
       </div>
       <div class="hub-col">
-        <div class="card panel">
-          <div class="panel-head"><h4>${ic('trophy')}ARENA TIERS</h4><small>REWARD ON FIRST PROMOTION</small></div>
-          <div class="ladder">${Meta.TIERS.slice().reverse().map(T => {
-            const tt = Meta.tierOf(T.min), here = tt.i === t.i, reached = T.min <= a.peak;
-            return `<div class="rung${here ? ' here' : ''}${reached ? ' reached' : ''}" style="--tc:${T.color}">${tierBadge(Object.assign({}, tt, { div: T.id === 'legend' ? 0 : -1, label: T.name }), 'sm')}
-              <div><b>${T.name.toUpperCase()}</b><small>${fmt(T.min)}+ TROPHIES</small></div>
-              ${here ? '<span class="you">YOU</span>' : ''}<span class="rw">${T.reward ? `${ic('gem', 'gem')}${T.reward}` : ''}${reached && T.reward ? ic('check', 'ok') : ''}</span></div>`;
-          }).join('')}</div>
-        </div>
-        <div class="card panel">
-          <div class="panel-head"><h4>${ic('ranks')}GLOBAL LEADERBOARD</h4></div>
-          <p class="fine">${global}</p>
+        <div class="card panel lb-panel">
+          <div class="panel-head"><h4>${ic('ranks')}LEADERBOARD</h4><small class="lb-live"><i class="live-dot"></i>LIVE · TOP 10</small></div>
+          <div class="lb" id="lbRows">${leaderboardRows()}</div>
         </div>
       </div>
     </div>`;
   }
-
+  function leaderboardRows() {
+    const lb = Meta.leaderboard();
+    const row = r => `<div class="lb-row${r.you ? ' you' : ''}${r.rank <= 3 ? ' top top' + r.rank : ''}" style="--tc:${r.tier.color}">
+        <span class="lb-rank">${r.rank <= 3 ? ic('crown') : ''}<b>${fmt(r.rank)}</b></span>${hex(r.el)}
+        <span class="lb-name"><b>${r.you ? (Platform.user ? `${esc(myName())}<em>YOU</em>` : 'YOU') : esc(r.name)}</b><small>${r.tier.label}</small></span>
+        <span class="lb-tro">${ic('trophy')}${fmt(r.trophies)}</span></div>`;
+    const inTop = lb.rows.some(r => r.you);
+    return lb.rows.map(row).join('') + (inTop ? '' : `<div class="lb-gap"><i></i><i></i><i></i></div>${row(lb.you)}`);
+  }
   function bindHub(body) {
     const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
-    on('[data-evq]', b => { const n = Meta.claimEvent(b.dataset.evq); if (n) { Sfx.pickup(); toast(`+${n} EVENT TOKENS`); renderHub(); } });
+    on('[data-evq]', b => { const n = Meta.claimEvent(+b.dataset.evq); if (n) { Sfx.pickup(); toast(`+${n} EVENT TOKENS`); renderHub(); } });
     on('[data-dq]', b => { const n = Meta.claimDaily(+b.dataset.dq); if (n) { Sfx.pickup(); toast(`+${n} GEMS`); renderHub(); } });
     on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST · +${n} GEMS`); renderHub(); } });
-    on('#qToEvent', () => { Sfx.click(); hubTab = 'event'; renderHub(); });
     on('#rkPlay', () => { Sfx.click(); openArena(); });
     on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); renderHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
     on('#evBuy', () => {
@@ -604,6 +602,8 @@ const UI = (() => {
   }
   // countdowns tick quietly wherever they are on screen
   setInterval(() => {
+    const lb = $('lbRows');
+    if (lb && lb.offsetParent !== null) { lb.innerHTML = leaderboardRows(); Icons.hydrate(lb); }
     document.querySelectorAll('[data-until]').forEach(el => { if (el.offsetParent !== null) el.textContent = (el.dataset.pre || '') + Meta.fmtLeft(+el.dataset.until - Date.now()); });
   }, 15000);
 
@@ -1350,7 +1350,7 @@ const UI = (() => {
       <h2>PRIVACY &amp; TERMS</h2>
       <div class="legal">
         <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
-        <p>Quests, events and Arena trophies are part of that same save. When no other player is available within a few seconds, your Arena opponent is computer-controlled. There is no chat, and nothing about you is shown to other players.</p>
+        <p>Quests, events and Arena trophies are part of that same save. There is no chat, and nothing about you is shown to other players.</p>
         <p>If the CrazyGames leaderboard is active and you are logged in, your Arena trophy count (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>
         <p>The game does not ask for or collect any other personal information, shows no ads and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
