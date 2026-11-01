@@ -593,11 +593,11 @@ const UI = (() => {
     ev.classList.toggle('hidden', !es);   // no event, no card
     if (es) {
       ev.style.setProperty('--c', es.ev.color);
-      ev.innerHTML = `${hex(es.ev.element)}<span class="rc-t"><small><i class="live-dot"></i>EVENT · ${until(es.ev.end)}</small><b>${es.ev.name.toUpperCase()}</b></span>${badge(c.event)}`;
+      ev.innerHTML = `<span class="rc-gl">${elementIcon(es.ev.element)}</span><span class="rc-t"><small><i class="live-dot"></i>EVENT · ${until(es.ev.end)}</small><b>${es.ev.name.toUpperCase()}</b></span>${badge(c.event)}`;
     }
-    $('railQuests').innerHTML = `<span class="rc-ic">${ic('scroll')}</span><span class="rc-t"><small>QUESTS</small><b>${ds.list.filter(q => q.done).length}/${ds.list.length} DONE</b></span>${badge(c.daily)}`;
+    $('railQuests').innerHTML = `<span class="rc-gl">${ic('scroll')}</span><span class="rc-t"><small>QUESTS</small><b>${ds.list.filter(q => q.done).length}/${ds.list.length} DONE</b></span>${badge(c.daily)}`;
     $('railRanks').style.setProperty('--c', t.color);
-    $('railRanks').innerHTML = `${tierBadge(t, 'sm')}<span class="rc-t"><small>RANKS</small><b>${t.label}</b></span>`;
+    $('railRanks').innerHTML = `<span class="rc-gl">${tierBadge(t, 'sm')}</span><span class="rc-t"><small>RANKS</small><b>${t.label}</b></span>`;
     Icons.hydrate($('homeRail'));
   }
   // countdowns tick quietly wherever they are on screen

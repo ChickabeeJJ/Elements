@@ -1510,3 +1510,27 @@ body:not(.touch) .lo-slot .x { right: 10px; }
   .tier-cell { padding: 10px 2px 6px; }
   .tier-cell .tier-badge.sm { width: 24px; height: 26px; }
 }
+
+/* live chips (home, bottom right): slim, airy, small glyphs, hairline frame */
+.live-rail { gap: 8px; }
+.rail-card { --c: var(--acc); height: 46px; padding: 0 18px 0 14px; gap: 11px; clip-path: var(--cut-s); border-radius: 0;
+  background: rgba(12, 14, 21, 0.86); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: background 0.15s, box-shadow 0.15s, transform 0.12s; }
+.rail-card::after { content: ''; position: absolute; left: 14px; right: 18px; bottom: 0; height: 2px; border-radius: 2px; background: var(--c); opacity: 0.55; transition: opacity 0.15s; }
+.rail-card:hover { transform: translateY(-1px); filter: none; background: rgba(22, 25, 36, 0.92); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.rail-card:hover::after { opacity: 1; }
+.rc-gl { flex: none; width: 18px; height: 18px; display: grid; place-items: center; color: var(--c); }
+.rc-gl svg, .rc-gl .ic { width: 18px; height: 18px; }
+.rc-gl .tier-badge.sm { width: 17px; height: 19px; filter: none; }
+.rc-t { gap: 2px; }
+.rc-t small { font-size: 8.5px; letter-spacing: 0.14em; color: var(--muted); }
+.rc-t small b { color: var(--c); }
+.rc-t > b { font-size: 12px; letter-spacing: 0.05em; }
+.rail-card .live-dot { width: 5px; height: 5px; }
+.rail-card .badge { top: 7px; right: 7px; }
+.rail-card:has(.badge) { padding-right: 22px; }
+@media (max-width: 1000px) {
+  .rail-card { height: 38px; padding: 0 14px 0 11px; gap: 9px; }
+  .rc-gl, .rc-gl svg, .rc-gl .ic { width: 15px; height: 15px; }
+  .rc-gl .tier-badge.sm { width: 14px; height: 16px; }
+  .rc-t > b { font-size: 10.5px; }
+}
