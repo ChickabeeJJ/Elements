@@ -71,7 +71,7 @@ const Meta = (() => {
     const up = {};
     for (const u of UPGRADES) up[u.id] = clamp(Math.round(u.max * frac * rand(0.75, 1.15)), 0, u.max);
     // three different elements; higher ranks lean toward the rarer, pricier ones
-    const pool = ELEMENTS.map(e => ({ id: e.id, w: 1 + ((e.event ? e.tokenPrice : e.price) / 2500) * frac * 4 }));
+    const pool = ELEMENTS.filter(e => e.id !== 'tempo').map(e => ({ id: e.id, w: 1 + ((e.event ? e.tokenPrice : e.price) / 2500) * frac * 4 }));
     const loadout = [];
     while (loadout.length < 3 && pool.length) {
       let r = Math.random() * pool.reduce((t, p) => t + p.w, 0), k = 0;

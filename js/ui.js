@@ -688,8 +688,9 @@ const UI = (() => {
     Sfx.whoosh();
     setTimeout(() => {
       mid();
-      requestAnimationFrame(() => { b.className = 'out'; setTimeout(() => { b.className = ''; }, 900); });
-    }, 760);
+      // hold the cover a beat so the arena is built before the bars lift
+      setTimeout(() => { b.className = 'out'; setTimeout(() => { b.className = ''; }, 1500); }, 220);
+    }, 1300);
   }
   // your own name on the versus screen: your CrazyGames username if logged in, otherwise YOU
   const myName = () => String((Platform.user && Platform.user.username) || 'YOU').toUpperCase().slice(0, 16);
@@ -826,20 +827,20 @@ const UI = (() => {
 
   function openPause() {
     if (Game.state !== 'play') return;
-    Game.paused = true;
-    Platform.gameplayStop();
+    const live = Game.mode === 'duel';   // Arena matches are live: the menu never stops the fight
+    if (!live) { Game.paused = true; Platform.gameplayStop(); }
     const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : Game.mode === 'duel' ? `ARENA · VS ${esc(lastStart.rival.name.toUpperCase())}` : 'ENDLESS';
     if (Game.mode === 'duel') {
       // an Arena match cannot be restarted or re-equipped mid-fight; leaving it is a forfeit
       modal(`
-        <h2>PAUSED</h2>
+        <h2>MATCH MENU</h2>
         <p class="sub">${label}</p>
         <div class="pause-stack">
-          <button class="btn primary" id="pResume"><b>RESUME</b></button>
+          <button class="btn primary" id="pResume"><b>BACK TO THE FIGHT</b></button>
           <button class="btn" id="pSettings"><b>SETTINGS</b></button>
           <button class="btn danger" id="pQuit"><b>FORFEIT MATCH</b></button>
         </div>
-        <p class="fine center">Forfeiting counts as a loss.</p>`, s => {
+        <p class="fine center">The match is live and keeps going. Forfeiting counts as a loss.</p>`, s => {
         s.querySelector('#pResume').onclick = resume;
         s.querySelector('#pSettings').onclick = () => openSettings(true);
         s.querySelector('#pQuit').onclick = () => { Sfx.click(); closeModal(); forfeitDuel(); Game.quit(); Game.idleScene(0); show('home'); };
@@ -871,6 +872,7 @@ const UI = (() => {
   }
   function resume() {
     Sfx.click(); closeModal();
+    if (!Game.paused) return;   // Arena: nothing was paused
     Game.paused = false;
     if (Game.state === 'play') Platform.gameplayStart();
   }

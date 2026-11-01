@@ -38,9 +38,9 @@
   window.addEventListener('keydown', e => {
     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // typing in a search box
     // P pauses. Escape is left to the browser (it leaves fullscreen); it only closes an open pause menu.
-    if (e.code === 'KeyP' || (e.code === 'Escape' && UI.modalOpen() && Game.paused)) {
+    if (e.code === 'KeyP' || (e.code === 'Escape' && UI.modalOpen() && (Game.paused || Game.mode === 'duel'))) {
       if (UI.screen !== null) return;
-      if (UI.modalOpen()) { if (Game.paused && Game.state === 'play') UI.resume(); }
+      if (UI.modalOpen()) { if ((Game.paused || Game.mode === 'duel') && Game.state === 'play') UI.resume(); }
       else UI.openPause();
       return;
     }

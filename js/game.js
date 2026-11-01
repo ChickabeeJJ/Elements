@@ -991,6 +991,8 @@ const Game = (() => {
         break;
       }
       case 'rhythm':
+        // Arena matches are live: no mini game that stops the fight, Encore fires straight away
+        if (mode === 'duel') { soundBlast(f, mv, 0.75); break; }
         if (f.isPlayer && state === 'play' && hooks.onRhythm) {
           rhythmFreeze = true;
           f.cds[mv.id] = 999;   // the real cooldown starts when the song ends
