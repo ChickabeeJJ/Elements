@@ -336,7 +336,7 @@ const ELEMENTS = [
         desc: 'Drop a grand piano from the sky onto your aim. It crushes and stuns whatever it lands on.', cd: 9, windup: 0.2, active: 0.1, recover: 0.2,
         dmg: 34, radius: 90, knock: 520, lift: 0.4, stun: 1.2 },
       { slot: 'p2', id: 'encore', name: 'Encore', type: 'power', icon: 'rhythm', kind: 'rhythm', pose: 'raise',
-        desc: 'Time stops and a 15s rhythm game begins (lanes 5 6 7 8, or tap). The share of notes you hit becomes a sound blast that damages every foe.', cd: 15, windup: 0.1, active: 0.1, recover: 0.2,
+        desc: 'Time stops and a 15s rhythm game begins (lanes 5 6 7 8, or tap). The share of notes you hit becomes a sound blast that damages every foe.', cd: 30, windup: 0.1, active: 0.1, recover: 0.2,
         dmg: 70, knock: 1050, lift: 0.6, dur: 15 },
     ],
   },
