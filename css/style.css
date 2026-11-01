@@ -1630,3 +1630,11 @@ body.touch .rc-gl, body.touch .rc-gl svg, body.touch .rc-gl .ic { width: 15px; h
 body.touch .rc-gl .tier-badge.sm { width: 14px; height: 16px; }
 body.touch .rail-card .badge { top: 3px; right: 3px; width: 5px; height: 5px; }
 @media (max-width: 600px) { body.touch .live-rail { left: auto; } }
+
+/* element select on touch screens: a narrower sheet */
+body.touch .sheet.loadout { width: min(560px, 100%); }
+body.touch .sheet.loadout .lo-head { gap: 12px; }
+.round.is-off { background: var(--ink-4); color: var(--muted); }
+body.touch .sheet.loadout .lo-head { padding-left: 64px; justify-content: flex-start; }
+body.touch .sheet.loadout .lo-head h2 { font-size: 18px; white-space: nowrap; }
+body.touch .sheet.loadout .lo-slots { grid-template-columns: repeat(3, 84px); gap: 6px; margin-left: auto; }

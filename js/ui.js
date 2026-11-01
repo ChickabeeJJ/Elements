@@ -266,7 +266,7 @@ const UI = (() => {
         });
       };
       // nothing equipped: DONE greys out, and only explains itself when pressed
-      const refresh = () => { applyAccentTheme(sel[0]); drawSlots(); drawGrid(); sh.querySelector('#loDone').classList.toggle('is-off', !sel.length); };
+      const refresh = () => { applyAccentTheme(sel[0]); drawSlots(); drawGrid(); sh.querySelector('#loDone').classList.toggle('is-off', !sel.length); sh.querySelector('#loBack').classList.toggle('is-off', !sel.length); };
       mountTools(sh.querySelector('#loTools'), loFilter, drawGrid);
       refresh();
       nudgeScroll(grid, 'y');
