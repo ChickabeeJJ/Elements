@@ -1641,3 +1641,5 @@ body.touch .sheet.loadout .lo-slots { grid-template-columns: repeat(3, 84px); ga
 /* touch: title and slots sit together as one compact, centred group */
 body.touch .sheet.loadout .lo-head { justify-content: center; padding-left: 64px; padding-right: 64px; gap: 22px; }
 body.touch .sheet.loadout .lo-slots { margin-left: 0; grid-template-columns: repeat(3, 66px); gap: 4px; }
+/* home chips: no accent underline */
+.rail-card::after { display: none; }
