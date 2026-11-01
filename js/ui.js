@@ -710,7 +710,7 @@ const UI = (() => {
     const rv = lastStart && lastStart.rival;
     const r = Meta.recordDuel(false, rv);
     Meta.track('duels');
-    toast(`MATCH FORFEITED · ${r.delta} TROPHIES`);
+    toast(`MATCH FORFEITED ${r.delta} TROPHIES`);
   }
 
   /* -------------------------------------------------------------- forge */
