@@ -1440,3 +1440,26 @@ body:not(.touch) .lo-slot .x { right: 10px; }
 .hub-empty > .ic { width: 40px; height: 40px; color: var(--muted); opacity: 0.8; }
 .hub-empty h3 { font-weight: 900; font-size: 22px; letter-spacing: 0.06em; }
 .hub-empty p { font-size: 14px; font-weight: 500; line-height: 1.45; color: var(--muted); }
+
+/* live cards: a small row in the bottom-right corner, clear of the fighters */
+.live-rail { top: auto; bottom: calc(14px + var(--safe-b)); right: calc(16px + var(--safe-r)); gap: 6px; }
+.rail-card { padding: 4px 11px 4px 4px; gap: 7px; }
+.rail-card .hex, .rail-card .rc-ic { width: 26px; height: 26px; border-radius: 6px; }
+.rail-card .rc-ic .ic { width: 14px; height: 14px; }
+.rail-card .tier-badge.sm { width: 24px; height: 26px; }
+.rc-t small { font-size: 8px; letter-spacing: 0.1em; }
+.rc-t > b { font-size: 11px; }
+@media (max-height: 560px) { .live-rail { top: auto; bottom: calc(10px + var(--safe-b)); } }
+@media (max-width: 1000px) { .rail-card .hex, .rail-card .rc-ic, .rail-card .tier-badge.sm { width: 24px; height: 24px; } .rc-t > b { font-size: 10px; } }
+@media (max-width: 600px) { .live-rail { left: auto; right: 12px; } .rail-card { flex: none; } }
+
+/* "something to claim": a small dot in the theme colour (your first element) */
+.rail-card .badge { top: 4px; right: 4px; width: 7px; height: 7px; min-width: 0; padding: 0; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px rgba(13, 15, 23, 0.9), 0 0 6px var(--acc); animation: none; }
+.hub-tabs .dot { width: 6px; height: 6px; background: var(--acc); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35); }
+.seg.hub-tabs button.active .dot { background: var(--acc-ink); }
+.btn .note { width: 7px; height: 7px; background: var(--acc); }
+
+/* versus: an upright, skewed VS sits on the true centre line */
+.vs-mid b { font-style: normal; transform: skewX(-10deg); }
+.vs { grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); }
+.rail-card:has(.badge) { padding-right: 17px; }

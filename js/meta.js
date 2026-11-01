@@ -1,14 +1,14 @@
 'use strict';
 /* =========================================================================
    Meta: the live features around the fights.
-   - Arena: 1v1 duels with trophies and tiers. A live rival is used when the
-     platform can provide one (Platform.findLiveMatch); otherwise a clearly
-     labelled bot is matched at the player's level.
+   - Arena: best-of-three duels with trophies and tiers. A live rival is used
+     when the platform can provide one (Platform.findLiveMatch); after 8
+     seconds without one, a computer opponent at the player's rank is used.
    - Daily quests (reset at 00:00 UTC) paid in gems.
    - Hand-scheduled events (about a month each) with an exclusive element
      earned with event tokens. No event scheduled means no Event content.
-   Everything is stored in the regular save. No personal data is used: bot
-   names are generated, and nothing about the player is shared with anyone.
+   Everything is stored in the regular save. No personal data is used: fallback
+   opponents' names are generated, and nothing about the player is shared.
    ========================================================================= */
 
 const Meta = (() => {
@@ -39,25 +39,62 @@ const Meta = (() => {
   }
 
   /* ------------------------------------------------------------ bots */
-  const BOT_A = ['Ash', 'Brisk', 'Cinder', 'Dusk', 'Ember', 'Flint', 'Grit', 'Haze', 'Iris', 'Jolt', 'Kite', 'Lumen', 'Moss', 'Nova', 'Onyx', 'Pike', 'Quill', 'Rook', 'Sable', 'Thistle', 'Umber', 'Vex', 'Wren', 'Zephyr'];
-  const BOT_B = ['fang', 'wick', 'spark', 'hollow', 'strike', 'vale', 'crest', 'shade', 'bloom', 'ward', 'drift', 'rune', 'claw', 'gale'];
+  // Fallback opponents are built like real players: a player-style name, upgrades and a
+  // three-element loadout, all scaled to their rank, so higher ranks meet stronger play.
+  const NAME_A = ['Ash', 'Brisk', 'Cinder', 'Dusk', 'Ember', 'Flint', 'Grit', 'Haze', 'Iris', 'Jolt', 'Kite', 'Lumen', 'Moss', 'Nova', 'Onyx', 'Pike', 'Quill', 'Rook', 'Sable', 'Thistle', 'Umber', 'Vex', 'Wren', 'Zephyr', 'Blaze', 'Echo', 'Frost', 'Gale', 'Pixel', 'Storm'];
+  const NAME_B = ['fang', 'wick', 'spark', 'hollow', 'strike', 'vale', 'crest', 'shade', 'bloom', 'ward', 'drift', 'rune', 'claw', 'fox', 'byte', 'wolf', 'blade', 'star'];
+  function playerName() {
+    const a = pick(NAME_A), b = pick(NAME_B), n = randi(2, 99);
+    switch (randi(0, 4)) {
+      case 0: return a + b[0].toUpperCase() + b.slice(1);
+      case 1: return (a + '_' + b).toLowerCase() + n;
+      case 2: return a + n;
+      case 3: return a.toLowerCase() + b;
+      default: return a + b[0].toUpperCase() + b.slice(1) + randi(1, 9);
+    }
+  }
+  const BODIES = ['#f1ece4', '#e6e9f2', '#efe6f2', '#e9f0e6', '#f3e9e1', '#e4edf0'];
   const DUEL_ARENAS = ['Mainland', 'Summit', 'Crossing', 'Islets', 'Drift', 'Twin Peaks'];
+  function statsFrom(up) {
+    return {
+      hp: 120 + up.vitality * 20, dmgMul: 1 + up.might * 0.1, armor: 1 - up.ward * 0.06, cdMul: 1 - up.focus * 0.06,
+      speedMul: 1 + up.swift * 0.06, jumpMul: 1 + up.swift * 0.03, knockMul: 1 - up.anchor * 0.08,
+    };
+  }
   function makeRival() {
     const a = Save.data.arena;
-    const tr = Math.max(0, Math.round(a.trophies + rand(-90, 90)));
+    const tr = Math.max(0, Math.round(a.trophies + rand(-80, 80)));
+    const frac = clamp(0.08 + tr / 3200, 0, 1);   // how far along a player at this rank would be
     const d = clamp(0.3 + tr / 2200, 0.3, 1.5);
-    const name = pick(BOT_A) + pick(BOT_B);
+    const up = {};
+    for (const u of UPGRADES) up[u.id] = clamp(Math.round(u.max * frac * rand(0.75, 1.15)), 0, u.max);
+    // three different elements; higher ranks lean toward the rarer, pricier ones
+    const pool = ELEMENTS.map(e => ({ id: e.id, w: 1 + ((e.event ? e.tokenPrice : e.price) / 2500) * frac * 4 }));
+    const loadout = [];
+    while (loadout.length < 3 && pool.length) {
+      let r = Math.random() * pool.reduce((t, p) => t + p.w, 0), k = 0;
+      while (k < pool.length - 1 && (r -= pool[k].w) > 0) k++;
+      loadout.push(pool.splice(k, 1)[0].id);
+    }
+    const tier = tierOf(tr);
     return {
-      bot: true, name, trophies: tr, tier: tierOf(tr), title: 'BOT · ' + tierOf(tr).label,
-      element: pick(ELEMENTS).id, d, hp: Math.round(150 + d * 110), dmg: 1 + d * 0.35,
+      bot: true, name: playerName(), trophies: tr, tier, title: tier.label, loadout, element: loadout[0],
+      d, upgrades: up, stats: statsFrom(up), body: pick(BODIES),
       realm: randi(0, REALMS.length - 1), arena: pick(DUEL_ARENAS), seed: randi(1, 999),
     };
   }
-  // Ask the platform for a live rival; resolve to a bot when none is available.
-  async function findMatch() {
-    let live = null;
-    try { live = await Platform.findLiveMatch(); } catch (e) { live = null; }
-    return live || makeRival();
+  // Look for a live opponent for up to 8 seconds; only then fall back to a computer opponent.
+  const SEARCH_MS = 8000;
+  async function findMatch(isCancelled = () => false) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < SEARCH_MS) {
+      if (isCancelled()) return null;
+      let live = null;
+      try { live = await Promise.race([Platform.findLiveMatch(), new Promise(r => setTimeout(() => r(null), 1000))]); } catch (e) { live = null; }
+      if (live) return live;
+      await new Promise(r => setTimeout(r, Math.max(0, Math.min(1000, SEARCH_MS - (Date.now() - t0)))));
+    }
+    return isCancelled() ? null : makeRival();
   }
 
   /* ----------------------------------------------------------- arena */

@@ -71,7 +71,7 @@ class Fighter {
     this.computeTargets();
     for (let i = 0; i < 11; i++) { const p = this.pts[i]; p.x = p.px = this.T[i].x; p.y = p.py = this.T[i].y; this.Tp[i].x = this.T[i].x; this.Tp[i].y = this.T[i].y; }
     this.cape = null;
-    if (this.isPlayer || this.kind === 'boss') {
+    if (this.isPlayer || this.kind === 'boss' || this.kind === 'rival') {
       this.cape = [];
       for (let i = 0; i < 7; i++) this.cape.push({ x: o.x, y: o.y - 90, px: o.x, py: o.y - 90 });
     }

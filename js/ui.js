@@ -590,7 +590,7 @@ const UI = (() => {
   // home: the live rail on the right (event, quests, rank)
   function refreshRail() {
     const es = Meta.eventState(), ds = Meta.dailyState(), c = Meta.claimable(), a = Save.data.arena, t = Meta.tierOf(a.trophies);
-    const badge = n => (n ? `<i class="badge">${n}</i>` : '');
+    const badge = n => (n ? '<i class="badge" aria-label="Rewards to claim"></i>' : '');
     const ev = $('railEvent');
     ev.classList.toggle('hidden', !es);   // no event, no card
     if (es) {
@@ -614,7 +614,7 @@ const UI = (() => {
     clearInterval(mmClock); mmToken++;
     modal(`
       <h2>${ic('swords')} ARENA</h2>
-      <p class="sub">1V1 DUEL · KNOCK OUT OR RING OUT YOUR RIVAL</p>
+      <p class="sub">1V1 · BEST OF 3 · KNOCK OUT OR RING OUT YOUR RIVAL</p>
       <div class="mm-card" style="--tc:${t.color}">
         ${tierBadge(t, 'lg')}
         <div class="mm-rank"><small>YOUR RANK</small><b>${t.label}</b><span>${ic('trophy')}${fmt(a.trophies)} TROPHIES</span></div>
@@ -626,7 +626,7 @@ const UI = (() => {
       </div>
       <div class="mm-status hidden" id="mmStatus"></div>
       <div class="actions" id="mmActions"><button class="btn" id="mmBack"><b>BACK</b></button><button class="btn primary" id="mmFind">${ic('swords')}<b>FIND MATCH</b></button></div>
-      <p class="fine center">You face a live rival when one is available, otherwise a bot at your level. Bots are always labelled. No chat, and nothing about you is shared.</p>`, sh => {
+      <p class="fine center">You're matched with an opponent at your rank. First to win two rounds takes the match. No chat, and nothing about you is shared.</p>`, sh => {
       sh.querySelector('#mmBack').onclick = () => { Sfx.click(); mmToken++; closeModal(); if (current === 'home') refreshHome(); };
       sh.querySelector('#mmLo').onclick = () => { Sfx.click(); openLoadout(() => openArena()); };
       sh.querySelector('#mmFind').onclick = () => { Sfx.click(); searchMatch(sh); };
@@ -636,18 +636,17 @@ const UI = (() => {
     const token = ++mmToken, t0 = Date.now();
     const st = sh.querySelector('#mmStatus'), acts = sh.querySelector('#mmActions');
     st.classList.remove('hidden');
-    st.innerHTML = `<div class="radar"><i></i><i></i><i></i>${ic('swords')}</div><div><b id="mmText">SEARCHING FOR A RIVAL</b><small id="mmTime">0:00</small></div>`;
+    st.innerHTML = `<div class="radar"><i></i><i></i><i></i>${ic('swords')}</div><div><b id="mmText">SEARCHING FOR PLAYERS</b><small id="mmTime">0:00</small></div>`;
     acts.innerHTML = '<button class="btn" id="mmCancel"><b>CANCEL</b></button>';
     Icons.hydrate(st);
     acts.querySelector('#mmCancel').onclick = () => { Sfx.click(); mmToken++; clearInterval(mmClock); openArena(); };
     clearInterval(mmClock);
     mmClock = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000), el = $('mmTime'); if (el) el.textContent = `0:${String(s).padStart(2, '0')}`; }, 250);
-    const wait = new Promise(r => setTimeout(r, rand(2200, 3400)));
-    Promise.all([Meta.findMatch(), wait]).then(([rival]) => {
-      if (token !== mmToken || !modalOpen()) return;
+    Meta.findMatch(() => token !== mmToken || !modalOpen()).then(rival => {
+      if (!rival || token !== mmToken || !modalOpen()) return;
       clearInterval(mmClock);
       const tx = $('mmText');
-      if (tx) tx.textContent = rival.bot ? 'NO LIVE RIVAL FOUND · MATCHED WITH A BOT' : 'RIVAL FOUND';
+      if (tx) tx.textContent = 'MATCH FOUND';
       st.classList.add('found');
       Sfx.pickup();
       setTimeout(() => { if (token === mmToken && modalOpen()) showVersus(rival, token); }, 1000);
@@ -657,9 +656,9 @@ const UI = (() => {
     const a = Save.data.arena, t = Meta.tierOf(a.trophies), lo = Save.loadout();
     modal(`
       <div class="vs">
-        <div class="vs-side you" style="--c:${colorOf(lo[0])}">${hex(lo[0], 'vs-hex')}<small>${ic('user')} YOU</small><b>${t.label}</b><span>${ic('trophy')}${fmt(a.trophies)}</span><div class="vs-lo">${lo.map(id => hex(id)).join('')}</div></div>
+        <div class="vs-side you" style="--c:${colorOf(lo[0])}">${hex(lo[0], 'vs-hex')}<small>${ic('user')} YOU</small><b>${esc(myName())}</b><span>${t.label} · ${ic('trophy')}${fmt(a.trophies)}</span><div class="vs-lo">${lo.map(id => hex(id)).join('')}</div></div>
         <div class="vs-mid"><b>VS</b><small>${rival.arena.toUpperCase()}</small></div>
-        <div class="vs-side rival" style="--c:${colorOf(rival.element)}">${hex(rival.element, 'vs-hex')}<small>${rival.bot ? `${ic('bot')} BOT` : 'RIVAL'}</small><b>${esc(rival.name.toUpperCase())}</b><span>${rival.tier.label} · ${ic('trophy')}${fmt(rival.trophies)}</span><div class="vs-lo"><em>${NAME(rival.element)}</em></div></div>
+        <div class="vs-side rival" style="--c:${colorOf(rival.element)}">${hex(rival.element, 'vs-hex')}<small>${ic('user')} RIVAL</small><b>${esc(rival.name.toUpperCase())}</b><span>${rival.tier.label} · ${ic('trophy')}${fmt(rival.trophies)}</span><div class="vs-lo">${(rival.loadout || [rival.element]).map(id => hex(id)).join('')}</div></div>
       </div>
       <div class="vs-count"><b id="vsCount">3</b><small>GET READY</small></div>`, () => {
       let n = 3;
@@ -674,6 +673,9 @@ const UI = (() => {
       step();
     }, 'versus');
   }
+  // your own name on the versus screen: your CrazyGames username if logged in, otherwise YOU
+  const myName = () => String((Platform.user && Platform.user.username) || 'YOU').toUpperCase().slice(0, 16);
+  const roundText = r => `ROUND ${r.n} · ${r.me} – ${r.them}`;
   function startDuel(rival) {
     lastStart = { mode: 'duel', rival };
     closeModal(); show(null);
@@ -681,8 +683,8 @@ const UI = (() => {
     hudCache = {};
     buildHud();
     setChip(rival.element, 'ARENA · ' + rival.name.toUpperCase());
-    $('waveDots').innerHTML = ''; $('chipSub').textContent = 'KNOCK OUT OR RING OUT';
-    banner('FIGHT!');
+    $('waveDots').innerHTML = ''; $('chipSub').textContent = roundText({ n: 1, me: 0, them: 0 });
+    banner('ROUND 1');
   }
   function forfeitDuel() {
     const rv = lastStart && lastStart.rival;
@@ -946,7 +948,7 @@ const UI = (() => {
     modal(`
       <h2 class="${res.won ? 'win' : 'lose'}">${res.won ? 'VICTORY!' : 'DEFEAT'}</h2>
       <div class="result-content">
-        <p class="sub">ARENA · VS ${esc(rv.name.toUpperCase())}${rv.bot ? ' (BOT)' : ''} · ${NAME(rv.element)}</p>
+        <p class="sub">ARENA · VS ${esc(rv.name.toUpperCase())}${res.rounds ? ` · ROUNDS ${res.rounds.me} – ${res.rounds.them}` : ''}</p>
         <div class="trophy-delta ${res.won ? 'gain' : 'drop'}" style="--tc:${r.tier.color}">${tierBadge(r.tier, 'md')}<div><b>${ic('trophy')}${r.delta > 0 ? '+' : ''}${r.delta}</b><small>${fmt(r.trophies)} TROPHIES · ${r.tier.label}</small></div></div>
         ${tiles}
         <div class="payout">${ic('gem')}<span>+${r.gems + res.essence}</span><span class="tok">${ic('token')}+${r.tokens}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
@@ -1299,6 +1301,11 @@ const UI = (() => {
     bindTouch();
 
     Game.hooks.onEnd = res => showResult(res);
+    Game.hooks.onRound = r => {
+      $('chipSub').textContent = roundText(r);
+      if (r.over) banner(r.won ? 'ROUND WON' : 'ROUND LOST', r.won ? '' : 'boss');
+      else { hudCache = {}; buildHud(); banner(r.n === 3 ? 'FINAL ROUND' : `ROUND ${r.n}`); }
+    };
     Game.hooks.onCombo = n => { onCombo(n); if (Game.mode === 'stage' || Game.mode === 'endless' || Game.mode === 'duel') Meta.track('combo', n); };
     Game.hooks.onRhythm = mv => Rhythm.start(mv, pct => Game.endRhythm(pct));
     Game.hooks.onBoss = e => banner(e.ai.boss.name.toUpperCase(), 'boss');
@@ -1343,7 +1350,7 @@ const UI = (() => {
       <h2>PRIVACY &amp; TERMS</h2>
       <div class="legal">
         <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
-        <p>Quests, events and Arena trophies are part of that same save. Arena opponents are computer-controlled bots unless a live rival is available; there is no chat, and nothing about you is shown to other players.</p>
+        <p>Quests, events and Arena trophies are part of that same save. When no other player is available within a few seconds, your Arena opponent is computer-controlled. There is no chat, and nothing about you is shown to other players.</p>
         <p>If the CrazyGames leaderboard is active and you are logged in, your Arena trophy count (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>
         <p>The game does not ask for or collect any other personal information, shows no ads and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>

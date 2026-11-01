@@ -94,6 +94,7 @@ const ENEMY_TYPES = {
   caster: { hp: 0.8, dmg: 1.1, cd: 0.9, scale: 0.95, weight: 0.85, speed: 230, label: 'Caster' },
   brute:  { hp: 2.3, dmg: 1.5, cd: 1.3, scale: 1.25, weight: 2, speed: 190, label: 'Brute' },
   boss:   { hp: 1, dmg: 1, cd: 1.25, scale: 1.75, weight: 3.2, speed: 200, label: 'Boss' },
+  rival:  { hp: 1, dmg: 1, cd: 1, scale: 1.05, weight: 1, speed: 380, label: 'Rival' },   // Arena opponent: built like a player
 };
 
 /* stat curve shared by campaign and endless; d runs 0..1 (and past 1 in endless) */

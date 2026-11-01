@@ -169,6 +169,7 @@ const Game = (() => {
       // Arena: one rival, one island chain, first knock-out or ring-out wins
       stageDef = null;
       run.rival = opts.rival;
+      run.rounds = { n: 1, me: 0, them: 0 };   // best of three
       setRealm(opts.rival.realm % REALMS.length);
       buildArena(arenaNamed(opts.rival.arena) || ARENAS[opts.rival.realm % ARENAS.length], 900 + opts.rival.seed);
     } else if (mode === 'tutorial' || mode === 'test') {
@@ -199,18 +200,53 @@ const Game = (() => {
     hooks.onStart && hooks.onStart();
   }
 
-  /* Arena rival: a bot with a full element kit that recovers from falls like a player */
+  /* Arena rival: built like a player (upgrades, three elements it swaps between,
+     double jump) and played by the AI; skill scales with the rival's rank */
   function spawnRival(rv) {
     const sp = islands[0];
     const x = clamp(sp.x + 240, sp.left + 70, sp.right - 70);
-    const f = spawnEnemyAt({
-      type: 'boss', element: rv.element, d: rv.d, scale: 1.08, weight: 1.15, hp: rv.hp, dmgBoost: rv.dmg,
-      boss: { name: rv.name, title: rv.title }, rival: true,
-    }, x, sp.top, true);
+    const u = rv.stats;
+    const f = spawnEnemyAt({ type: 'rival', element: rv.loadout[0], d: rv.d, scale: 1.05, weight: 1, hp: u.hp, rival: true, boss: { name: rv.name, title: rv.tier.label } }, x, sp.top, true);
+    f.body = rv.body; f.shade = mixHex(rv.body, '#10131b', 0.16);
+    f.speed = 380 * u.speedMul; f.jumpV = 1060 * u.jumpMul;
     f.facing = -1;
-    f.ai.thinkT = 1.6;   // a beat to get ready before the first exchange
-    if (rv.d < 0.55) f.ai.kit.powers = f.ai.kit.powers.slice(0, 1);   // low tiers: one power
+    const ai = f.ai;
+    ai.rv = u; ai.loadout = rv.loadout; ai.elIdx = 0; ai.swapT = rand(3, 5);
+    ai.stats.cdMul = u.cdMul;
+    ai.thinkT = 1.4;   // a beat to get ready before the first exchange
+    setRivalElement(f, rv.loadout[0], true);
     return f;
+  }
+  function setRivalElement(f, id, quiet) {
+    f.el = id; f.accent = AURA[id]; f.capeColor = ELEMENT_BY_ID[id].deep;
+    f.ai.kit = enemyKit(id, 'boss', realm.id);
+    if (f.ai.d < 0.55) f.ai.kit.powers = f.ai.kit.powers.slice(0, 1);   // low ranks: one power per element
+    if (!quiet) {
+      const h = f.hand();
+      fx.burst(h.x, h.y, ELEMENT_BY_ID[id].color, 16, 220, { life: 0.4 });
+      fx.ring(f.center().x, f.center().y, ELEMENT_BY_ID[id].color, 70, 0.35);
+      Sfx.swap(id);
+    }
+  }
+
+  // Arena rounds: first to two
+  function duelRoundOver(won) {
+    const R = run.rounds;
+    if (won) R.me++; else R.them++;
+    if (R.me >= 2 || R.them >= 2) { if (won) win(); else lose(true); return; }
+    state = 'round'; endTimer = 2.4; slowmo = Math.max(slowmo, 1.1);
+    if (won) Sfx.pickup(); else Sfx.ringout();
+    hooks.onRound && hooks.onRound({ n: R.n, me: R.me, them: R.them, over: true, won });
+  }
+  function nextRound() {
+    const R = run.rounds, best = combo.best;
+    R.n++;
+    clearField();
+    combo.best = best;
+    player = makePlayer(); player.invuln = 1;
+    spawnRival(run.rival);
+    state = 'play';
+    hooks.onRound && hooks.onRound({ n: R.n, me: R.me, them: R.them, over: false });
   }
 
   /* Testing ground: a passive dummy that can be killed and comes back */
@@ -395,7 +431,8 @@ const Game = (() => {
     const ang = Math.atan2(ty - o.y, tx - o.x);
     f.aim = ang;
     f.facing = Math.cos(ang) >= 0 ? 1 : -1;
-    const m = enemy ? Object.assign({}, mv, { windup: mv.windup * f.ai.stats.windupMul + 0.08 }) : mv;
+    const m = !enemy ? mv : f.ai.rival ? Object.assign({}, mv, { windup: mv.windup * lerp(1.7, 1.05, Math.min(f.ai.d, 1.2)) + 0.03 })
+      : Object.assign({}, mv, { windup: mv.windup * f.ai.stats.windupMul + 0.08 });
     const lockKinds = { dive: 1, dragon: 1, nova: 1, beam: 1, strike: 1, zone: 1, heal: 1, shield: 1, slam: 1, pillars: 1, pull: 1, crush: 1, resonance: 1, wall: 1 };
     let comboStep = 0;
     if (mv.combo) {
@@ -405,7 +442,7 @@ const Game = (() => {
     }
     f.comboAlt ^= 1;
     f.action = { move: m, t: 0, fired: false, tx, ty, el: f.el, alt: !!f.comboAlt, lock: !!lockKinds[mv.kind], hitSet: new Set(), comboStep };
-    if (enemy) Sfx.telegraph();
+    if (enemy && !f.ai.rival) Sfx.telegraph();
     return true;
   }
 
@@ -1162,7 +1199,7 @@ const Game = (() => {
     const enemyTarget = t.team === 'enemy';
     if (att && att.isPlayer && enemyTarget) o = Object.assign({}, o, { knock: o.knock * pStats.knockDealtMul });
     let dmg = o.dmg;
-    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai ? att.ai.stats.dmgMul * (att.kind === 'boss' ? 0.5 : 0.66) : 1;   // enemy hit scaling (bosses much gentler)
+    if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai && att.ai.rv ? att.ai.rv.dmgMul : att.ai ? att.ai.stats.dmgMul * (att.kind === 'boss' ? 0.5 : 0.66) : 1;   // enemy hit scaling (bosses much gentler)
     if (att && att.pact > 0) dmg *= att.pactMul;
     if (o.crit) dmg *= 2;
     if (t.bouncy > 0) {
@@ -1188,6 +1225,7 @@ const Game = (() => {
       break;
     }
     if (t.isPlayer) dmg *= pStats.armor;
+    else if (t.ai && t.ai.rv) dmg *= t.ai.rv.armor;
     if (t.shield > 0) {
       const ab = Math.min(t.shield, dmg);
       t.shield -= ab; dmg -= ab;
@@ -1236,7 +1274,7 @@ const Game = (() => {
 
     // knockback: foes fly further the more hurt they are
     let K = o.knock;
-    K *= enemyTarget ? 1 + (1 - clamp(t.hp / t.maxHp, 0, 1)) * 0.9 : pStats.knockMul;
+    K *= t.ai && t.ai.rv ? t.ai.rv.knockMul : enemyTarget ? 1 + (1 - clamp(t.hp / t.maxHp, 0, 1)) * 0.9 : pStats.knockMul;
     K /= t.weight;
     if (t.kind === 'boss' && t.root.plat) {
       // bosses brace against the drop: knockback toward a nearby edge is softened
@@ -2637,7 +2675,8 @@ const Game = (() => {
   /* ----------------------------------------------------------- waves */
   function waveCleared() {
     if (state !== 'play') return;
-    if (mode === 'duel' || (mode === 'stage' && waveIdx >= stageDef.waves.length - 1)) win();
+    if (mode === 'duel') duelRoundOver(true);
+    else if (mode === 'stage' && waveIdx >= stageDef.waves.length - 1) win();
     else waveTimer = 1.2;
   }
 
@@ -2676,8 +2715,9 @@ const Game = (() => {
     state = 'won'; endTimer = 2.2; slowmo = Math.max(slowmo, 1.3);
     Sfx.win(); Platform.happytime();
   }
-  function lose() {
+  function lose(final) {
     if (state !== 'play') return;
+    if (mode === 'duel' && !final) { duelRoundOver(false); return; }
     state = 'lost'; endTimer = 2.0; slowmo = 1.2;
     Sfx.setMusicPaused(true);
     Sfx.lose();
@@ -2687,7 +2727,7 @@ const Game = (() => {
     Platform.gameplayStop();
     const hpRatio = Math.max(0, player.hp) / player.maxHp;
     const res = {
-      mode, won, canRevive: !won && !run.revived && mode !== 'duel', rival: run.rival || null, hpLeft: hpRatio, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
+      mode, won, canRevive: !won && !run.revived && mode !== 'duel', rival: run.rival || null, rounds: run.rounds || null, hpLeft: hpRatio, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
       essence: run.essence + Math.round(run.essenceRemainder || 0), stars: 0, unlocked: null, firstClear: false, best: false,
     };
     if (mode === 'stage' && res.won) {
@@ -2773,7 +2813,7 @@ const Game = (() => {
     if (!me.grounded && !platformBelow(me.x, me.y - 5, 900)) {
       const isl = nearestIsland(me.x);
       e.input.x = Math.sign(isl.x - me.x);
-      if (e.kind === 'boss') {
+      if (e.kind === 'boss' || ai.rival) {
         // recover like a player: double/triple jump as soon as the fall starts, never at the last moment
         if (me.vy > -60 && me.jumps < e.maxJumps && ai.jumpCd <= 0) { e.jump(); ai.jumpCd = 0.22; me.vx += Math.sign(isl.x - me.x) * 160; }
       } else if (me.vy > 0 && me.y > isl.top - 40) e.jump();
@@ -2784,6 +2824,16 @@ const Game = (() => {
     if (ai.boss) {
       const ratio = e.hp / e.maxHp;
       if (ratio < 0.5 && ai.summoned === 0 && !ai.rival) { ai.summoned = 1; summon(e, 1); }
+    }
+    if (ai.rival && ai.loadout.length > 1) {
+      // swap elements like a player: on a timer, sooner when this kit's powers are spent
+      ai.swapT -= dt;
+      const spent = ai.kit.powers.length && ai.kit.powers.every(p => (e.cds[p.id] || 0) > 0);
+      if (ai.swapT <= 0 || (spent && ai.swapT < 2.5 && ai.d > 0.5)) {
+        ai.elIdx = (ai.elIdx + 1) % ai.loadout.length;
+        setRivalElement(e, ai.loadout[ai.elIdx]);
+        ai.swapT = rand(3.5, 6) * lerp(1.3, 0.75, Math.min(ai.d, 1));
+      }
     }
     ai.thinkT -= dt;
     if (ai.thinkT > 0) return;
@@ -2801,7 +2851,7 @@ const Game = (() => {
 
     if (kit.melee && ready(kit.melee) && dd < (kit.melee.reach + 34) * e.s && Math.abs(dy) < 110) { tryMove(e, kit.melee, pc.x, pc.y); return; }
     for (const pw of kit.powers) {
-      if (!ready(pw) || Math.random() > (e.kind === 'boss' ? 0.45 : 0.8)) continue;
+      if (!ready(pw) || Math.random() > (ai.rival ? 0.35 + 0.45 * Math.min(ai.d, 1) : e.kind === 'boss' ? 0.45 : 0.8)) continue;
       const k = pw.kind;
       const ok = (k === 'nova' || k === 'updraft') ? dd < (pw.radius || 140) * 0.9
         : k === 'heal' ? e.hp < e.maxHp * 0.5
@@ -2834,8 +2884,8 @@ const Game = (() => {
     const myIsl = me.grounded ? me.plat : null;
     let goal = (player.root.grounded && player.root.plat) || platformBelow(pr.x, pr.y - 5, 900) || nearestIsland(pr.x);
     let dir = 0;
-    if (e.kind === 'boss' && myIsl && goal && goal !== myIsl && goal.right - goal.left < 320) goal = myIsl;   // wait for the hero on solid ground
-    if (e.kind === 'boss' && myIsl && goal === myIsl) {
+    if ((e.kind === 'boss' || ai.rival) && myIsl && goal && goal !== myIsl && goal.right - goal.left < 320) goal = myIsl;   // wait for the hero on solid ground
+    if ((e.kind === 'boss' || ai.rival) && myIsl && goal === myIsl) {
       const margin = Math.min(150, (myIsl.right - myIsl.left) * 0.3);
       const want = clamp(pr.x - Math.sign(dx || 1) * (kit.melee ? 40 : 260), myIsl.left + margin, myIsl.right - margin);
       dir = Math.abs(want - me.x) > 24 ? Math.sign(want - me.x) : 0;
@@ -3423,6 +3473,7 @@ const Game = (() => {
     combo.t = Math.max(0, combo.t - realDt);
     if (combo.t <= 0 && combo.n) { combo.n = 0; hooks.onCombo && hooks.onCombo(0); }
 
+    if (state === 'round') { endTimer -= realDt; if (endTimer <= 0) nextRound(); }
     if (state === 'won' || state === 'lost') {
       endTimer -= realDt;
       if (endTimer <= 0) { const won = state === 'won'; state = 'done'; finish(won); }
@@ -4443,7 +4494,7 @@ const Game = (() => {
   /* ------------------------------------------------------------- api */
   function hud() {
     if (!player) return null;
-    const boss = enemies.find(e => e.kind === 'boss' && e.alive && !e.decor);
+    const boss = enemies.find(e => (e.kind === 'boss' || (e.ai && e.ai.rival)) && e.alive && !e.decor);
     const kit = ELEMENT_BY_ID[player.el].moves;
     return {
       hp: Math.max(0, player.hp), maxHp: player.maxHp, shield: player.shield, el: player.el, elIdx: player.elIdx, loadout: player.loadout,
@@ -4453,7 +4504,7 @@ const Game = (() => {
       wave: waveIdx, waves: stageDef ? stageDef.waves.length : 0,
       left: aliveEnemies().length + spawns.length + (stageDef && waveIdx >= 0 ? stageDef.waves.slice(waveIdx + 1).reduce((n, w) => n + w.length, 0) : 0),
       boss: boss ? { name: boss.ai.boss.name, title: boss.ai.boss.title, ratio: boss.hp / boss.maxHp, el: boss.el } : null,
-      status: player.status,
+      status: player.status, rounds: run && run.rounds ? Object.assign({}, run.rounds) : null,
     };
   }
 

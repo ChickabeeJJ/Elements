@@ -16,7 +16,7 @@ Fight through 64 stages in 8 realms, each ending in an elemental boss. Upgrade y
 **Features**
 - Active ragdoll physics with knockback, tumbles and ring-outs
 - 31 elements (including the event-exclusive Glitch), each with its own main attack and two unique powers, plus 30 element combos
-- Arena duels with trophies and seven tiers, daily quests and monthly events
+- Best-of-three Arena duels with trophies and seven tiers, daily quests and monthly events
 - 64 campaign stages across 8 realms, with 8 bosses
 - Elemental weaknesses and combos (shatter frozen foes, shock soaked ones)
 - Endless mode with rotating realms and champion waves
@@ -89,6 +89,6 @@ The covers come from real gameplay. The only text on them is the game title, wit
 - `user.submitScore({ encryptedScore })`: Arena trophies, for logged-in players only. This is inactive until `LEADERBOARD_KEY` is set (leaderboards are invite-only)
 - `data.getItem` / `setItem` / `removeItem` for cloud saves
 
-Not used: `game.inviteLink` / `showInviteButton`. Arena matches are against clearly labelled bots, because there is no real-time server. The hook for a live rival is `Platform.findLiveMatch()`.
+Not used: `game.inviteLink` / `showInviteButton`. There is no real-time server, so Arena searches fall back after 8 seconds to a computer opponent (disclosed in Privacy & Terms). The hook for live players is `Platform.findLiveMatch()`.
 
-**Privacy:** No new data is collected. Quests, events and trophies live in the same save. Bot names are generated, there is no chat, and nothing about a player is shown to anyone else. The in-game Privacy & Terms note describes the optional leaderboard submission.
+**Privacy:** No new data is collected. Quests, events and trophies live in the same save. Fallback opponents' names are generated, there is no chat, and nothing about a player is shown to anyone else. The in-game Privacy & Terms note describes the optional leaderboard submission.
