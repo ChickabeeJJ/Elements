@@ -829,7 +829,7 @@ const UI = (() => {
     if (Game.state !== 'play') return;
     const live = Game.mode === 'duel';   // Arena matches are live: the menu never stops the fight
     if (!live) { Game.paused = true; Platform.gameplayStop(); }
-    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : Game.mode === 'duel' ? `ARENA · VS ${esc(lastStart.rival.name.toUpperCase())}` : 'ENDLESS';
+    const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : Game.mode === 'duel' ? `ARENA${lastStart && lastStart.rival ? ' · VS ' + esc(lastStart.rival.name.toUpperCase()) : ''}` : 'ENDLESS';
     if (Game.mode === 'duel') {
       // an Arena match cannot be restarted or re-equipped mid-fight; leaving it is a forfeit
       modal(`
