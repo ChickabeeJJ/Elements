@@ -237,7 +237,7 @@ const UI = (() => {
       <div class="lo-foot"><button class="btn primary" id="loDone"><b>DONE</b></button></div>`, sh => {
       const slots = sh.querySelector('#loSlots'), grid = sh.querySelector('#loGrid');
       const drawSlots = () => {
-        slots.innerHTML = [0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small>${sel[i] ? `<i class="x">${ic('close')}</i>` : ''}</button>`).join('');
+        slots.innerHTML = [0, 1, 2].map(i => `<button type="button" class="lo-slot" data-slot="${i}" aria-label="${sel[i] ? `Remove ${NAME(sel[i])} from slot ${i + 1}` : `Slot ${i + 1} empty`}" ${sel[i] ? '' : 'disabled'}>${sel[i] ? hex(sel[i]) : '<span class="empty"></span>'}<small>${sel[i] ? `${i + 1} · ${NAME(sel[i])}` : `${i + 1} · EMPTY`}</small></button>`).join('');
         Icons.hydrate(slots);
         slots.querySelectorAll('.lo-slot:not(:disabled)').forEach(slot => slot.onclick = () => {
           Sfx.click();
