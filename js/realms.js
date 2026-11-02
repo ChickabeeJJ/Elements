@@ -59,7 +59,7 @@ const REALMS = [
     hills: ['#2e1b4d', '#1e1236', '#120a22'], fog: '#5b2b8a',
     top: '#b98bff', topDark: '#6d3fc0', rock: '#3b2a5e', rockDark: '#251a40',
     ambient: 'mote', tint: '#c08bff', glowTop: true,
-    boss: { name: 'The Hollow King', title: 'End of All Light' },
+    boss: { name: 'The Starless Regent', title: 'End of All Light' },
   },
   {
     id: 'caverns', name: 'Crystal Caverns', element: 'crystal',
@@ -171,7 +171,7 @@ function buildStage(r, s) {
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 }]);
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * (r >= REALMS.length - 4 ? 0.9 : 1) }]);   // last 4 realms' bosses: -10% HP
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
