@@ -36,6 +36,8 @@ const Platform = (() => {
   // developer portal. Leave the key empty and no score is ever sent.
   // The score is AES-GCM encrypted (random 12-byte IV, sent as base64 of IV + ciphertext + tag)
   // and submitted as { encryptedScore, score }. Check it in the CrazyGames QA tool before launch.
+  // Leaderboard OFF until this is set: no score is sent and nothing about it is shown.
+  // Once CrazyGames invites the game, paste the leaderboard's encryption key here.
   const LEADERBOARD_KEY = '';           // base64 AES key from the CrazyGames developer portal
   const LEADERBOARD_COOLDOWN = 12 * 1000;
   let lastScoreAt = 0, pendingScore = null, scoreTimer = null;

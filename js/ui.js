@@ -1038,7 +1038,7 @@ const UI = (() => {
       <h2>PRIVACY &amp; TERMS</h2>
       <div class="legal">
         <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
-        <p>If the CrazyGames leaderboard is active and you are logged in, your best Endless score (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>
+        ${Platform.leaderboardEnabled ? '<p>If the CrazyGames leaderboard is active and you are logged in, your best Endless score (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>' : ''}
         <p>On CrazyGames the game shows ads served by CrazyGames: a short ad now and then between stages, optional ads you can choose to watch for a bonus, and a banner on the home screen on computers. The game itself does not ask for or collect any other personal information and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
       </div>
