@@ -171,7 +171,7 @@ function buildStage(r, s) {
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * (r >= REALMS.length - 4 ? 0.9 : 1) }]);   // last 4 realms' bosses: -10% HP
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * 1.05 * (r >= REALMS.length - 4 ? 0.9 : 1) }]);   // all bosses +5%; last 4 realms' bosses -10%
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];
