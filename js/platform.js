@@ -34,8 +34,8 @@ const Platform = (() => {
   let midgameGate = () => true;
   // CrazyGames leaderboards are invite-only and need the encryption key from the
   // developer portal. Leave the key empty and no score is ever sent.
-  // Before enabling, check the payload format against
-  // https://docs.crazygames.com/sdk/leaderboards/ (it is sent as { encryptedScore }).
+  // The score is AES-GCM encrypted (random 12-byte IV, sent as base64 of IV + ciphertext + tag)
+  // and submitted as { encryptedScore, score }. Check it in the CrazyGames QA tool before launch.
   const LEADERBOARD_KEY = '';           // base64 AES key from the CrazyGames developer portal
   const LEADERBOARD_COOLDOWN = 12 * 1000;
   let lastScoreAt = 0, pendingScore = null, scoreTimer = null;
@@ -183,7 +183,10 @@ const Platform = (() => {
     clearTimeout(scoreTimer);
     scoreTimer = setTimeout(async () => {
       const v = pendingScore; pendingScore = null; lastScoreAt = Date.now();
-      try { await sdk.user.submitScore({ encryptedScore: await encryptScore(v) }); } catch (e) { /* ignore */ }
+      try {
+        const p = sdk.user.submitScore({ encryptedScore: await encryptScore(v), score: v });
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) { /* ignore */ }
     }, wait);
     return true;
   }
