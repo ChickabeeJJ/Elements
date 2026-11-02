@@ -265,7 +265,7 @@ const UI = (() => {
 
   /* ---------------------------------------------------- loadout editor */
   const loFilter = { q: '', show: 'all', type: 'all', sort: 'price' };
-  function openLoadout(after) {
+  function openLoadout(after, back) {
     let sel = Save.loadout().slice();
     const inFight = Game.state === 'play';
     applyAccentTheme(sel[0]);
@@ -309,12 +309,17 @@ const UI = (() => {
         });
       };
       // nothing equipped: DONE greys out, and only explains itself when pressed
-      const refresh = () => { applyAccentTheme(sel[0]); drawSlots(); drawGrid(); sh.querySelector('#loDone').classList.toggle('is-off', !sel.length); sh.querySelector('#loBack').classList.toggle('is-off', !sel.length); };
+      const refresh = () => { applyAccentTheme(sel[0]); drawSlots(); drawGrid(); sh.querySelector('#loDone').classList.toggle('is-off', !sel.length); };
       mountTools(sh.querySelector('#loTools'), loFilter, drawGrid);
       refresh();
       nudgeScroll(grid, 'y');
-      // the back arrow does exactly what DONE does
-      sh.querySelector('#loBack').onclick = () => sh.querySelector('#loDone').click();
+      // the back arrow saves like DONE, but with nothing equipped it discards the edits
+      sh.querySelector('#loBack').onclick = () => {
+        if (sel.length) { sh.querySelector('#loDone').click(); return; }
+        Sfx.click(); applyAccentTheme();
+        toast('CHANGES DISCARDED');
+        back ? back() : (after ? after() : closeModal());
+      };
       sh.querySelector('#loDone').onclick = () => {
         if (!sel.length) { Sfx.denied(); toast('EQUIP AT LEAST ONE ELEMENT'); return; }
         Sfx.click(); Save.setLoadout(sel);
@@ -921,7 +926,7 @@ const UI = (() => {
       </div>`, s => {
       s.querySelector('#pResume').onclick = resume;
       s.querySelector('#pRestart').onclick = () => { Sfx.click(); closeModal(); Game.quit(); relaunch(); };
-      s.querySelector('#pLoadout').onclick = () => { Sfx.click(); openLoadout(() => { closeModal(); Game.quit(); relaunch(); toast('RESTARTED WITH NEW ELEMENTS'); }); };
+      s.querySelector('#pLoadout').onclick = () => { Sfx.click(); openLoadout(() => { closeModal(); Game.quit(); relaunch(); toast('RESTARTED WITH NEW ELEMENTS'); }, openPause); };
       s.querySelector('#pSettings').onclick = () => openSettings(true);
       s.querySelector('#pQuit').onclick = () => {
         Sfx.click(); closeModal();
