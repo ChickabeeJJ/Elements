@@ -1759,7 +1759,7 @@ const Game = (() => {
       for (const t of all) {
         if (!t.alive || t.gone || t.decor || (pd.cool.get(t) || 0) > pd.t) continue;
         if (Math.abs(t.root.x - pd.x) > 44 || Math.abs(t.root.y - pd.y) > 12 || t.root.vy < -100) continue;
-        pd.cool.set(t, pd.t + 0.5); pd.squish = 1;
+        pd.cool.set(t, pd.t + 0.5); pd.squish = 1; pd.hitT = pd.t;
         const foe = t.team !== pd.owner.team;
         if (foe && blocked(t)) continue;
         if (t.mode === 'active') { t.root.vy = -pd.mv.launch * (foe ? 1 : 0.85); t.root.grounded = false; t.root.plat = null; if (foe) t.knockT = Math.max(t.knockT || 0, 0.6); }
@@ -2160,6 +2160,58 @@ const Game = (() => {
     }
   }
   // one clawed shadow hand reaching up out of the ground, leaning in and curling over the foe
+  // Slime bounce pad: a jelly dome on a gooey puddle. Pops in with an overshoot,
+  // wobbles like a spring when something bounces, bubbles inside, and chevrons
+  // above hint at the launch. Blinks for its last second.
+  function drawBouncePad(c, pd) {
+    const life = pd.dur - pd.t;
+    let a = Math.min(1, pd.t * 6, life * 3);
+    if (life < 1.2) a *= 0.65 + 0.35 * Math.cos(pd.t * 22);
+    const pop = Math.min(1, pd.t * 5), grow = 1 + 1.7 * Math.pow(pop - 1, 3) + 0.7 * Math.pow(pop - 1, 2);   // ease-out-back
+    const since = pd.t - (pd.hitT ?? -9), wob = since < 1.2 ? Math.exp(-since * 6) * Math.cos(since * 24) : 0;
+    const idle = Math.sin(time * 3 + pd.ox) * 0.04;
+    const x = pd.x, y = pd.y;
+    const w = 42 * grow * (1 + wob * 0.22 - idle), h = 32 * grow * (1 - wob * 0.55 + idle * 1.5);
+    c.save(); c.globalAlpha = a;
+    // soft glow and contact shadow
+    c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#3dff8a', x, y - h * 0.4, 90 * grow, 0.32 + Math.max(0, wob) * 0.4); c.globalCompositeOperation = 'source-over';
+    c.fillStyle = 'rgba(0,0,0,0.28)'; c.beginPath(); c.ellipse(x, y + 1, w + 12, 6, 0, 0, TAU); c.fill();
+    // gooey puddle with little blobs oozing out around the base
+    c.fillStyle = '#16804a'; c.beginPath(); c.ellipse(x, y - 2, w + 9, 6, 0, 0, TAU); c.fill();
+    for (const side of [-1, 1]) for (let i = 0; i < 2; i++) {
+      const r = (i ? 4 : 6) * grow * (1 + 0.12 * Math.sin(time * 3 + i + side));
+      c.fillStyle = i ? '#2fc06a' : '#1f9e5a';
+      c.beginPath(); c.arc(x + side * (w + 4 + i * 10), y - r * 0.7, r, 0, TAU); c.fill();
+    }
+    // jelly dome
+    const g = c.createLinearGradient(0, y - h, 0, y);
+    g.addColorStop(0, '#d6ffe0'); g.addColorStop(0.35, '#7cf7a0'); g.addColorStop(0.8, '#2fc06a'); g.addColorStop(1, '#1a8f50');
+    c.fillStyle = g;
+    c.beginPath(); c.moveTo(x - w, y - 2);
+    c.bezierCurveTo(x - w, y - h * 1.25, x + w, y - h * 1.25, x + w, y - 2);
+    c.quadraticCurveTo(x, y + 3, x - w, y - 2); c.fill();
+    // rising bubbles inside, clipped to the dome
+    c.save(); c.clip();
+    for (let i = 0; i < 5; i++) {
+      const ph = (time * 0.6 + i * 0.37 + pd.ox * 0.01) % 1, bx = x + Math.sin(i * 2.4 + time * 1.3) * w * 0.55, by = y - 2 - ph * h * 1.05;
+      c.fillStyle = `rgba(230,255,236,${0.55 * (1 - ph)})`; c.beginPath(); c.arc(bx, by, 2 + (i % 3), 0, TAU); c.fill();
+    }
+    c.restore();
+    // rim light and gloss
+    c.strokeStyle = 'rgba(235,255,240,0.75)'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x - w * 0.86, y - h * 0.55); c.bezierCurveTo(x - w * 0.6, y - h * 0.98, x + w * 0.6, y - h * 0.98, x + w * 0.86, y - h * 0.55); c.stroke();
+    c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); c.ellipse(x - w * 0.38, y - h * 0.68, w * 0.18, h * 0.12, -0.35, 0, TAU); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.6)'; c.beginPath(); c.arc(x - w * 0.12, y - h * 0.8, 1.8, 0, TAU); c.fill();
+    // launch chevrons drifting up
+    c.strokeStyle = '#d9ffe2'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+    for (let i = 0; i < 2; i++) {
+      const ph = (time * 1.4 + i * 0.5) % 1, cy = y - h - 12 - ph * 30, cw = 11 * grow;
+      c.globalAlpha = a * Math.sin(ph * Math.PI) * (0.7 + Math.max(0, wob) * 0.3);
+      c.beginPath(); c.moveTo(x - cw, cy + 5); c.lineTo(x, cy - 2); c.lineTo(x + cw, cy + 5); c.stroke();
+    }
+    c.restore();
+  }
+
   function drawShadowHand(c, bx, gy, side, rise, tm) {
     const h = 74 * rise, sway = Math.sin(tm * 3) * 2.5;
     const wx = bx - side * 7 + sway, wy = gy - h;   // wrist leans in toward the foe
@@ -2490,14 +2542,7 @@ const Game = (() => {
         c.fillStyle = '#ffb3c7'; c.beginPath(); c.arc(fxp, fyp, 11 * f.s, 0, TAU); c.fill();
       }
     }
-    for (const pd of pads) {
-      const a = Math.min(1, pd.t * 6, (pd.dur - pd.t) * 3), sq = pd.squish;
-      c.globalAlpha = a;
-      c.fillStyle = '#1f9e5a'; c.beginPath(); c.ellipse(pd.x, pd.y - 2, 46, 9 - sq * 4, 0, 0, TAU); c.fill();
-      c.fillStyle = '#8dfc9a'; c.beginPath(); c.ellipse(pd.x, pd.y - 8 + sq * 4, 40, 10 - sq * 5, 0, Math.PI, TAU); c.fill();
-      c.fillStyle = 'rgba(255,255,255,0.6)'; c.beginPath(); c.ellipse(pd.x - 14, pd.y - 12 + sq * 4, 9, 2.5, 0, 0, TAU); c.fill();
-      c.globalAlpha = 1;
-    }
+    for (const pd of pads) drawBouncePad(c, pd);
     for (const g of grasps) {
       const rise = Math.min(1, g.t * 7), out = g.t > g.dur ? Math.max(0, 1 - (g.t - g.dur) / 0.3) : 1;
       const t = g.target, x = t.alive ? t.root.x : g.x, gy = g.y;
