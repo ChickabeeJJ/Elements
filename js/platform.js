@@ -25,9 +25,20 @@ const Platform = (() => {
   const MIDGAME_GAP = 3 * 60 * 1000;
   const BANNER_GAP = 61 * 1000;
   const PREFIX = 'elementfall_';
-  // Basic Launch builds must not show ads: no midgame, rewarded, banner or ad-block calls.
-  // Flip to true for a Full Launch.
-  const ADS_ENABLED = false;
+  // Ads are for a Full Launch on CrazyGames (Basic Launch builds must not show any:
+  // set this to false for a Basic Launch upload). Off CrazyGames no ad is ever requested.
+  //  - midgame: only at natural breaks, at most one per MIDGAME_GAP, never for brand-new players
+  //  - rewarded: always opt-in, for a clear bonus
+  //  - banner: desktop home screen only, never during gameplay
+  const ADS_ENABLED = true;
+  let midgameGate = () => true;
+  // CrazyGames leaderboards are invite-only and need the encryption key from the
+  // developer portal. Leave the key empty and no score is ever sent.
+  // The score is AES-GCM encrypted (random 12-byte IV, sent as base64 of IV + ciphertext + tag)
+  // and submitted as { encryptedScore, score }. Check it in the CrazyGames QA tool before launch.
+  const LEADERBOARD_KEY = '';           // base64 AES key from the CrazyGames developer portal
+  const LEADERBOARD_COOLDOWN = 12 * 1000;
+  let lastScoreAt = 0, pendingScore = null, scoreTimer = null;
 
   const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
 
@@ -96,10 +107,9 @@ const Platform = (() => {
   function happytime() { safe(() => sdk && sdk.game.happytime()); }
 
   /* --------------------------------------------------------------- ads */
-  // cb(success:boolean). Standalone: rewarded ads succeed so features stay testable.
+  // cb(success:boolean). Without the SDK (other hosts, local testing) no ad runs and no reward is given.
   function requestAd(kind, cb) {
-    if (!ADS_ENABLED) { cb(false); return; }
-    if (!sdk) { cb(kind === 'rewarded'); return; }
+    if (!ADS_ENABLED || !sdk) { cb(false); return; }
     let done = false;
     const wasPlaying = inGameplay;
     const finish = ok => {
@@ -118,7 +128,7 @@ const Platform = (() => {
     } catch (e) { finish(false); }
   }
   function maybeMidgame(cb) {
-    if (!ADS_ENABLED || !sdk || Date.now() - lastMidgame < MIDGAME_GAP) { cb && cb(); return; }
+    if (!ADS_ENABLED || !sdk || Date.now() - lastMidgame < MIDGAME_GAP || !safe(midgameGate, false)) { cb && cb(); return; }
     lastMidgame = Date.now();
     requestAd('midgame', () => cb && cb());
   }
@@ -152,6 +162,35 @@ const Platform = (() => {
   }
   function onAuth(cb) { authListeners.push(cb); }
 
+  /* ------------------------------------------------------ leaderboard */
+  // Only a single number (best Endless knockouts) is sent, and only on CrazyGames with a key.
+  // The platform shows it under the player's own CrazyGames username; nothing else is shared.
+  const leaderboardOn = () => !!(sdk && LEADERBOARD_KEY && sdk.user && typeof sdk.user.submitScore === 'function' && window.crypto && crypto.subtle);
+  async function encryptScore(score) {
+    const raw = Uint8Array.from(atob(LEADERBOARD_KEY), c => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(String(score))));
+    const out = new Uint8Array(iv.length + ct.length);
+    out.set(iv); out.set(ct, iv.length);
+    let bin = ''; out.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }
+  function submitScore(score) {
+    if (!leaderboardOn() || !user) return false;   // logged-in players only
+    pendingScore = Math.max(0, Math.floor(score));
+    const wait = Math.max(0, lastScoreAt + LEADERBOARD_COOLDOWN - Date.now());
+    clearTimeout(scoreTimer);
+    scoreTimer = setTimeout(async () => {
+      const v = pendingScore; pendingScore = null; lastScoreAt = Date.now();
+      try {
+        const p = sdk.user.submitScore({ encryptedScore: await encryptScore(v), score: v });
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) { /* ignore */ }
+    }, wait);
+    return true;
+  }
+
 
   function device() {
     const t = safe(() => sdk && sdk.user.systemInfo && sdk.user.systemInfo.device && sdk.user.systemInfo.device.type, null);
@@ -161,9 +200,12 @@ const Platform = (() => {
 
   return {
     init, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
-    happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, 
+    happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore,
+    get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
-    get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED; }, get user() { return user; },
+    get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED && !!sdk; },
+    get rewardedAvailable() { return ADS_ENABLED && !!sdk && !adBlock; },
+    setMidgameGate(fn) { midgameGate = fn; }, get user() { return user; },
     get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },
   };
 })();

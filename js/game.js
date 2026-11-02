@@ -2753,7 +2753,7 @@ const Game = (() => {
     }
     if (mode === 'endless') {
       res.best = run.kills > Save.data.endlessBest;
-      if (res.best) Save.data.endlessBest = run.kills;
+      if (res.best) { Save.data.endlessBest = run.kills; Platform.submitScore(run.kills); }
       res.bestKills = Save.data.endlessBest;
     }
     Save.data.essence += res.essence;
@@ -2781,7 +2781,7 @@ const Game = (() => {
   function quit() {
     if (run && (state === 'play' || state === 'won' || state === 'lost')) {
       Save.data.essence += run.essence + Math.round(run.essenceRemainder || 0);
-      if (mode === 'endless' && run.kills > Save.data.endlessBest) Save.data.endlessBest = run.kills;
+      if (mode === 'endless' && run.kills > Save.data.endlessBest) { Save.data.endlessBest = run.kills; Platform.submitScore(run.kills); }
       Save.save();
     }
     Platform.gameplayStop();

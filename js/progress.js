@@ -28,6 +28,7 @@ const Save = (() => {
     tutorialDone: false,
     seenHelp: false,
     stats: { kills: 0, ringouts: 0, bosses: 0 },
+    ads: { day: -1, n: 0 },   // opt-in "+gems" rewarded ads watched today (capped)
   });
   let data = fresh();
 
@@ -40,6 +41,7 @@ const Save = (() => {
         data.upgrades = Object.assign(fresh().upgrades, d.upgrades || {});
         data.settings = Object.assign(fresh().settings, d.settings || {});
         data.stats = Object.assign(fresh().stats, d.stats || {});
+        data.ads = Object.assign(fresh().ads, d.ads || {});
         if (!Array.isArray(data.owned)) data.owned = ['wind'];
       }
     } catch (e) { data = fresh(); }

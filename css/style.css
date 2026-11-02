@@ -1643,3 +1643,8 @@ body.touch .sheet.loadout .lo-head { justify-content: center; padding-left: 64px
 body.touch .sheet.loadout .lo-slots { margin-left: 0; grid-template-columns: repeat(3, 66px); gap: 4px; }
 /* home chips: no accent underline */
 .rail-card::after { display: none; }
+
+/* ad banner slot (CrazyGames, desktop home only); sized and placed from JS */
+.ad-slot { position: fixed; z-index: 11; overflow: hidden; pointer-events: auto; }
+.btn.ad { flex-direction: row; gap: 8px; }
+.btn.ad .ic { width: 16px; height: 16px; }
