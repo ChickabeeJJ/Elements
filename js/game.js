@@ -780,7 +780,12 @@ const Game = (() => {
         const c = f.center();
         const t = opponents(f).filter(e => e.alive && !blocked(e) && e.kind !== 'boss' && dist(e.center().x, e.center().y, c.x, c.y) < mv.range)
           .sort((a, b) => dist(a.center().x, a.center().y, act.tx, act.ty) - dist(b.center().x, b.center().y, act.tx, act.ty))[0];
-        if (!t) { Sfx.denied(); f.cds[mv.id] = 0.5; break; }
+        if (!t) {
+          // bosses can't be swapped: say so on the boss instead of failing silently
+          const boss = opponents(f).find(e => e.alive && e.kind === 'boss' && dist(e.center().x, e.center().y, c.x, c.y) < mv.range);
+          if (boss) fx.text(boss.center().x, boss.center().y - 120, 'IMMUNE', '#dfe1ff', 20, { dur: 0.8 });
+          Sfx.denied(); f.cds[mv.id] = 0.5; break;
+        }
         const a = { x: f.root.x, y: f.root.y }, b = { x: t.root.x, y: t.root.y };
         fx.ring(c.x, c.y, '#dfe1ff', 70, 0.35, 6); fx.ring(t.center().x, t.center().y, '#dfe1ff', 70, 0.35, 6);
         teleport(f, b.x, b.y - 4);

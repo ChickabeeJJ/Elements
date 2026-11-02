@@ -318,7 +318,7 @@ const ELEMENTS = [
         desc: 'A sweeping crescent slash.', cd: 0.42, windup: 0.07, active: 0.12, recover: 0.14,
         reach: 98, radius: 26, dmg: 12, knock: 480, lift: 0.35 },
       { slot: 'p1', id: 'lunar_swap', name: 'Lunar Swap', type: 'power', icon: 'moondisc', kind: 'swap', pose: 'nova',
-        desc: 'Trade places with the foe nearest your aim. Great for dropping a foe right where you were standing, over the edge.', cd: 7, windup: 0.08, active: 0.1, recover: 0.15,
+        desc: 'Trade places with the foe nearest your aim. Great for dropping a foe right where you were standing, over the edge. Bosses can\'t be swapped.', cd: 7, windup: 0.08, active: 0.1, recover: 0.15,
         range: 700, dmg: 10, knock: 200, lift: 0.3, chill: 1.2 },
       { slot: 'p2', id: 'moon_phases', name: 'Moon Phases', type: 'power', icon: 'moonbeams', kind: 'phases', pose: 'raise',
         desc: 'Cycles each cast. New Moon: turn invisible, foes lose you for 2.5s. Half Moon: heal 15%. Full Moon: a huge lunar burst.', cd: 6, windup: 0.12, active: 0.1, recover: 0.15,
