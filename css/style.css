@@ -422,15 +422,15 @@ body:not(.touch) .sheet .result-actions.has-offers .btn { width: 100%; max-width
 body:not(.touch) .sheet .result-actions.has-offers .act-row > .btn:only-child { grid-column: 1 / -1; }
 .result-actions .act-row { display: flex; gap: 8px; justify-content: center; width: 100%; }
 .sheet .result-actions .act-row .btn { flex: 1 1 0; min-width: 0; }
-.btn.ad-offer { flex-direction: row; gap: 8px; padding-left: 14px; padding-right: 14px; background: #2c2a4a; white-space: nowrap; }
-.btn.ad-offer:hover { background: #38355d; }
-.btn.ad-offer b { font-size: 15px; letter-spacing: 0.03em; }
-.ad-tag { display: inline-flex; align-items: center; flex: none; color: inherit; line-height: 1; }
+.btn.rw-offer { flex-direction: row; gap: 8px; padding-left: 14px; padding-right: 14px; background: #2c2a4a; white-space: nowrap; }
+.btn.rw-offer:hover { background: #38355d; }
+.btn.rw-offer b { font-size: 15px; letter-spacing: 0.03em; }
+.rw-mark { display: inline-flex; align-items: center; flex: none; color: inherit; line-height: 1; }
 /* nudged up: uppercase labels sit above the line box's centre, so a centred arrow read as low */
-.ad-tag .ic { width: 20px; height: 20px; display: block; transform: translateY(-1px); }
-.ad-tag .ic svg { display: block; }
-.btn.small .ad-tag .ic { width: 18px; height: 18px; }
-.ad-off { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.rw-mark .ic { width: 20px; height: 20px; display: block; transform: translateY(-1px); }
+.rw-mark .ic svg { display: block; }
+.btn.small .rw-mark .ic { width: 18px; height: 18px; }
+.rw-note { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 /* loadout editor */
 .lo-slots { display: flex; justify-content: center; gap: 14px; }
@@ -1667,9 +1667,9 @@ body.touch .sheet.loadout .lo-slots { margin-left: 0; grid-template-columns: rep
 /* ad banner slot (CrazyGames, desktop home only); sized and placed from JS */
 .ad-slot { position: fixed; z-index: 11; overflow: hidden; pointer-events: auto; }
 .btn.claim + .btn.claim { margin-left: 6px; }
-@media (max-width: 900px) { .btn.ad-offer { padding-left: 10px; padding-right: 10px; gap: 7px; } .btn.ad-offer b { font-size: 14px; } }
+@media (max-width: 900px) { .btn.rw-offer { padding-left: 10px; padding-right: 10px; gap: 7px; } .btn.rw-offer b { font-size: 14px; } }
 /* mobile: the main action (RETRY / NEXT / AGAIN) comes first, the ad offer after it */
 body.touch .sheet.result > .result-actions .act-main .btn.primary { order: -1; }
 /* ad tag on a yellow (primary) button, e.g. TRY ONCE in the element shop */
-.btn.primary.ad-offer { background: var(--acc); }
+.btn.primary.rw-offer { background: var(--acc); }
 .trial-lbl { font-style: normal; color: var(--acc); }

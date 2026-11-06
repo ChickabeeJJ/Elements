@@ -103,8 +103,8 @@ const UI = (() => {
 
   // every rewarded-ad offer uses the same button as its alternative (same size, font and
   // colour, per CrazyGames rules), marked with a small play-icon AD tag so it's clear an ad plays
-  const adTag = () => `<span class="ad-tag" title="Watch an ad">${ic('play')}</span>`;
-  const adBtn = (id, label, extra = '') => `<button class="btn ad-offer${extra}" id="${id}">${adTag()}<b>${label}</b></button>`;
+  const adTag = () => `<span class="rw-mark" title="Watch a video">${ic('play')}</span>`;
+  const adBtn = (id, label, extra = '') => `<button class="btn rw-offer${extra}" id="${id}">${adTag()}<b>${label}</b></button>`;
 
   // opt-in rewarded "+gems" when you are short, a few times a day
   const GEM_AD = 60, GEM_AD_CAP = 5;
@@ -371,7 +371,7 @@ const UI = (() => {
   function trialBtn(e) {
     if (Save.trial === e.id) return '<button class="btn small primary" disabled><b>TRIAL READY</b></button>';
     if (!Platform.rewardedAvailable || Save.trial || Save.trialsLeft() <= 0) return '';
-    return `<button class="btn small primary ad-offer" id="tryEl">${adTag()}<b>TRY ONCE</b></button>`;
+    return `<button class="btn small primary rw-offer" id="tryEl">${adTag()}<b>TRY ONCE</b></button>`;
   }
   function renderCodexDetail() {
     const e = ELEMENT_BY_ID[codexSel] || ELEMENTS[0];
@@ -569,7 +569,7 @@ const UI = (() => {
         <div data-part="bonus" class="bonus${d.bonus ? ' claimed' : d.bonusReady ? ' ready' : ''}">
           <span class="q-ic gift">${ic('gift')}</span>
           <div class="q-body"><b>DAILY CHEST</b><small>Claim all three quests to open it</small><div class="pips">${[0, 1, 2].map(i => `<i class="${i < claimed ? 'on' : ''}"></i>`).join('')}</div></div>
-          ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>${Platform.rewardedAvailable ? `<button class="btn small claim ad-offer" id="dqBonusAd">${adTag()}<b>OPEN ×2</b></button>` : Platform.adBlock ? '<span class="ad-off">×2 off · ad blocker</span>' : ''}` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
+          ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>${Platform.rewardedAvailable ? `<button class="btn small claim rw-offer" id="dqBonusAd">${adTag()}<b>OPEN ×2</b></button>` : Platform.adBlock ? '<span class="rw-note">×2 off · ad blocker</span>' : ''}` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
         </div>
       </div>
     </div>`;
