@@ -26,8 +26,8 @@ const Platform = (() => {
   const PREFIX = 'elementfall_';
   // Ads are for a Full Launch on CrazyGames (Basic Launch builds must not show any:
   // set this to false for a Basic Launch upload). Off CrazyGames no ad is ever requested.
-  //  - midgame: requested on every 3rd natural break (next level / retry / next match), never
-  //    on menu or settings buttons; the CrazyGames SDK decides whether one actually plays
+  //  - midgame: at the end of a run, before its results: boss stage cleared, and the 1st/3rd/5th…
+  //    Arena match and Endless run; never from a button; the SDK decides whether one plays
   //  - rewarded: always opt-in, for a clear bonus
   //  - banner: desktop home screen only, never during gameplay
   const ADS_ENABLED = true;
@@ -160,14 +160,10 @@ const Platform = (() => {
       });
     } catch (e) { finish(false); }
   }
-  // Only every MIDGAME_EVERY-th natural break asks for a midgame (the SDK still applies its own
-  // limits on top), so players get a few stages in a row without an interruption.
-  const MIDGAME_EVERY = 3;
-  let breaks = 0;
+  // UI decides when (end of a boss stage, odd Arena matches and Endless runs); the SDK
+  // applies its own frequency limits on top.
   function maybeMidgame(cb) {
     if (!ADS_ENABLED || !sdk) { cb && cb(); return; }
-    breaks++;
-    if (breaks % MIDGAME_EVERY !== 0) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
   }
   function rewarded(cb) { requestAd('rewarded', cb); }

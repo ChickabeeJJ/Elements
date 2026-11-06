@@ -934,8 +934,19 @@ const UI = (() => {
     return `<div class="actions result-actions has-offers"><div class="act-row act-main">${offers}${primary}</div><div class="act-row">${secondary}</div></div>`;
   }
 
+  // Midgame ads come at the end of a run, before its result screen: every boss stage
+  // cleared, and the 1st, 3rd, 5th… Arena match and Endless run of the session. Never on a
+  // defeat with a revive offer, and never from a button.
+  let duelEnds = 0, endlessEnds = 0;
   function showResult(res) {
     $('bossBar').classList.add('hidden');
+    const boss = res.mode === 'stage' && res.won && res.s === STAGES_PER_REALM - 1;
+    const odd = n => n % 2 === 1;
+    const midgame = boss || (res.mode === 'duel' && odd(++duelEnds)) || (res.mode === 'endless' && odd(++endlessEnds));
+    if (midgame) Platform.maybeMidgame(() => renderResult(res));
+    else renderResult(res);
+  }
+  function renderResult(res) {
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
     const reward = `<div class="payout"><span class="ic" data-icon="gem"></span><span id="payoutNum">+${res.essence}</span>${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
     const hasRewardOpportunity = (!res.won && res.canRevive && res.mode !== 'endless') || res.essence > 0;
@@ -970,7 +981,7 @@ const UI = (() => {
         ${resultActions('<button class="btn" id="rMenu"><b>HOME</b></button>', '<button class="btn primary" id="rAgain"><b>AGAIN</b></button>', offers)}`, s => {
         bindAds(s);
         s.querySelector('#rMenu').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(0); show('home'); };
-        s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless()); };
+        s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); startEndless(); };
       }, 'result');
       return;
     }
@@ -997,9 +1008,9 @@ const UI = (() => {
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); startStage(r, s); };
         const nb = sh.querySelector('#rNext');
-        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS)); };
+        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); startStage(nextR, nextS); };
       }, 'result');
     } else {
       modal(`
@@ -1013,8 +1024,7 @@ const UI = (() => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
-        // a revive offer and a midgame ad never share the same break
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); if (res.revOffered) startStage(r, s); else Platform.maybeMidgame(() => startStage(r, s)); };
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); startStage(r, s); };
       }, 'result');
     }
   }
@@ -1043,7 +1053,7 @@ const UI = (() => {
       }); };
       sh.querySelector('#rMenu').onclick = toMenu;
       sh.querySelector('#rRanks').onclick = () => { Sfx.click(); closeModal(); Game.quit(); Game.idleScene(0); openHub('ranks'); };
-      sh.querySelector('#rAgain').onclick = () => { Sfx.click(); Game.quit(); Game.idleScene(0); show('home'); Platform.maybeMidgame(() => openArena()); };
+      sh.querySelector('#rAgain').onclick = () => { Sfx.click(); Game.quit(); Game.idleScene(0); show('home'); openArena(); };
     }, 'result');
   }
 
