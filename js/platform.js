@@ -16,14 +16,14 @@ const Platform = (() => {
   let env = 'standalone';
   let ready = false;
   let inGameplay = false;
+  let adInFlight = false;
   let lastMidgame = 0;
   let adBlock = false;
   let user = null;
-  let lastBanner = 0;
   const bannersShown = new Set();
+  const bannerRequests = new Set();
   const authListeners = [];
   const MIDGAME_GAP = 3 * 60 * 1000;
-  const BANNER_GAP = 61 * 1000;
   const PREFIX = 'elementfall_';
   // Ads are for a Full Launch on CrazyGames (Basic Launch builds must not show any:
   // set this to false for a Basic Launch upload). Off CrazyGames no ad is ever requested.
@@ -109,14 +109,16 @@ const Platform = (() => {
   /* --------------------------------------------------------------- ads */
   // cb(success:boolean). Without the SDK (other hosts, local testing) no ad runs and no reward is given.
   function requestAd(kind, cb) {
-    if (!ADS_ENABLED || !sdk) { cb(false); return; }
+    if (!ADS_ENABLED || !sdk) { cb && cb(false); return; }
+    if (adInFlight) { cb && cb(false); return; }
+    adInFlight = true;
     let done = false;
     const wasPlaying = inGameplay;
     const finish = ok => {
-      if (done) return; done = true;
+      if (done) return; done = true; adInFlight = false;
       Sfx.setAdMuted(false);
       if (wasPlaying) gameplayStart();
-      cb(ok);
+      cb && cb(ok);
     };
     gameplayStop();
     try {
@@ -137,11 +139,10 @@ const Platform = (() => {
   /* ----------------------------------------------------------- banners */
   // containerId must be a visible element sized to a supported banner format
   function showBanner(containerId) {
-    if (!ADS_ENABLED || !sdk || inGameplay) return;
+    if (!ADS_ENABLED || !sdk || inGameplay || bannerRequests.has(containerId)) return;
     const el = document.getElementById(containerId);
     if (!el || !el.offsetWidth) return;
-    if (bannersShown.has(containerId) && Date.now() - lastBanner < BANNER_GAP) return;
-    lastBanner = Date.now();
+    bannerRequests.add(containerId);
     bannersShown.add(containerId);
     try {
       const p = sdk.banner.requestResponsiveBanner(containerId);
@@ -216,6 +217,7 @@ const Platform = (() => {
     happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, findLiveMatch, fetchLeaderboard,
     get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
+    get inGameplay() { return inGameplay; },
     get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED && !!sdk; },
     get rewardedAvailable() { return ADS_ENABLED && !!sdk && !adBlock; },
     setMidgameGate(fn) { midgameGate = fn; }, get user() { return user; },
