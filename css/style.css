@@ -1660,3 +1660,5 @@ body.touch .sheet.loadout .lo-slots { margin-left: 0; grid-template-columns: rep
 .ad-slot { position: fixed; z-index: 11; overflow: hidden; pointer-events: auto; }
 .btn.claim + .btn.claim { margin-left: 6px; }
 @media (max-width: 900px) { .btn.ad-offer { padding-left: 10px; padding-right: 10px; gap: 7px; } .btn.ad-offer b { font-size: 14px; } }
+/* mobile: the main action (RETRY / NEXT / AGAIN) comes first, the ad offer after it */
+body.touch .sheet.result > .result-actions .act-main .btn.primary { order: -1; }
