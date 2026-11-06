@@ -82,9 +82,6 @@ b, h1, h2, h3, h4, p { margin: 0; font-weight: inherit; }
 .btn.small { min-height: 38px; padding: 6px 16px; font-size: 13px; clip-path: var(--cut-s); }
 .btn.danger { background: #3a1820; color: #ffb3bb; }
 .btn.danger:hover { background: #4d1f29; }
-.btn.ad { background: #34295a; }
-.btn.ad:hover { background: #43356f; }
-.btn.ad .ic { width: 18px; height: 18px; }
 .btn[disabled] { opacity: 0.5; cursor: default; }
 
 .round { width: 44px; height: 44px; display: grid; place-items: center; flex: none; clip-path: var(--cut-s); background: var(--ink-3); color: var(--text); transition: background 0.12s; }
@@ -415,8 +412,13 @@ body.touch .combo span { font-size: 11px; }
 .unlock small { font-weight: 800; font-size: 11px; letter-spacing: 0.06em; color: var(--c); }
 .unlock b { display: block; font-weight: 900; font-size: 19px; }
 .unlock p { color: var(--muted); font-size: 14px; font-weight: 500; }
-.revive-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.revive-row .btn { flex: 1 1 160px; max-width: 260px; flex-direction: row; gap: 8px; }
+/* rewarded-ad offers: the same button as any other choice, with a small AD tag */
+.ad-offers { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 2px; }
+.ad-offers .btn { flex: 1 1 150px; max-width: 230px; }
+.btn.ad-offer { flex-direction: row; gap: 8px; }
+.ad-tag { display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 3px 6px 3px 4px; border-radius: 4px; background: #ffc933; color: #1a1404; font-size: 11px; font-weight: 900; letter-spacing: 0.06em; line-height: 1; }
+.ad-tag .ic { width: 11px; height: 11px; }
+.ad-off { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 /* loadout editor */
 .lo-slots { display: flex; justify-content: center; gap: 14px; }
@@ -732,8 +734,8 @@ body.touch .sheet.result .unlock b { font-size: 15px; }
 body.touch .sheet.result .unlock small { font-size: 11px; }
 body.touch .sheet.result .unlock p { font-size: 11px; line-height: 1.2; }
 body.touch .sheet.result .tip { font-size: 12px; }
-body.touch .sheet.result .revive-row { gap: 6px; }
-body.touch .sheet.result .revive-row .btn { min-height: 38px; font-size: 11px; padding: 6px 8px; }
+body.touch .sheet.result .ad-offers { gap: 6px; }
+body.touch .sheet.result .ad-offers .btn { min-height: 38px; font-size: 11px; padding: 6px 8px; }
 
 @media (max-width: 600px), (orientation: portrait) and (max-width: 900px) {
   body.touch .sheet.result {
@@ -1647,5 +1649,3 @@ body.touch .sheet.loadout .lo-slots { margin-left: 0; grid-template-columns: rep
 /* ad banner slot (CrazyGames, desktop home only); sized and placed from JS */
 .ad-slot { position: fixed; z-index: 11; overflow: hidden; pointer-events: auto; }
 .btn.claim + .btn.claim { margin-left: 6px; }
-.btn.ad { flex-direction: row; gap: 8px; }
-.btn.ad .ic { width: 16px; height: 16px; }

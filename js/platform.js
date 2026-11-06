@@ -3,7 +3,7 @@
    Platform layer: the CrazyGames HTML5 SDK v3, fully wrapped.
    - init + environment + device info
    - loading / gameplay events, happytime
-   - midgame ads (rate limited) and rewarded ads, ad-block detection
+   - midgame ads (frequency handled by the SDK) and rewarded ads, ad-block detection
    - responsive banners on menu screens (cleared during gameplay)
    - user accounts: current user, auth prompt, auth listener
    - data module for cloud saves (localStorage when standalone)
@@ -18,21 +18,19 @@ const Platform = (() => {
   let inGameplay = false;
   let adInFlight = false;
   let adWaitOverlay = null;
-  let lastMidgame = 0;
   let adBlock = false;
   let user = null;
   const bannersShown = new Set();
   let lastProgress = null;
   const authListeners = [];
-  const MIDGAME_GAP = 3 * 60 * 1000;
   const PREFIX = 'elementfall_';
   // Ads are for a Full Launch on CrazyGames (Basic Launch builds must not show any:
   // set this to false for a Basic Launch upload). Off CrazyGames no ad is ever requested.
-  //  - midgame: only at natural breaks, at most one per MIDGAME_GAP, never for brand-new players
+  //  - midgame: requested at every natural break (next level / retry / next match), never on
+  //    menu or settings buttons; the CrazyGames SDK decides whether one actually plays
   //  - rewarded: always opt-in, for a clear bonus
   //  - banner: desktop home screen only, never during gameplay
   const ADS_ENABLED = true;
-  let midgameGate = () => true;
   // CrazyGames leaderboards are invite-only and need the encryption key from the
   // developer portal. Leave the key empty and no score is ever sent.
   // The score is AES-GCM encrypted (random 12-byte IV, sent as base64 of IV + ciphertext + tag)
@@ -53,7 +51,6 @@ const Platform = (() => {
       }
     } catch (e) { sdk = null; }
     ready = true;
-    lastMidgame = Date.now();
     if (!sdk) return;
     // platform audio setting wins over the in-game toggles
     safe(() => {
@@ -102,7 +99,6 @@ const Platform = (() => {
   function loadingStop() { safe(() => sdk && sdk.game.loadingStop()); }
   function gameplayStart() {
     if (inGameplay) return; inGameplay = true;
-    clearBanners();
     safe(() => sdk && sdk.game.gameplayStart());
   }
   function gameplayStop() {
@@ -165,28 +161,36 @@ const Platform = (() => {
     } catch (e) { finish(false); }
   }
   function maybeMidgame(cb) {
-    if (!ADS_ENABLED || !sdk || Date.now() - lastMidgame < MIDGAME_GAP || !safe(midgameGate, false)) { cb && cb(); return; }
-    lastMidgame = Date.now();
+    if (!ADS_ENABLED || !sdk) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
   }
   function rewarded(cb) { requestAd('rewarded', cb); }
 
   /* ----------------------------------------------------------- banners */
-  // containerId must be a visible element sized to a supported banner format
+  // containerId must be a visible element sized to a supported banner format.
+  // The banner is requested ONCE per container and size; leaving the screen only hides the
+  // container (see UI), so returning to the menu does not fire another request. It is only
+  // requested again if the slot has to change size.
+  const bannerSize = {};
   function showBanner(containerId) {
-    if (!ADS_ENABLED || !sdk || inGameplay || bannersShown.has(containerId)) return;
+    if (!ADS_ENABLED || !sdk || inGameplay) return;
     const el = document.getElementById(containerId);
     if (!el || !el.offsetWidth) return;
+    const size = el.offsetWidth + 'x' + el.offsetHeight;
+    if (bannerSize[containerId] === size) return;          // already showing at this size
+    if (bannerSize[containerId]) safe(() => sdk.banner.clearBanner(containerId));
+    bannerSize[containerId] = size;
     bannersShown.add(containerId);
     try {
       const p = sdk.banner.requestResponsiveBanner(containerId);
-      if (p && p.catch) p.catch(() => {});
-    } catch (e) { /* ignore */ }
+      if (p && p.catch) p.catch(() => { delete bannerSize[containerId]; });
+    } catch (e) { delete bannerSize[containerId]; }
   }
   function clearBanners() {
     if (!ADS_ENABLED || !sdk || !bannersShown.size) return;
     safe(() => sdk.banner.clearAllBanners());
     bannersShown.clear();
+    for (const k in bannerSize) delete bannerSize[k];
   }
 
   /* -------------------------------------------------------------- user */
@@ -226,11 +230,6 @@ const Platform = (() => {
     return true;
   }
 
-  /* ------------------------------------------------------ matchmaking */
-  // Live PvP needs a real-time game server, which this build does not have.
-  // Plug one in here: resolve to a match object, or null to fall back to a bot.
-  async function findLiveMatch() { return null; }
-
   // Arena leaderboard entries for the in-game top 10, CrazyGames only. Resolve to
   // [{ rank, name, score }] from a real source; null hides the leaderboard panel.
   // The CrazyGames SDK documents score submission but no way to read entries yet,
@@ -248,13 +247,13 @@ const Platform = (() => {
 
   return {
     init, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
-    happytime, reportProgress, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, findLiveMatch, fetchLeaderboard,
+    happytime, reportProgress, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, fetchLeaderboard,
     get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
     get inGameplay() { return inGameplay; },
     get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED && !!sdk; },
     get rewardedAvailable() { return ADS_ENABLED && !!sdk && !adBlock; },
-    setMidgameGate(fn) { midgameGate = fn; }, get user() { return user; },
+    get user() { return user; },
     get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },
   };
 })();

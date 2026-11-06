@@ -65,7 +65,7 @@ const UI = (() => {
     if (name === 'home') { Sfx.setMusicPaused(true); refreshHome(); }
     else if (name === null) Sfx.setMusicPaused(false);
     homeShift();
-    if (name !== 'home') { $('cgBanner').classList.add('hidden'); Platform.clearBanners(); }
+    if (name !== 'home') $('cgBanner').classList.add('hidden');   // hidden, not cleared: no re-request on return
     if (name && Platform.inGameplay) Platform.gameplayStop();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
@@ -101,8 +101,14 @@ const UI = (() => {
     slot.classList.remove('hidden');
   }
 
+  // every rewarded-ad offer uses the same button as its alternative (same size, font and
+  // colour, per CrazyGames rules), marked with a small play-icon AD tag so it's clear an ad plays
+  const adTag = () => `<span class="ad-tag">${ic('play')}AD</span>`;
+  const adBtn = (id, label, extra = '') => `<button class="btn ad-offer${extra}" id="${id}">${adTag()}<b>${label}</b></button>`;
+
   // opt-in rewarded "+gems" when you are short, a few times a day
   const GEM_AD = 60, GEM_AD_CAP = 5;
+  const REVIVE_GAP = 4 * 60 * 1000;   // a revive-for-an-ad is offered at most once per 4 minutes
   function gemAdsLeft() {
     const a = Save.data.ads, d = Math.floor(Date.now() / 86400000);
     if (a.day !== d) { a.day = d; a.n = 0; }
@@ -116,7 +122,7 @@ const UI = (() => {
     }
     modal(`<h2>NEED ${short} MORE GEMS</h2>
       <p class="tip">Watch a short ad for <b>+${GEM_AD} gems</b>. ${gemAdsLeft()} left today.</p>
-      <div class="actions"><button class="btn" id="gaNo"><b>NOT NOW</b></button><button class="btn ad" id="gaYes">${ic('play')}<b>+${GEM_AD} GEMS · AD</b></button></div>`, sh => {
+      <div class="actions"><button class="btn" id="gaNo"><b>NOT NOW</b></button>${adBtn('gaYes', `+${GEM_AD} GEMS`)}</div>`, sh => {
       sh.querySelector('#gaNo').onclick = () => { Sfx.click(); closeModal(); };
       const yes = sh.querySelector('#gaYes');
       yes.onclick = () => {
@@ -551,7 +557,7 @@ const UI = (() => {
         <div data-part="bonus" class="bonus${d.bonus ? ' claimed' : d.bonusReady ? ' ready' : ''}">
           <span class="q-ic gift">${ic('gift')}</span>
           <div class="q-body"><b>DAILY CHEST</b><small>Claim all three quests to open it</small><div class="pips">${[0, 1, 2].map(i => `<i class="${i < claimed ? 'on' : ''}"></i>`).join('')}</div></div>
-          ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `${Platform.rewardedAvailable ? `<button class="btn small ad claim" id="dqBonusAd">${ic('play')}<b>×2 · AD</b></button>` : ''}<button class="btn small primary claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
+          ${d.bonus ? `<span class="q-done">${ic('check')}</span>` : d.bonusReady ? `<button class="btn small claim" id="dqBonus">${gemRw(d.bonusGems)}<b>OPEN</b></button>${Platform.rewardedAvailable ? `<button class="btn small claim ad-offer" id="dqBonusAd">${adTag()}<b>OPEN ×2</b></button>` : Platform.adBlock ? '<span class="ad-off">×2 off · ad blocker</span>' : ''}` : `<span class="q-rw">${gemRw(d.bonusGems)}</span>`}
         </div>
       </div>
     </div>`;
@@ -681,10 +687,10 @@ const UI = (() => {
   }, 15000);
 
   /* ------------------------------------------------------------- arena */
-  let mmToken = 0, mmClock = null;
+  let mmToken = 0;
   function openArena() {
     const a = Save.data.arena, t = Meta.tierOf(a.trophies);
-    clearInterval(mmClock); mmToken++;
+    mmToken++;
     modal(`
       <h2>${ic('swords')} ARENA</h2>
       <p class="sub">1V1 · BEST OF 3 · KNOCK OUT OR RING OUT YOUR RIVAL</p>
@@ -697,58 +703,21 @@ const UI = (() => {
         <div class="win"><small>WIN</small><b>${ic('trophy')}+30</b><b>${ic('gem', 'gem')}+${30 + t.i * 8}</b></div>
         <div class="loss"><small>LOSS</small><b>${ic('trophy')}${a.trophies === 0 ? '0' : '−' + (a.trophies < Meta.TIERS[1].min ? 9 : 18)}</b><b>${ic('gem', 'gem')}+10</b></div>
       </div>
-      <div class="mm-status hidden" id="mmStatus"></div>
-      <div class="actions" id="mmActions"><button class="btn" id="mmBack"><b>BACK</b></button><button class="btn primary" id="mmFind">${ic('swords')}<b>FIND MATCH</b></button></div>
+      <div class="actions" id="mmActions"><button class="btn" id="mmBack"><b>BACK</b></button><button class="btn primary" id="mmFind">${ic('swords')}<b>FIGHT</b></button></div>
 `, sh => {
       sh.querySelector('#mmBack').onclick = () => { Sfx.click(); mmToken++; closeModal(); if (current === 'home') refreshHome(); };
       sh.querySelector('#mmLo').onclick = () => { Sfx.click(); openLoadout(() => openArena()); };
-      sh.querySelector('#mmFind').onclick = () => { Sfx.click(); searchMatch(sh); };
+      sh.querySelector('#mmFind').onclick = e => { Sfx.click(); e.currentTarget.disabled = true; enterDuel(); };
     }, 'arena');
   }
-  function searchMatch(sh) {
-    const token = ++mmToken, t0 = Date.now();
-    const st = sh.querySelector('#mmStatus'), acts = sh.querySelector('#mmActions');
-    st.classList.remove('hidden');
-    st.innerHTML = `<div class="radar"><i></i><i></i><i></i>${ic('swords')}</div><div><b id="mmText">SEARCHING FOR PLAYERS</b><small id="mmTime">0:00</small></div>`;
-    acts.innerHTML = '<button class="btn" id="mmCancel"><b>CANCEL</b></button>';
-    Icons.hydrate(st);
-    acts.querySelector('#mmCancel').onclick = () => { Sfx.click(); mmToken++; clearInterval(mmClock); openArena(); };
-    clearInterval(mmClock);
-    mmClock = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000), el = $('mmTime'); if (el) el.textContent = `0:${String(s).padStart(2, '0')}`; }, 250);
-    Meta.findMatch(() => token !== mmToken || !modalOpen()).then(rival => {
-      if (!rival || token !== mmToken || !modalOpen()) return;
-      clearInterval(mmClock);
-      const tx = $('mmText');
-      if (tx) tx.textContent = 'MATCH FOUND';
-      st.classList.add('found');
-      Sfx.pickup();
-      setTimeout(() => { if (token === mmToken && modalOpen()) showVersus(rival, token); }, 1000);
+  // straight into the fight: the bars cover the switch and lift on round 1
+  function enterDuel() {
+    const token = ++mmToken;
+    Meta.findMatch().then(rival => {
+      if (token !== mmToken) return;
+      closeModal();
+      barWipe(() => startDuel(rival));
     });
-  }
-  // full-screen versus: the two sides split the screen and VS sits on the exact centre line
-  function showVersus(rival, token) {
-    const a = Save.data.arena, t = Meta.tierOf(a.trophies), lo = Save.loadout();
-    closeModal();
-    const v = $('versus');
-    v.innerHTML = `
-      <div class="vs-half you" style="--c:${colorOf(lo[0])}"></div><div class="vs-half rival" style="--c:${colorOf(rival.element)}"></div><div class="vs-seam"></div>
-      <div class="vs-stage">
-        <div class="vs-side you" style="--c:${colorOf(lo[0])}">${hex(lo[0], 'vs-hex')}<small>${ic('user')} YOU</small><b>${esc(myName())}</b><span>${t.label} · ${ic('trophy')}${fmt(a.trophies)}</span><div class="vs-lo">${lo.map(id => hex(id)).join('')}</div></div>
-        <div class="vs-mid"><b>VS</b><small>${rival.arena.toUpperCase()}</small><div class="vs-count"><b id="vsCount">3</b><small>GET READY</small></div></div>
-        <div class="vs-side rival" style="--c:${colorOf(rival.element)}">${hex(rival.element, 'vs-hex')}<small>${ic('user')} RIVAL</small><b>${esc(rival.name.toUpperCase())}</b><span>${rival.tier.label} · ${ic('trophy')}${fmt(rival.trophies)}</span><div class="vs-lo">${(rival.loadout || [rival.element]).map(id => hex(id)).join('')}</div></div>
-      </div>`;
-    Icons.hydrate(v);
-    v.classList.remove('hidden');
-    let n = 3;
-    const step = () => {
-      if (token !== mmToken || v.classList.contains('hidden')) return;
-      const el = $('vsCount'); if (!el) return;
-      if (n <= 0) { barWipe(() => { v.classList.add('hidden'); v.innerHTML = ''; startDuel(rival); }); return; }
-      el.textContent = n; el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
-      Sfx.click(); n--;
-      setTimeout(step, 750);
-    };
-    setTimeout(step, 450);
   }
   // bar transition: bars drop to cover the screen, the swap happens behind them, then they lift
   function barWipe(mid) {
@@ -769,7 +738,6 @@ const UI = (() => {
     lastStart = { mode: 'duel', rival };
     closeModal(); show(null);
     Game.start({ mode: 'duel', rival });
-    if (rival.live && typeof rival.onDisconnect === 'function') rival.onDisconnect(() => Game.rivalTakeover());
     hudCache = {};
     buildHud();
     setChip(rival.element, 'ARENA · ' + rival.name.toUpperCase());
@@ -897,8 +865,7 @@ const UI = (() => {
 
   function openPause() {
     if (Game.state !== 'play') return;
-    const live = Game.mode === 'duel';   // Arena matches are live: the menu never stops the fight
-    if (!live) { Game.paused = true; Platform.gameplayStop(); }
+    Game.paused = true; Platform.gameplayStop();
     const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : Game.mode === 'duel' ? `ARENA${lastStart && lastStart.rival ? ' · VS ' + esc(lastStart.rival.name.toUpperCase()) : ''}` : 'ENDLESS';
     if (Game.mode === 'duel') {
       // an Arena match cannot be restarted or re-equipped mid-fight; leaving it is a forfeit
@@ -910,7 +877,7 @@ const UI = (() => {
           <button class="btn" id="pSettings"><b>SETTINGS</b></button>
           <button class="btn danger" id="pQuit"><b>FORFEIT MATCH</b></button>
         </div>
-        <p class="fine center">The match is live and keeps going. Forfeiting counts as a loss.</p>`, s => {
+        <p class="fine center">Forfeiting counts as a loss.</p>`, s => {
         s.querySelector('#pResume').onclick = resume;
         s.querySelector('#pSettings').onclick = () => openSettings(true);
         s.querySelector('#pQuit').onclick = () => { Sfx.click(); closeModal(); forfeitDuel(); Game.quit(); Game.idleScene(0); show('home'); };
@@ -942,7 +909,7 @@ const UI = (() => {
   }
   function resume() {
     Sfx.click(); closeModal();
-    if (!Game.paused) return;   // Arena: nothing was paused
+    if (!Game.paused) return;
     Game.paused = false;
     if (Game.state === 'play') Platform.gameplayStart();
   }
@@ -953,9 +920,14 @@ const UI = (() => {
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
     const reward = `<div class="payout"><span class="ic" data-icon="gem"></span><span id="payoutNum">+${res.essence}</span>${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
     const hasRewardOpportunity = (!res.won && res.canRevive && res.mode !== 'endless') || res.essence > 0;
+    // a revive is a special offer: at most one every REVIVE_GAP, not on every death
+    const offerRevive = Platform.rewardedAvailable && !res.won && res.canRevive && res.mode !== 'endless' && Date.now() - (Save.data.ads.reviveAt || 0) > REVIVE_GAP;
+    if (offerRevive) { Save.data.ads.reviveAt = Date.now(); Save.save(); }
+    res.revOffered = offerRevive;
+    const offers = (offerRevive ? adBtn('rRevive', 'REVIVE') : '') + (Platform.rewardedAvailable && res.essence > 0 ? adBtn('rDouble', 'DOUBLE GEMS') : '');
     const adRow = !Platform.rewardedAvailable
       ? (Platform.adBlock && hasRewardOpportunity ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active. The game remains fully playable.</p>' : '')
-      : `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
+      : offers ? `<div class="ad-offers">${offers}</div>` : '';
     const bindAds = sh => {
       const d = sh.querySelector('#rDouble');
       if (d) d.onclick = () => { Sfx.click(); d.disabled = true; Platform.rewarded(ok => {
@@ -1029,7 +1001,8 @@ const UI = (() => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
+        // a revive offer and a midgame ad never share the same break
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); if (res.revOffered) startStage(r, s); else Platform.maybeMidgame(() => startStage(r, s)); };
       }, 'result');
     }
   }
@@ -1046,7 +1019,7 @@ const UI = (() => {
         <div class="trophy-delta ${res.won ? 'gain' : 'drop'}" style="--tc:${r.tier.color}">${tierBadge(r.tier, 'md')}<div><b>${ic('trophy')}${r.delta > 0 ? '+' : ''}${r.delta}</b><small>${fmt(r.trophies)} TROPHIES · ${r.tier.label}</small></div></div>
         ${tiles}
         <div class="payout">${ic('gem')}<span id="payoutNum">+${r.gems + res.essence}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
-        ${Platform.rewardedAvailable ? '<div class="revive-row"><button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button></div>' : ''}
+        ${Platform.rewardedAvailable ? `<div class="ad-offers">${adBtn('rDouble', 'DOUBLE GEMS')}</div>` : Platform.adBlock ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active.</p>' : ''}
         ${r.promoted ? `<div class="unlock" style="--c:${r.promoted.color}">${tierBadge(r.tier, 'md')}<div><small>PROMOTED</small><b>${r.promoted.name.toUpperCase()}</b><p>You reached a new Arena tier.</p></div></div>` : ''}
       </div>
       <div class="actions result-actions">
@@ -1381,7 +1354,6 @@ const UI = (() => {
   /* -------------------------------------------------------------- init */
   function init() {
     // no interstitials while someone is still learning the game (first three stages)
-    Platform.setMidgameGate(() => Save.data.tutorialDone && Object.keys(Save.data.stars).length >= 3);
     Icons.hydrate();
     applyUiScale();
     loadKeyLayout();

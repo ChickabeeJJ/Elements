@@ -1,9 +1,9 @@
 'use strict';
 /* =========================================================================
    Meta: the live features around the fights.
-   - Arena: best-of-three duels with trophies and tiers. A live rival is used
-     when the platform can provide one (Platform.findLiveMatch); after 8
-     seconds without one, a computer opponent at the player's rank is used.
+   - Arena: best-of-three duels with trophies and tiers. The opponent is a
+     computer fighter built like a player at your rank, and the match starts
+     straight away. (Live matchmaking lives on the multiplayer branch.)
    - Daily quests (reset at 00:00 UTC) paid in gems.
    - Hand-scheduled events (about a month each) with an exclusive element
      earned with event tokens. No event scheduled means no Event content.
@@ -85,20 +85,8 @@ const Meta = (() => {
       realm: randi(0, REALMS.length - 1), arena: pick(DUEL_ARENAS), seed: randi(1, 999),
     };
   }
-  // Look for a live opponent for 8-12 seconds; only then fall back to a computer opponent.
-  // A live opponent is filled out with a full profile, so if they disconnect mid-match
-  // the AI can take over the same fighter (see Game.rivalTakeover).
-  async function findMatch(isCancelled = () => false) {
-    const t0 = Date.now(), SEARCH_MS = rand(8000, 12000);
-    while (Date.now() - t0 < SEARCH_MS) {
-      if (isCancelled()) return null;
-      let live = null;
-      try { live = await Promise.race([Platform.findLiveMatch(), new Promise(r => setTimeout(() => r(null), 1000))]); } catch (e) { live = null; }
-      if (live) return Object.assign(makeRival(), live, { live: true, bot: false });
-      await new Promise(r => setTimeout(r, Math.max(0, Math.min(1000, SEARCH_MS - (Date.now() - t0)))));
-    }
-    return isCancelled() ? null : makeRival();
-  }
+  // the opponent is ready at once: no search, no waiting
+  async function findMatch() { return makeRival(); }
 
   /* ----------------------------------------------------------- arena */
   function recordDuel(won, rival) {
