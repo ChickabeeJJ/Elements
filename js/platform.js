@@ -17,6 +17,7 @@ const Platform = (() => {
   let ready = false;
   let inGameplay = false;
   let adInFlight = false;
+  let adWaitOverlay = null;
   let lastMidgame = 0;
   let adBlock = false;
   let user = null;
@@ -119,15 +120,39 @@ const Platform = (() => {
   }
 
   /* --------------------------------------------------------------- ads */
+  function setAdWaitOverlay(visible) {
+    if (!visible) {
+      if (adWaitOverlay) adWaitOverlay.remove();
+      adWaitOverlay = null;
+      return;
+    }
+    if (adWaitOverlay || !document.body) return;
+    const overlay = document.createElement('div');
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.textContent = 'PREPARING AD…';
+    Object.assign(overlay.style, {
+      position: 'fixed', inset: '0', zIndex: '2147483647',
+      display: 'grid', placeItems: 'center',
+      background: 'rgba(6, 8, 12, 0.82)', color: '#ffffff',
+      font: '800 14px Rubik, sans-serif', letterSpacing: '0.12em',
+      pointerEvents: 'auto', touchAction: 'none', userSelect: 'none',
+    });
+    document.body.appendChild(overlay);
+    adWaitOverlay = overlay;
+  }
+
   // cb(success:boolean). Without the SDK (other hosts, local testing) no ad runs and no reward is given.
   function requestAd(kind, cb) {
     if (!ADS_ENABLED || !sdk) { cb && cb(false); return; }
     if (adInFlight) { cb && cb(false); return; }
     adInFlight = true;
+    setAdWaitOverlay(true);
     let done = false;
     const wasPlaying = inGameplay;
     const finish = ok => {
       if (done) return; done = true; adInFlight = false;
+      setAdWaitOverlay(false);
       Sfx.setAdMuted(false);
       if (wasPlaying) gameplayStart();
       cb && cb(ok);
@@ -135,7 +160,7 @@ const Platform = (() => {
     gameplayStop();
     try {
       sdk.ad.requestAd(kind, {
-        adStarted: () => Sfx.setAdMuted(true),
+        adStarted: () => { setAdWaitOverlay(false); Sfx.setAdMuted(true); },
         adFinished: () => finish(true),
         adError: () => finish(false),
       });
