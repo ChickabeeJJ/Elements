@@ -103,7 +103,7 @@ const UI = (() => {
 
   // every rewarded-ad offer uses the same button as its alternative (same size, font and
   // colour, per CrazyGames rules), marked with a small play-icon AD tag so it's clear an ad plays
-  const adTag = () => `<span class="ad-tag" title="Watch an ad">${ic('adv')}</span>`;
+  const adTag = () => `<span class="ad-tag" title="Watch an ad">${ic('play')}</span>`;
   const adBtn = (id, label, extra = '') => `<button class="btn ad-offer${extra}" id="${id}">${adTag()}<b>${label}</b></button>`;
 
   // opt-in rewarded "+gems" when you are short, a few times a day
