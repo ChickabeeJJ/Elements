@@ -417,7 +417,9 @@ body.touch .combo span { font-size: 11px; }
 .sheet .result-actions.has-offers { flex-direction: column; align-items: center; flex-wrap: nowrap; }
 .result-actions .act-row { display: flex; gap: 8px; justify-content: center; width: 100%; max-width: 560px; }
 .sheet .result-actions .act-row .btn { flex: 1 1 0; min-width: 0; max-width: 260px; }
-.btn.ad-offer { flex-direction: row; gap: 8px; }
+.btn.ad-offer { flex-direction: row; gap: 8px; padding-left: 14px; padding-right: 14px; background: #2c2a4a; white-space: nowrap; }
+.btn.ad-offer:hover { background: #38355d; }
+.btn.ad-offer b { font-size: 15px; letter-spacing: 0.03em; }
 .ad-tag { display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 3px 6px 3px 4px; border-radius: 4px; background: #ffc933; color: #1a1404; font-size: 11px; font-weight: 900; letter-spacing: 0.06em; line-height: 1; }
 .ad-tag .ic { width: 11px; height: 11px; }
 .ad-off { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; }
@@ -1657,3 +1659,4 @@ body.touch .sheet.loadout .lo-slots { margin-left: 0; grid-template-columns: rep
 /* ad banner slot (CrazyGames, desktop home only); sized and placed from JS */
 .ad-slot { position: fixed; z-index: 11; overflow: hidden; pointer-events: auto; }
 .btn.claim + .btn.claim { margin-left: 6px; }
+@media (max-width: 900px) { .btn.ad-offer { padding-left: 10px; padding-right: 10px; gap: 7px; } .btn.ad-offer b { font-size: 14px; } }
