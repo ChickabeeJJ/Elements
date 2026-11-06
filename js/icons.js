@@ -13,6 +13,8 @@ const Icons = (() => {
     gem: `<path d="M6.5 3.5h11l4 5.2L12 21 2.5 8.7z" ${F}/><path d="M2.5 8.7h19M9 3.5 7.8 8.7 12 21l4.2-12.3L15 3.5" fill="none" stroke="rgba(0,0,0,.25)" stroke-width="1.3"/>`,
     star: `<path d="m12 2.8 2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z" ${F}/>`,
     pause: `<path d="M8.5 5v14M15.5 5v14" ${S} stroke-width="3.4"/>`,
+    // video-ad mark: a screen with a play button cut out of it
+    adv: `<path fill-rule="evenodd" d="M5.5 4.5h13a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-13a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3zM10 8.4v7.2l6-3.6z" ${F}/>`,
     play: `<path d="M7 4.5v15l12.5-7.5z" ${F}/>`,
     back: `<path d="M15 5l-7 7 7 7" ${S} stroke-width="3"/>`,
     gear: `<path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z" ${S}/><path d="M10.3 2.8h3.4l.6 2.6 2 1.1 2.5-.9 1.7 2.9-1.9 1.8v2.3l1.9 1.8-1.7 2.9-2.5-.9-2 1.1-.6 2.6h-3.4l-.6-2.6-2-1.1-2.5.9-1.7-2.9 1.9-1.8v-2.3L3.5 8.5l1.7-2.9 2.5.9 2-1.1z" ${S} stroke-width="1.9"/>`,

@@ -800,31 +800,11 @@ class Fighter {
       }
       ctx.globalAlpha = fade;
     }
-    // burn: a warm glow plus flickering flame tongues licking up from the joints
+    // burn: just a faint warm glow; the fire itself is translucent square particles (game.js)
     if (st.burn > 0) {
-      const k = Math.min(1, st.burn * 2) * fade;
       ctx.globalCompositeOperation = 'lighter';
-      Glow.draw(ctx, '#ff7a2a', c.x, c.y, 52 * s, 0.36 * k);
+      Glow.draw(ctx, '#ff7a2a', c.x, c.y, 46 * s, 0.22 * Math.min(1, st.burn * 2) * fade);
       ctx.globalCompositeOperation = 'source-over';
-      const tongue = (x, y, w, h, sw) => {
-        ctx.beginPath();
-        ctx.moveTo(x - w, y);
-        ctx.bezierCurveTo(x - w, y - h * 0.45, x + sw - w * 0.35, y - h * 0.7, x + sw, y - h);
-        ctx.bezierCurveTo(x + sw + w * 0.25, y - h * 0.62, x + w, y - h * 0.4, x + w, y);
-        ctx.bezierCurveTo(x + w, y + w * 0.75, x - w, y + w * 0.75, x - w, y);
-        ctx.fill();
-      };
-      const J = [P.HEAD, P.NECK, P.PELVIS, P.FELB, P.BELB, P.FHAND, P.BHAND, P.FKNEE, P.BKNEE];
-      for (let i = 0; i < J.length; i++) {
-        const q = pts[J[i]], ph = time * 10 + i * 1.9;
-        const h = (18 + 7 * Math.sin(ph) + 5 * Math.sin(ph * 2.3 + 1)) * s * (i === 0 ? 1.3 : i === 2 ? 1.15 : 0.9);
-        const w = (6.5 + 1.6 * Math.sin(ph * 1.7)) * s * (i === 0 ? 1.2 : 1);
-        const sw = Math.sin(ph * 0.6 + i) * 4 * s, y = q.y + 2 * s;
-        ctx.globalAlpha = 0.62 * k; ctx.fillStyle = '#ff4a1c'; tongue(q.x, y, w, h, sw);
-        ctx.globalAlpha = 0.75 * k; ctx.fillStyle = '#ff9a2e'; tongue(q.x, y, w * 0.62, h * 0.7, sw * 0.7);
-        ctx.globalAlpha = 0.85 * k; ctx.fillStyle = '#ffe7a3'; tongue(q.x, y, w * 0.3, h * 0.38, sw * 0.4);
-      }
-      ctx.globalAlpha = fade;
     }
     // combo marks: crystal glint, radiant dazzle, void drain
     if (st.glint > 0) {

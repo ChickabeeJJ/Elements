@@ -95,6 +95,13 @@ class FX {
         ctx.restore();
       } else if (p.kind === 'pixel') {
         ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      } else if (p.kind === 'cinder') {
+        // translucent square that shrinks and fades as it rises
+        const r = p.size * (0.4 + a * 0.6);
+        ctx.globalAlpha = a * 0.55;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0);
+        ctx.fillRect(-r / 2, -r / 2, r, r);
+        ctx.restore();
       } else {
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.kind === 'smoke' ? 1 + (1 - a) : 1), 0, TAU); ctx.fill();
       }
