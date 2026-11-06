@@ -1370,6 +1370,7 @@ const Game = (() => {
     hitstop = Math.max(hitstop, 0.08);
     shake = Math.max(shake, t.kind === 'boss' ? 24 : 10);
     if (t.kind === 'boss') {
+      if (!t.happytimeSent) { t.happytimeSent = true; Platform.happytime(); }
       Sfx.boom(2); fx.ring(c.x, c.y, t.accent, 300, 0.9, 16); slowmo = 1.6; if (!(t.ai && t.ai.rival)) Save.data.stats.bosses++;
       // the boss's reinforcements collapse with it
       if (mode === 'stage') {
@@ -2776,7 +2777,7 @@ const Game = (() => {
 
   function win() {
     state = 'won'; endTimer = 2.2; slowmo = Math.max(slowmo, 1.3);
-    Sfx.win(); Platform.happytime();
+    Sfx.win();
   }
   function lose(final) {
     if (state !== 'play') return;
@@ -2797,6 +2798,8 @@ const Game = (() => {
       res.stars = hpRatio >= 0.65 && run.falls === 0 ? 3 : hpRatio >= 0.3 ? 2 : 1;
       const rec = Save.recordClear(run.r, run.s, res.stars);
       res.firstClear = rec.firstClear;
+      const levelNumber = run.r * STAGES_PER_REALM + run.s + 1;
+      if (rec.firstClear && levelNumber % 10 === 0) Platform.happytime();
       res.bonus = Math.round((10 + run.r * 5 + (rec.firstClear ? 15 : 0) + rec.newStars * 5) * pStats.essenceMul);
       res.essence += res.bonus;
       if (rec.firstClear) res.unlocked = elementUnlockedBy(run.r, run.s);
