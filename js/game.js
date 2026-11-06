@@ -3705,9 +3705,17 @@ const Game = (() => {
       updateAction(f, dt);
       if (f.status.burn > 0 && f.alive && !f.decor) {
         f.hp -= f.status.burnDps * dt * (f.isPlayer ? pStats.armor : 1);
-        if (Math.random() < dt * 45) {
+        if (Math.random() < dt * 30) {
           const q = f.pts[pick([P.HEAD, P.NECK, P.PELVIS, P.FELB, P.BELB, P.FKNEE, P.BKNEE, P.FHAND])];
-          fx.add({ kind: 'ember', x: q.x + rand(-6, 6), y: q.y + rand(-6, 6), vx: rand(-20, 20), vy: -rand(90, 170), color: pick(['#ff6a2a', '#ff8a3d', '#ffb347']), size: rand(5, 9), life: rand(0.35, 0.6), drag: 1.5 });
+          fx.add({ kind: 'ember', x: q.x + rand(-6, 6), y: q.y - rand(8, 16), vx: rand(-20, 20), vy: -rand(90, 170), color: pick(['#ff6a2a', '#ff8a3d', '#ffb347']), size: rand(5, 9), life: rand(0.3, 0.5), drag: 1.5 });
+        }
+        if (Math.random() < dt * 14) {   // tiny bright cinders flicking off
+          const c = f.center();
+          fx.add({ x: c.x + rand(-16, 16), y: c.y + rand(-34, 10), vx: rand(-60, 60), vy: -rand(120, 230), color: pick(['#ffd36a', '#fff1b8']), size: rand(1.6, 2.6), life: rand(0.4, 0.8), drag: 1.2 });
+        }
+        if (Math.random() < dt * 6) {    // a curl of smoke above the fire
+          const hd = f.pts[P.HEAD];
+          fx.add({ kind: 'smoke', x: hd.x + rand(-8, 8), y: hd.y - 22, vx: rand(-12, 12), vy: -rand(40, 70), color: '#3a3330', size: rand(6, 10), life: rand(0.7, 1.1), drag: 1 });
         }
         if (f.hp <= 0) kill(f, null, 0, -200, P.PELVIS);
       }
@@ -4590,6 +4598,7 @@ const Game = (() => {
     setEl: id => { setPlayerElement(player, id, true); for (const k in player.cds) player.cds[k] = 0; },
     spawn: (spec, x, y) => spawnEnemyAt(Object.assign({ type: 'grunt', element: realm.element, d: 0.3 }, spec), x, y, true),
     hold: () => { waveTimer = 1e9; spawns = []; },   // stop the stage's own waves (staged scenes)
+    clearWave: () => { for (const e of aliveEnemies()) kill(e, player, 0, -200, P.PELVIS); },   // test helper
   };
 
   return {
