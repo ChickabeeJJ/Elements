@@ -915,6 +915,13 @@ const UI = (() => {
   }
 
   /* ------------------------------------------------------------ results */
+  // Result buttons: with ad offers, the offers sit on one row with the main action (RETRY /
+  // NEXT / AGAIN) and the menu-type buttons share the row below; without offers, one row.
+  function resultActions(secondary, primary, offers) {
+    if (!offers) return `<div class="actions result-actions">${secondary}${primary}</div>`;
+    return `<div class="actions result-actions has-offers"><div class="act-row act-main">${offers}${primary}</div><div class="act-row">${secondary}</div></div>`;
+  }
+
   function showResult(res) {
     $('bossBar').classList.add('hidden');
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
@@ -924,10 +931,9 @@ const UI = (() => {
     const offerRevive = Platform.rewardedAvailable && !res.won && res.canRevive && res.mode !== 'endless' && Date.now() - (Save.data.ads.reviveAt || 0) > REVIVE_GAP;
     if (offerRevive) { Save.data.ads.reviveAt = Date.now(); Save.save(); }
     res.revOffered = offerRevive;
-    const offers = (offerRevive ? adBtn('rRevive', 'REVIVE') : '') + (Platform.rewardedAvailable && res.essence > 0 ? adBtn('rDouble', 'DOUBLE GEMS') : '');
-    const adRow = !Platform.rewardedAvailable
-      ? (Platform.adBlock && hasRewardOpportunity ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active. The game remains fully playable.</p>' : '')
-      : offers ? `<div class="ad-offers">${offers}</div>` : '';
+    // one ad offer per screen at most: a revive replaces double-gems on that defeat
+    const offers = offerRevive ? adBtn('rRevive', 'REVIVE') : Platform.rewardedAvailable && res.essence > 0 ? adBtn('rDouble', 'DOUBLE GEMS') : '';
+    const adRow = !Platform.rewardedAvailable && Platform.adBlock && hasRewardOpportunity ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active. The game remains fully playable.</p>' : '';
     const bindAds = sh => {
       const d = sh.querySelector('#rDouble');
       if (d) d.onclick = () => { Sfx.click(); d.disabled = true; Platform.rewarded(ok => {
@@ -949,7 +955,7 @@ const UI = (() => {
           <p class="sub">${res.kills} DEFEATED · BEST ${res.bestKills}</p>
           ${tiles}${reward}${adRow}
         </div>
-        <div class="actions result-actions"><button class="btn" id="rMenu"><b>HOME</b></button><button class="btn primary" id="rAgain"><b>AGAIN</b></button></div>`, s => {
+        ${resultActions('<button class="btn" id="rMenu"><b>HOME</b></button>', '<button class="btn primary" id="rAgain"><b>AGAIN</b></button>', offers)}`, s => {
         bindAds(s);
         s.querySelector('#rMenu').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(0); show('home'); };
         s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless()); };
@@ -974,11 +980,9 @@ const UI = (() => {
           ${u ? `<div class="unlock" style="--c:${u.color}">${hex(u.id)}<div><small>NEW ELEMENT UNLOCKED</small><b>${u.name.toUpperCase()}</b><p>${u.blurb}</p></div></div>` : ''}
           ${boss && res.firstClear && hasNext ? `<p class="sub">${REALMS[nextR].name.toUpperCase()} IS NOW OPEN</p>` : ''}
         </div>
-        <div class="actions result-actions">
-          <button class="btn" id="rMenu"><b>MENU</b></button>
-          <button class="btn" id="rRetry"><b>RETRY</b></button>
-          ${hasNext ? '<button class="btn primary" id="rNext"><b>NEXT</b></button>' : ''}
-        </div>`, sh => {
+        ${hasNext
+          ? resultActions('<button class="btn" id="rMenu"><b>MENU</b></button><button class="btn" id="rRetry"><b>RETRY</b></button>', '<button class="btn primary" id="rNext"><b>NEXT</b></button>', offers)
+          : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
@@ -993,11 +997,7 @@ const UI = (() => {
           ${tiles}${reward}${adRow}
           <p class="tip">${pick(TIPS)}</p>
         </div>
-        <div class="actions result-actions">
-          <button class="btn" id="rMenu"><b>MENU</b></button>
-          <button class="btn" id="rForge"><b>UPGRADES</b></button>
-          <button class="btn primary" id="rRetry"><b>RETRY</b></button>
-        </div>`, sh => {
+        ${resultActions('<button class="btn" id="rMenu"><b>MENU</b></button><button class="btn" id="rForge"><b>UPGRADES</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
@@ -1019,14 +1019,10 @@ const UI = (() => {
         <div class="trophy-delta ${res.won ? 'gain' : 'drop'}" style="--tc:${r.tier.color}">${tierBadge(r.tier, 'md')}<div><b>${ic('trophy')}${r.delta > 0 ? '+' : ''}${r.delta}</b><small>${fmt(r.trophies)} TROPHIES · ${r.tier.label}</small></div></div>
         ${tiles}
         <div class="payout">${ic('gem')}<span id="payoutNum">+${r.gems + res.essence}</span>${r.tierGems ? `<small>INCL. ${r.tierGems} PROMOTION REWARD</small>` : ''}</div>
-        ${Platform.rewardedAvailable ? `<div class="ad-offers">${adBtn('rDouble', 'DOUBLE GEMS')}</div>` : Platform.adBlock ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active.</p>' : ''}
+        ${!Platform.rewardedAvailable && Platform.adBlock ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active.</p>' : ''}
         ${r.promoted ? `<div class="unlock" style="--c:${r.promoted.color}">${tierBadge(r.tier, 'md')}<div><small>PROMOTED</small><b>${r.promoted.name.toUpperCase()}</b><p>You reached a new Arena tier.</p></div></div>` : ''}
       </div>
-      <div class="actions result-actions">
-        <button class="btn" id="rMenu"><b>HOME</b></button>
-        <button class="btn" id="rRanks"><b>RANKS</b></button>
-        <button class="btn primary" id="rAgain"><b>NEXT MATCH</b></button>
-      </div>`, sh => {
+      ${resultActions('<button class="btn" id="rMenu"><b>HOME</b></button><button class="btn" id="rRanks"><b>RANKS</b></button>', '<button class="btn primary" id="rAgain"><b>NEXT MATCH</b></button>', Platform.rewardedAvailable ? adBtn('rDouble', 'DOUBLE GEMS') : '')}`, sh => {
       if (r.promoted) { Sfx.unlock(); ; }
       const dbl = sh.querySelector('#rDouble'), total = r.gems + res.essence;
       if (dbl) dbl.onclick = () => { Sfx.click(); dbl.disabled = true; Platform.rewarded(ok => {

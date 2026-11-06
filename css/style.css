@@ -412,9 +412,11 @@ body.touch .combo span { font-size: 11px; }
 .unlock small { font-weight: 800; font-size: 11px; letter-spacing: 0.06em; color: var(--c); }
 .unlock b { display: block; font-weight: 900; font-size: 19px; }
 .unlock p { color: var(--muted); font-size: 14px; font-weight: 500; }
-/* rewarded-ad offers: the same button as any other choice, with a small AD tag */
-.ad-offers { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 2px; }
-.ad-offers .btn { flex: 1 1 150px; max-width: 230px; }
+/* rewarded-ad offers: the same button as any other choice, with a small AD tag.
+   On result screens they share the top row with the main action; menu buttons go below. */
+.sheet .result-actions.has-offers { flex-direction: column; align-items: center; flex-wrap: nowrap; }
+.result-actions .act-row { display: flex; gap: 8px; justify-content: center; width: 100%; max-width: 560px; }
+.sheet .result-actions .act-row .btn { flex: 1 1 0; min-width: 0; max-width: 260px; }
 .btn.ad-offer { flex-direction: row; gap: 8px; }
 .ad-tag { display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 3px 6px 3px 4px; border-radius: 4px; background: #ffc933; color: #1a1404; font-size: 11px; font-weight: 900; letter-spacing: 0.06em; line-height: 1; }
 .ad-tag .ic { width: 11px; height: 11px; }
@@ -734,8 +736,11 @@ body.touch .sheet.result .unlock b { font-size: 15px; }
 body.touch .sheet.result .unlock small { font-size: 11px; }
 body.touch .sheet.result .unlock p { font-size: 11px; line-height: 1.2; }
 body.touch .sheet.result .tip { font-size: 12px; }
-body.touch .sheet.result .ad-offers { gap: 6px; }
-body.touch .sheet.result .ad-offers .btn { min-height: 38px; font-size: 11px; padding: 6px 8px; }
+/* landscape phone: actions are a narrow column, so the offer row stacks and the menu row pairs up */
+body.touch .sheet.result > .result-actions .act-row { gap: 8px; max-width: none; }
+body.touch .sheet.result > .result-actions .act-main { flex-direction: column; }
+body.touch .sheet.result > .result-actions .act-row .btn { flex: 1 1 0; }
+body.touch .sheet.result > .result-actions .act-main .btn { flex: 0 0 auto; }
 
 @media (max-width: 600px), (orientation: portrait) and (max-width: 900px) {
   body.touch .sheet.result {
@@ -757,6 +762,9 @@ body.touch .sheet.result .ad-offers .btn { min-height: 38px; font-size: 11px; pa
   body.touch .sheet.result > .result-actions .btn { min-height: 42px; padding: 7px 8px; font-size: 12px; }
   body.touch .sheet.result > .result-actions #rNext,
   body.touch .sheet.result > .result-actions #rRetry.primary { grid-column: 1 / -1; }
+  body.touch .sheet.result > .result-actions.has-offers { display: flex; flex-direction: column; }
+  body.touch .sheet.result > .result-actions .act-main { flex-direction: row; }
+  body.touch .sheet.result > .result-actions .act-main .btn { flex: 1 1 0; }
   body.touch .sheet.result .big-stars .ic { width: 30px; height: 30px; }
   body.touch .sheet.result .stat-tiles b { font-size: 18px; }
   body.touch .sheet.result .unlock p { display: none; }
