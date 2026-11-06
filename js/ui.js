@@ -66,7 +66,7 @@ const UI = (() => {
     else if (name === null) Sfx.setMusicPaused(false);
     homeShift();
     if (name !== 'home') { $('cgBanner').classList.add('hidden'); Platform.clearBanners(); }
-    if (name) Platform.gameplayStop();
+    if (name && Platform.inGameplay) Platform.gameplayStop();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
 
@@ -413,7 +413,7 @@ const UI = (() => {
     const buy = det.querySelector('#buyEl');
     if (buy) buy.onclick = () => {
       if (Save.buyElement(e.id)) {
-        Sfx.unlock(); Platform.happytime();
+        Sfx.unlock(); ;
         const l = Save.loadout(); if (l.length < 3 && !l.includes(e.id)) Save.setLoadout(l.concat(e.id));
         toast(`${e.name.toUpperCase()} UNLOCKED!`);
         show('codex'); renderCodex();
@@ -633,16 +633,16 @@ const UI = (() => {
       if (!ok) { b.disabled = false; toast('AD UNAVAILABLE'); return; }
       const n = Meta.claimBonus(); if (!n) return;
       Save.data.essence += n; Save.save();
-      Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST ×2 · +${n * 2} GEMS`); softRefreshHub();
+      Sfx.unlock(); ; toast(`DAILY CHEST ×2 · +${n * 2} GEMS`); softRefreshHub();
     }); });
-    on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); Platform.happytime(); toast(`DAILY CHEST · +${n} GEMS`); softRefreshHub(); } });
+    on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); ; toast(`DAILY CHEST · +${n} GEMS`); softRefreshHub(); } });
     on('#rkPlay', () => { Sfx.click(); openArena(); });
     on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); softRefreshHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
     on('#evBuy', () => {
       const st = Meta.eventState(); if (!st) return;
       const el = ELEMENT_BY_ID[st.ev.element];
       if (Meta.buyEventElement()) {
-        Sfx.unlock(); Platform.happytime();
+        Sfx.unlock(); ;
         const l = Save.loadout(); if (l.length < 3 && !l.includes(el.id)) Save.setLoadout(l.concat(el.id));
         toast(`${el.name.toUpperCase()} UNLOCKED!`); softRefreshHub();
       } else { Sfx.denied(); toast(`NEED ${st.price - st.tokens} MORE TOKENS`); }
@@ -1048,7 +1048,7 @@ const UI = (() => {
         <button class="btn" id="rRanks"><b>RANKS</b></button>
         <button class="btn primary" id="rAgain"><b>NEXT MATCH</b></button>
       </div>`, sh => {
-      if (r.promoted) { Sfx.unlock(); Platform.happytime(); }
+      if (r.promoted) { Sfx.unlock(); ; }
       const dbl = sh.querySelector('#rDouble'), total = r.gems + res.essence;
       if (dbl) dbl.onclick = () => { Sfx.click(); dbl.disabled = true; Platform.rewarded(ok => {
         if (ok) { Save.data.essence += total; Save.save(); sh.querySelector('#payoutNum').textContent = '+' + total * 2; toast('GEMS DOUBLED!'); dbl.remove(); }
