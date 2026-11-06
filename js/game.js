@@ -306,7 +306,7 @@ const Game = (() => {
       : [p1, p2].find(m => m.kind === 'projectile') || ENEMY_ROCK;
     let powers = [];
     if (type === 'brute') powers = [p1, p2].filter(m => AI_KINDS.has(m.kind) && m !== ranged).slice(0, 1);
-    if (type === 'boss') powers = [p1, p2].filter(m => AI_KINDS.has(m.kind));
+    if (type === 'boss') powers = [p1, p2].filter(m => AI_KINDS.has(m.kind) && m.kind !== 'heal');
     return {
       melee: type === 'caster' ? null : melee,
       ranged: type === 'grunt' && main.type === 'melee' ? null : ranged,
