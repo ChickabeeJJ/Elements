@@ -66,7 +66,7 @@ const UI = (() => {
     else if (name === null) Sfx.setMusicPaused(false);
     homeShift();
     if (name !== 'home') { $('cgBanner').classList.add('hidden'); Platform.clearBanners(); }
-    if (name) Platform.gameplayStop();
+    if (name && Platform.inGameplay) Platform.gameplayStop();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
 
@@ -402,7 +402,7 @@ const UI = (() => {
     const buy = det.querySelector('#buyEl');
     if (buy) buy.onclick = () => {
       if (Save.buyElement(e.id)) {
-        Sfx.unlock(); Platform.happytime();
+        Sfx.unlock(); ;
         const l = Save.loadout(); if (l.length < 3 && !l.includes(e.id)) Save.setLoadout(l.concat(e.id));
         toast(`${e.name.toUpperCase()} UNLOCKED!`);
         show('codex'); renderCodex();
