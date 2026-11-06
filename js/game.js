@@ -114,6 +114,7 @@ const Game = (() => {
     f.root.grounded = true; f.root.plat = islands[0];
     f.team = 'player';
     f.loadout = Save.loadout();
+    if (run && run.trial) f.loadout = [run.trial].concat(f.loadout.filter(id => id !== run.trial)).slice(0, 3);   // ad trial leads
     f.elIdx = 0; f.swapT = 0; f.comboIdx = 0; f.comboT = 0;
     setPlayerElement(f, f.loadout[0], true);
     return f;
@@ -160,6 +161,8 @@ const Game = (() => {
     paused = false;
     pStats = Save.playerStats();
     run = { kills: 0, ringouts: 0, hits: 0, essence: 0, essenceRemainder: 0, dmgTaken: 0, r: opts.r || 0, s: opts.s || 0, falls: 0 };
+    // a trial element lasts this whole run (stage, Arena match or Endless run), then it's gone
+    if (mode === 'stage' || mode === 'duel' || mode === 'endless') run.trial = Save.takeTrial();
     if (mode === 'stage') {
       stageDef = buildStage(opts.r, opts.s);
       setRealm(opts.r);

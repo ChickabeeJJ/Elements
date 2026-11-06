@@ -1667,3 +1667,7 @@ body.touch .sheet.loadout .lo-slots { margin-left: 0; grid-template-columns: rep
 @media (max-width: 900px) { .btn.ad-offer { padding-left: 10px; padding-right: 10px; gap: 7px; } .btn.ad-offer b { font-size: 14px; } }
 /* mobile: the main action (RETRY / NEXT / AGAIN) comes first, the ad offer after it */
 body.touch .sheet.result > .result-actions .act-main .btn.primary { order: -1; }
+/* ad tag on a yellow (primary) button, e.g. TRY ONCE in the element shop */
+.btn.primary.ad-offer { background: var(--acc); }
+.btn.primary .ad-tag { background: #1a1404; color: #ffc933; }
+.trial-lbl { font-style: normal; color: var(--acc); }

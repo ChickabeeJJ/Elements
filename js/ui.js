@@ -82,7 +82,7 @@ const UI = (() => {
     $('homeStars').textContent = Save.totalStars() + '/' + TOTAL_STAGES * 3;
     const cheapest = Math.min(...UPGRADES.map(u => Save.upgradeCost(u.id) ?? Infinity));
     $('homeForge').classList.toggle('hidden', !(cheapest <= Save.data.essence));
-    $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS</span><div class="row">${Save.loadout().map(id => hex(id)).join('')}<button class="btn small" id="homeChange"><b>CHANGE</b></button></div>`;
+    $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS${Save.trial ? ` · <em class="trial-lbl">+ ${NAME(Save.trial)} TRIAL</em>` : ''}</span><div class="row">${(Save.trial ? [Save.trial] : []).concat(Save.loadout()).slice(0, 3).map(id => hex(id)).join('')}<button class="btn small" id="homeChange"><b>CHANGE</b></button></div>`;
     $('homeChange').onclick = () => { Sfx.ensure(); Sfx.click(); openLoadout(); };
     refreshUser();
     setTimeout(() => { if (current === 'home') { placeBanner(); Platform.showBanner('cgBanner'); } }, 300);
@@ -366,6 +366,13 @@ const UI = (() => {
     });
     $('codexCount').textContent = Save.unlockedElements().length + '/' + ELEMENTS.length;
   }
+  // Locked element: watch one ad to try it for the next stage, Arena match or Endless run.
+  // One trial at a time and a few a day; the button is simply absent otherwise (or with an ad blocker).
+  function trialBtn(e) {
+    if (Save.trial === e.id) return '<button class="btn small primary" disabled><b>TRIAL READY</b></button>';
+    if (!Platform.rewardedAvailable || Save.trial || Save.trialsLeft() <= 0) return '';
+    return `<button class="btn small primary ad-offer" id="tryEl">${adTag()}<b>TRY ONCE</b></button>`;
+  }
   function renderCodexDetail() {
     const e = ELEMENT_BY_ID[codexSel] || ELEMENTS[0];
     const open = Save.elementOpen(e.id);
@@ -386,7 +393,7 @@ const UI = (() => {
     const tags = [mainType(e) === 'melee' ? '<span class="melee">MELEE</span>' : '<span class="ranged">RANGED</span>', e.event ? '<span class="evt">EVENT EXCLUSIVE</span>' : '', slot ? `<span class="eq">EQUIPPED · SLOT ${slot}</span>` : ''].join('');
     det.innerHTML = `
       <div class="cd-head">${hex(e.id, open ? '' : 'locked')}<div class="cd-title"><h3>${e.name.toUpperCase()}</h3><div class="cd-tags">${tags}</div><p>${e.blurb}</p></div>
-        <div class="cd-btns"><button class="btn small preview-btn" id="previewEl">${ic('play')}<b>PREVIEW</b></button>${open ? `<button class="btn small${slot ? '' : ' primary'}" id="equipEl"><b>${slot ? 'UNEQUIP' : 'EQUIP'}</b></button>` : ''}</div></div>
+        <div class="cd-btns"><button class="btn small preview-btn" id="previewEl">${ic('play')}<b>PREVIEW</b></button>${open ? `<button class="btn small${slot ? '' : ' primary'}" id="equipEl"><b>${slot ? 'UNEQUIP' : 'EQUIP'}</b></button>` : trialBtn(e)}</div></div>
       ${unlock}
       <div class="moves">${e.moves.map((mv, i) => `
         <div class="move"${open ? '' : ' style="opacity:.55"'}>
@@ -417,6 +424,11 @@ const UI = (() => {
       Sfx.click(); Save.setLoadout(l); applyAccentTheme(); renderCodex();
       toast(l.includes(e.id) ? `${e.name.toUpperCase()} EQUIPPED` : `${e.name.toUpperCase()} UNEQUIPPED`);
     };
+    const tr = det.querySelector('#tryEl');
+    if (tr) tr.onclick = () => { Sfx.click(); tr.disabled = true; Platform.rewarded(ok => {
+      if (ok) { Save.setTrial(e.id); Sfx.unlock(); toast(`${e.name.toUpperCase()} TRIAL READY · NEXT STAGE, ARENA MATCH OR ENDLESS RUN`); renderCodex(); }
+      else { tr.disabled = false; toast('AD UNAVAILABLE'); }
+    }); };
     const go = det.querySelector('#goEvent');
     if (go) go.onclick = () => { Sfx.click(); openHub('event'); };
     const buy = det.querySelector('#buyEl');

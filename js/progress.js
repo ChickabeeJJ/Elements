@@ -94,6 +94,15 @@ const Save = (() => {
     return l.length ? l : ['wind'];
   }
   function setLoadout(ids) { data.loadout = ids.slice(0, 3); save(); }
+  // ad trial: one locked element for the next stage, Arena match or Endless run
+  const TRIAL_CAP = 5;   // trials a day
+  function trialsLeft() { const a = data.ads; return a.tryDay === dayNo() ? Math.max(0, TRIAL_CAP - (a.tryN || 0)) : TRIAL_CAP; }
+  function setTrial(id) {
+    const a = data.ads; if (a.tryDay !== dayNo()) { a.tryDay = dayNo(); a.tryN = 0; }
+    a.tryN = (a.tryN || 0) + 1; data.trial = id; save();
+  }
+  function takeTrial() { const id = data.trial; if (!id) return null; data.trial = null; save(); return ELEMENT_BY_ID[id] && !elementOpen(id) ? id : null; }
+  const dayNo = () => Math.floor(Date.now() / 86400000);
   function totalStars() { return Object.values(data.stars).reduce((a, b) => a + b, 0); }
   function nextStage() {
     for (let r = 0; r < REALMS.length; r++) for (let s = 0; s < STAGES_PER_REALM; s++) if (!cleared(r, s)) return [r, s];
@@ -143,6 +152,7 @@ const Save = (() => {
 
   return {
     load, save, reset, stageOpen, realmOpen, elementOpen, buyElement, grantElement, unlockedElements, loadout, setLoadout, totalStars, nextStage,
+    trialsLeft, setTrial, takeTrial, get trial() { return data.trial && ELEMENT_BY_ID[data.trial] && !elementOpen(data.trial) ? data.trial : null; },
     upgradeCost, buy, playerStats, recordClear, cleared,
     get data() { return data; },
   };
