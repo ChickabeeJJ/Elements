@@ -426,7 +426,9 @@ body:not(.touch) .sheet .result-actions.has-offers .act-row > .btn:only-child { 
 .btn.ad-offer:hover { background: #38355d; }
 .btn.ad-offer b { font-size: 15px; letter-spacing: 0.03em; }
 .ad-tag { display: inline-flex; align-items: center; flex: none; color: inherit; line-height: 1; }
-.ad-tag .ic { width: 20px; height: 20px; }
+/* nudged up: uppercase labels sit above the line box's centre, so a centred arrow read as low */
+.ad-tag .ic { width: 20px; height: 20px; display: block; transform: translateY(-1px); }
+.ad-tag .ic svg { display: block; }
 .btn.small .ad-tag .ic { width: 18px; height: 18px; }
 .ad-off { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
