@@ -110,7 +110,10 @@ const UI = (() => {
   }
   function needGems(short, after) {
     Sfx.denied();
-    if (!Platform.rewardedAvailable || gemAdsLeft() <= 0) { toast(`NEED ${short} MORE GEMS`); return; }
+    if (!Platform.rewardedAvailable || gemAdsLeft() <= 0) {
+      toast(Platform.adBlock ? 'REWARDED ADS UNAVAILABLE · AD BLOCKER DETECTED' : `NEED ${short} MORE GEMS`);
+      return;
+    }
     modal(`<h2>NEED ${short} MORE GEMS</h2>
       <p class="tip">Watch a short ad for <b>+${GEM_AD} gems</b>. ${gemAdsLeft()} left today.</p>
       <div class="actions"><button class="btn" id="gaNo"><b>NOT NOW</b></button><button class="btn ad" id="gaYes">${ic('play')}<b>+${GEM_AD} GEMS · AD</b></button></div>`, sh => {
@@ -949,7 +952,10 @@ const UI = (() => {
     $('bossBar').classList.add('hidden');
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
     const reward = `<div class="payout"><span class="ic" data-icon="gem"></span><span id="payoutNum">+${res.essence}</span>${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
-    const adRow = !Platform.rewardedAvailable ? '' : `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
+    const hasRewardOpportunity = (!res.won && res.canRevive && res.mode !== 'endless') || res.essence > 0;
+    const adRow = !Platform.rewardedAvailable
+      ? (Platform.adBlock && hasRewardOpportunity ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active. The game remains fully playable.</p>' : '')
+      : `<div class="revive-row">${!res.won && res.canRevive && res.mode !== 'endless' ? '<button class="btn ad" id="rRevive"><span class="ic" data-icon="play"></span><b>REVIVE · AD</b></button>' : ''}${res.essence > 0 ? '<button class="btn ad" id="rDouble"><span class="ic" data-icon="gem"></span><b>DOUBLE GEMS · AD</b></button>' : ''}</div>`;
     const bindAds = sh => {
       const d = sh.querySelector('#rDouble');
       if (d) d.onclick = () => { Sfx.click(); d.disabled = true; Platform.rewarded(ok => {
