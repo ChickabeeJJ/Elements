@@ -52,9 +52,14 @@ const Save = (() => {
         if (!Array.isArray(data.owned)) data.owned = ['wind'];
       }
     } catch (e) { data = fresh(); }
+    reportProgress();
   }
   function save() { try { Platform.setItem(KEY, JSON.stringify(data)); } catch (e) { /* ignore */ } }
-  function reset() { data = fresh(); save(); }
+  function reportProgress() {
+    const completed = Object.values(data.stars || {}).filter(stars => Number(stars) > 0).length;
+    Platform.reportProgress(Math.min(100, completed / TOTAL_STAGES * 100));
+  }
+  function reset() { data = fresh(); save(); reportProgress(); }
 
   const cleared = (r, s) => (data.stars[stageKey(r, s)] || 0) > 0;
   function stageOpen(r, s) {
@@ -132,6 +137,7 @@ const Save = (() => {
     const prev = data.stars[k] || 0;
     if (stars > prev) data.stars[k] = stars;
     save();
+    reportProgress();
     return { newStars: Math.max(0, stars - prev), firstClear: prev === 0 };
   }
 
