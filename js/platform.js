@@ -21,7 +21,7 @@ const Platform = (() => {
   let adBlock = false;
   let user = null;
   const bannersShown = new Set();
-  const bannerRequests = new Set();
+  let lastProgress = null;
   const authListeners = [];
   const MIDGAME_GAP = 3 * 60 * 1000;
   const PREFIX = 'elementfall_';
@@ -62,7 +62,11 @@ const Platform = (() => {
       sdk.game.addSettingsChangeListener(applySettings);
     });
     // accounts
-    safe(() => sdk.user.addAuthListener(u => { user = u || null; authListeners.forEach(cb => safe(() => cb(user))); }));
+    safe(() => sdk.user.addAuthListener(u => {
+      user = u || null;
+      lastProgress = null;
+      authListeners.forEach(cb => safe(() => cb(user)));
+    }));
     if (safe(() => sdk.user.isUserAccountAvailable, false)) {
       try { user = await sdk.user.getUser(); } catch (e) { user = null; }
     }
@@ -107,6 +111,12 @@ const Platform = (() => {
     safe(() => sdk && sdk.game.gameplayStop());
   }
   function happytime() { safe(() => sdk && sdk.game.happytime()); }
+  function reportProgress(percent) {
+    const value = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+    if (value === lastProgress) return;
+    lastProgress = value;
+    safe(() => sdk && sdk.game && typeof sdk.game.reportGameCompletedPercentage === 'function' && sdk.game.reportGameCompletedPercentage(value));
+  }
 
   /* --------------------------------------------------------------- ads */
   // cb(success:boolean). Without the SDK (other hosts, local testing) no ad runs and no reward is given.
@@ -141,10 +151,9 @@ const Platform = (() => {
   /* ----------------------------------------------------------- banners */
   // containerId must be a visible element sized to a supported banner format
   function showBanner(containerId) {
-    if (!ADS_ENABLED || !sdk || inGameplay || bannerRequests.has(containerId)) return;
+    if (!ADS_ENABLED || !sdk || inGameplay || bannersShown.has(containerId)) return;
     const el = document.getElementById(containerId);
     if (!el || !el.offsetWidth) return;
-    bannerRequests.add(containerId);
     bannersShown.add(containerId);
     try {
       const p = sdk.banner.requestResponsiveBanner(containerId);
@@ -203,7 +212,7 @@ const Platform = (() => {
 
   return {
     init, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
-    happytime, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore,
+    happytime, reportProgress, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore,
     get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
     get inGameplay() { return inGameplay; },
