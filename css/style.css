@@ -1679,6 +1679,7 @@ body.has-banner #map, body.has-banner #codex, body.has-banner #forge, body.has-b
 .ad-slot { background: rgba(10, 12, 18, 0.55); }
 /* Stages: realm tabs always fit the frame, no sideways scrolling (two rows of four) */
 #map .bar > .seg#realmTabs { display: grid; flex-wrap: nowrap; overflow: hidden; touch-action: auto; max-width: 640px; margin: 0 auto; }
+#map .bar > .seg#realmTabs > button { margin: 0; }
 #map .bar > .seg#realmTabs button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 8px 6px; font-size: 11px; text-align: center; }
 #map .bar > .seg#realmTabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* Elements detail: on shorter frames everything fits without a scrollbar */
