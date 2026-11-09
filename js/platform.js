@@ -20,16 +20,20 @@ const Platform = (() => {
   let adWaitOverlay = null;
   let adBlock = false;
   let user = null;
-  const bannersShown = new Set();
+  let bannerOn = false, bannerId = null, bannerTimer = null;
+  const BANNER_REFRESH = 30 * 1000;
+  const BANNER_SIZE = { width: 320, height: 50 };
   let lastProgress = null;
   const authListeners = [];
   const PREFIX = 'elementfall_';
   // Ads are for a Full Launch on CrazyGames (Basic Launch builds must not show any:
   // set this to false for a Basic Launch upload). Off CrazyGames no ad is ever requested.
-  //  - midgame: at the end of a run, before its results: boss stage cleared, and the 1st/3rd/5th…
-  //    Arena match and Endless run; never from a button; the SDK decides whether one plays
+  //  - midgame: requested at the breaks the CrazyGames review asked for (Play, Endless,
+  //    Find Match, picking a stage, Next / Retry / Again), never launched on its own;
+  //    the SDK decides whether one plays
   //  - rewarded: always opt-in, for a clear bonus
-  //  - banner: desktop home screen only, never during gameplay
+  //  - banner: one 320x50 banner, first requested on the Stages / Elements / Upgrades
+  //    menus, kept on the main menu, refreshed every 30 s, cleared only when gameplay starts
   const ADS_ENABLED = true;
   // CrazyGames leaderboards are invite-only and need the encryption key from the
   // developer portal. Leave the key empty and no score is ever sent.
@@ -99,6 +103,7 @@ const Platform = (() => {
   function loadingStop() { safe(() => sdk && sdk.game.loadingStop()); }
   function gameplayStart() {
     if (inGameplay) return; inGameplay = true;
+    clearBanners();
     safe(() => sdk && sdk.game.gameplayStart());
   }
   function gameplayStop() {
@@ -114,6 +119,8 @@ const Platform = (() => {
   }
 
   /* --------------------------------------------------------------- ads */
+  // While an ad is being requested, an invisible layer swallows taps and clicks so nothing
+  // underneath can be pressed twice. It shows no text (no "preparing ad" screen).
   function setAdWaitOverlay(visible) {
     if (!visible) {
       if (adWaitOverlay) adWaitOverlay.remove();
@@ -122,14 +129,9 @@ const Platform = (() => {
     }
     if (adWaitOverlay || !document.body) return;
     const overlay = document.createElement('div');
-    overlay.setAttribute('role', 'status');
-    overlay.setAttribute('aria-live', 'polite');
-    overlay.textContent = 'PREPARING AD…';
+    overlay.setAttribute('aria-hidden', 'true');
     Object.assign(overlay.style, {
-      position: 'fixed', inset: '0', zIndex: '2147483647',
-      display: 'grid', placeItems: 'center',
-      background: 'rgba(6, 8, 12, 0.82)', color: '#ffffff',
-      font: '800 14px Rubik, sans-serif', letterSpacing: '0.12em',
+      position: 'fixed', inset: '0', zIndex: '2147483647', background: 'transparent',
       pointerEvents: 'auto', touchAction: 'none', userSelect: 'none',
     });
     document.body.appendChild(overlay);
@@ -160,8 +162,8 @@ const Platform = (() => {
       });
     } catch (e) { finish(false); }
   }
-  // UI decides when (end of a boss stage, odd Arena matches and Endless runs); the SDK
-  // applies its own frequency limits on top.
+  // UI calls this from the buttons that start or restart play; the SDK applies its own
+  // frequency limits on top.
   function maybeMidgame(cb) {
     if (!ADS_ENABLED || !sdk) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
@@ -169,30 +171,31 @@ const Platform = (() => {
   function rewarded(cb) { requestAd('rewarded', cb); }
 
   /* ----------------------------------------------------------- banners */
-  // containerId must be a visible element sized to a supported banner format.
-  // The banner is requested ONCE per container and size; leaving the screen only hides the
-  // container (see UI), so returning to the menu does not fire another request. It is only
-  // requested again if the slot has to change size.
-  const bannerSize = {};
-  function showBanner(containerId) {
-    if (!ADS_ENABLED || !sdk || inGameplay) return;
-    const el = document.getElementById(containerId);
-    if (!el || !el.offsetWidth) return;
-    const size = el.offsetWidth + 'x' + el.offsetHeight;
-    if (bannerSize[containerId] === size) return;          // already showing at this size
-    if (bannerSize[containerId]) safe(() => sdk.banner.clearBanner(containerId));
-    bannerSize[containerId] = size;
-    bannersShown.add(containerId);
+  // One fixed 320x50 banner. It is requested once; while it exists it is never requested
+  // again, only refreshed every BANNER_REFRESH (and only while its slot is on screen).
+  // It is cleared only when gameplay starts.
+  const slotVisible = id => { const el = document.getElementById(id); return !!(el && el.offsetWidth && el.offsetHeight); };
+  function fillBanner(id) {
     try {
-      const p = sdk.banner.requestResponsiveBanner(containerId);
-      if (p && p.catch) p.catch(() => { delete bannerSize[containerId]; });
-    } catch (e) { delete bannerSize[containerId]; }
+      const p = sdk.banner.requestBanner ? sdk.banner.requestBanner(Object.assign({ id }, BANNER_SIZE)) : sdk.banner.requestResponsiveBanner(id);
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* ignore */ }
+  }
+  function showBanner(containerId) {
+    if (!ADS_ENABLED || !sdk || inGameplay) return false;
+    if (bannerOn) return true;                       // already showing: the timer refreshes it
+    if (!slotVisible(containerId)) return false;
+    bannerOn = true; bannerId = containerId;
+    fillBanner(containerId);
+    clearInterval(bannerTimer);
+    bannerTimer = setInterval(() => { if (bannerOn && !inGameplay && slotVisible(bannerId)) fillBanner(bannerId); }, BANNER_REFRESH);
+    return true;
   }
   function clearBanners() {
-    if (!ADS_ENABLED || !sdk || !bannersShown.size) return;
+    clearInterval(bannerTimer); bannerTimer = null;
+    if (!bannerOn) return;
+    bannerOn = false;
     safe(() => sdk.banner.clearAllBanners());
-    bannersShown.clear();
-    for (const k in bannerSize) delete bannerSize[k];
   }
 
   /* -------------------------------------------------------------- user */
@@ -255,7 +258,7 @@ const Platform = (() => {
     get inGameplay() { return inGameplay; },
     get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED && !!sdk; },
     get rewardedAvailable() { return ADS_ENABLED && !!sdk && !adBlock; },
-    get user() { return user; },
+    get bannerActive() { return bannerOn; }, get user() { return user; },
     get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },
   };
 })();

@@ -65,7 +65,7 @@ const UI = (() => {
     if (name === 'home') { Sfx.setMusicPaused(true); refreshHome(); }
     else if (name === null) Sfx.setMusicPaused(false);
     homeShift();
-    if (name !== 'home') $('cgBanner').classList.add('hidden');   // hidden, not cleared: no re-request on return
+    syncBanner();
     if (name && Platform.inGameplay) Platform.gameplayStop();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
@@ -85,25 +85,42 @@ const UI = (() => {
     $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS${Save.trial ? ` · <em class="trial-lbl">+ ${NAME(Save.trial)} TRIAL</em>` : ''}</span><div class="row">${(Save.trial ? [Save.trial] : []).concat(Save.loadout()).slice(0, 3).map(id => hex(id)).join('')}<button class="btn small" id="homeChange"><b>CHANGE</b></button></div>`;
     $('homeChange').onclick = () => { Sfx.ensure(); Sfx.click(); openLoadout(); };
     refreshUser();
-    setTimeout(() => { if (current === 'home') { placeBanner(); Platform.showBanner('cgBanner'); } }, 300);
   }
 
-  // Desktop home only: a banner in the open sky to the right of the menu, under the
-  // top-right counters, never over buttons or fighters. Phones and small windows get none.
-  function placeBanner() {
+  /* -------------------------------------------------------- banner ad */
+  // CrazyGames only. One 320x50 banner: first requested when the Stages, Elements or
+  // Upgrades menu opens, kept on every menu after that (main menu included), refreshed
+  // by the SDK wrapper every 30 s and cleared only when gameplay starts. Menus reserve a
+  // strip at the bottom for it (body.has-banner), so it never covers a button.
+  const BANNER_W = 320, BANNER_H = 50, BANNER_MENUS = ['map', 'codex', 'forge'];
+  function bannerSpot() {
+    if (current === 'home') {
+      // the open area right of the menu column: bottom strip first, else the top strip
+      const left = document.querySelector('.home-panel').getBoundingClientRect().right + 12;
+      const rail = $('homeRail'), tr = document.querySelector('#home .corner.tr');
+      const rr = rail && rail.offsetWidth ? rail.getBoundingClientRect() : null;
+      const brLeft = rr && rr.bottom > innerHeight - BANNER_H - 20 ? rr.left - 12 : innerWidth - 12;
+      if (brLeft - left >= BANNER_W) return { x: left + (brLeft - left - BANNER_W) / 2, y: innerHeight - BANNER_H - 8 };
+      const trLeft = tr && tr.offsetWidth ? tr.getBoundingClientRect().left - 12 : innerWidth - 12;
+      if (trLeft - left >= BANNER_W) return { x: left + (trLeft - left - BANNER_W) / 2, y: 8 };
+      return null;
+    }
+    return { x: (innerWidth - BANNER_W) / 2, y: innerHeight - BANNER_H - 6 };   // other menus: bottom centre, in the reserved strip
+  }
+  function syncBanner() {
     const slot = $('cgBanner');
-    const ok = current === 'home' && Platform.adsEnabled && !document.body.classList.contains('touch');
-    const left = ok ? document.querySelector('.home-panel').getBoundingClientRect().right : 0;
-    const room = innerWidth - left - 24, w = room >= 760 && innerHeight >= 620 ? 728 : room >= 500 && innerHeight >= 520 ? 468 : 0;
-    if (!ok || !w) { slot.classList.add('hidden'); return; }
-    const top = document.querySelector('#home .corner.tr').getBoundingClientRect().bottom + 14;
-    Object.assign(slot.style, { width: w + 'px', height: (w === 728 ? 90 : 60) + 'px', left: Math.round(left + (room - w) / 2) + 'px', top: Math.round(top) + 'px' });
+    const want = Platform.adsEnabled && current && (BANNER_MENUS.includes(current) || Platform.bannerActive);
+    const spot = want ? bannerSpot() : null;
+    document.body.classList.toggle('has-banner', !!want && current !== 'home');
+    if (!spot) { slot.classList.add('hidden'); return; }
+    Object.assign(slot.style, { width: BANNER_W + 'px', height: BANNER_H + 'px', left: Math.round(spot.x) + 'px', top: Math.round(spot.y) + 'px' });
     slot.classList.remove('hidden');
+    Platform.showBanner('cgBanner');   // no-op while a banner already exists
   }
 
   // every rewarded-ad offer uses the same button as its alternative (same size, font and
-  // colour, per CrazyGames rules), marked with a small play-icon AD tag so it's clear an ad plays
-  const adTag = () => `<span class="rw-mark" title="Watch a video">${ic('play')}</span>`;
+  // colour, per CrazyGames rules), marked with a video-camera icon so it's clear an ad plays
+  const adTag = () => `<span class="rw-mark" title="Watch a video">${ic('video')}</span>`;
   const adBtn = (id, label, extra = '') => `<button class="btn rw-offer${extra}" id="${id}">${adTag()}<b>${label}</b></button>`;
 
   // opt-in rewarded "+gems" when you are short, a few times a day
@@ -211,7 +228,7 @@ const UI = (() => {
         ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}`;
       el.onclick = () => {
         if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }
-        Sfx.click(); startStage(mapRealm, s);
+        Sfx.click(); const r = mapRealm; Platform.maybeMidgame(() => startStage(r, s));
       };
       grid.appendChild(el);
     }
@@ -719,7 +736,7 @@ const UI = (() => {
 `, sh => {
       sh.querySelector('#mmBack').onclick = () => { Sfx.click(); mmToken++; closeModal(); if (current === 'home') refreshHome(); };
       sh.querySelector('#mmLo').onclick = () => { Sfx.click(); openLoadout(() => openArena()); };
-      sh.querySelector('#mmFind').onclick = e => { Sfx.click(); e.currentTarget.disabled = true; enterDuel(); };
+      sh.querySelector('#mmFind').onclick = e => { Sfx.click(); e.currentTarget.disabled = true; Platform.maybeMidgame(() => { if (modalOpen()) enterDuel(); }); };
     }, 'arena');
   }
   // straight into the fight: the bars cover the switch and lift on round 1
@@ -934,17 +951,12 @@ const UI = (() => {
     return `<div class="actions result-actions has-offers"><div class="act-row act-main">${offers}${primary}</div><div class="act-row">${secondary}</div></div>`;
   }
 
-  // Midgame ads come at the end of a run, before its result screen: every boss stage
-  // cleared, and the 1st, 3rd, 5th… Arena match and Endless run of the session. Never on a
-  // defeat with a revive offer, and never from a button.
-  let duelEnds = 0, endlessEnds = 0;
+  // No midgame is launched on its own at the end of a run (CrazyGames review): midgames
+  // come from the buttons that start the next run (Next, Retry, Again, Play, Endless,
+  // Find Match, a stage in Stages).
   function showResult(res) {
     $('bossBar').classList.add('hidden');
-    const boss = res.mode === 'stage' && res.won && res.s === STAGES_PER_REALM - 1;
-    const odd = n => n % 2 === 1;
-    const midgame = boss || (res.mode === 'duel' && odd(++duelEnds)) || (res.mode === 'endless' && odd(++endlessEnds));
-    if (midgame) Platform.maybeMidgame(() => renderResult(res));
-    else renderResult(res);
+    renderResult(res);
   }
   function renderResult(res) {
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
@@ -981,7 +993,7 @@ const UI = (() => {
         ${resultActions('<button class="btn" id="rMenu"><b>HOME</b></button>', '<button class="btn primary" id="rAgain"><b>AGAIN</b></button>', offers)}`, s => {
         bindAds(s);
         s.querySelector('#rMenu').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(0); show('home'); };
-        s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); startEndless(); };
+        s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless()); };
       }, 'result');
       return;
     }
@@ -1008,9 +1020,9 @@ const UI = (() => {
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); startStage(r, s); };
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
         const nb = sh.querySelector('#rNext');
-        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); startStage(nextR, nextS); };
+        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS)); };
       }, 'result');
     } else {
       modal(`
@@ -1024,7 +1036,7 @@ const UI = (() => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); startStage(r, s); };
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
       }, 'result');
     }
   }
@@ -1376,8 +1388,8 @@ const UI = (() => {
     applyUiScale();
     loadKeyLayout();
     if (matchMedia('(pointer: coarse)').matches || /mobile|tablet/.test(Platform.device())) document.body.classList.add('touch');
-    $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); startStage(r, s); };
-    $('btnEndless').onclick = () => { Sfx.ensure(); Sfx.click(); startEndless(); };
+    $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); Platform.maybeMidgame(() => startStage(r, s)); };
+    $('btnEndless').onclick = () => { Sfx.ensure(); Sfx.click(); Platform.maybeMidgame(() => startEndless()); };
     $('btnArena').onclick = () => { Sfx.ensure(); Sfx.click(); openArena(); };
     document.querySelectorAll('[data-hub]').forEach(b => b.onclick = () => { Sfx.ensure(); Sfx.click(); openHub(b.dataset.hub); });
     document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
@@ -1436,7 +1448,7 @@ const UI = (() => {
     const k = clamp(Math.min(innerWidth / 1280, innerHeight / 760), 1, 1.75);
     document.documentElement.style.setProperty('--ui', k.toFixed(3));
     homeShift();
-    if (current === 'home') placeBanner();
+    syncBanner();
   }
 
   // the home menu is a column on the left, so frame the arena in the space to its right
@@ -1453,7 +1465,7 @@ const UI = (() => {
         <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
         <p>Quests, events and Arena trophies are part of that same save. There is no chat, and nothing about you is shown to other players.</p>
         <p>If the CrazyGames leaderboard is active and you are logged in, your Arena trophy count (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>
-        <p>On CrazyGames the game shows ads served by CrazyGames: a short ad now and then between stages, optional ads you can choose to watch for a bonus, and a banner on the home screen on computers. The game itself does not ask for or collect any other personal information and has no purchases.</p>
+        <p>On CrazyGames the game shows ads served by CrazyGames: a short ad now and then before a match or stage, optional ads you can choose to watch for a bonus, and a small banner on the menus. The game itself does not ask for or collect any other personal information and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
       </div>
       <div class="actions"><button class="btn primary" id="prBack"><b>BACK</b></button></div>`, s => {

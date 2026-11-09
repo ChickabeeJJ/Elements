@@ -74,19 +74,19 @@ The covers come from real gameplay. The only text on them is the game title, wit
 **Full Launch build: ads are on.** (For a Basic Launch upload set `ADS_ENABLED = false` in `js/platform.js`; CrazyGames does not allow ads in Basic Launch.) SDK order: init > loadingStart > loadingStop > gameplayStart (the tutorial on a first visit starts after loadingStop). Settings has an in-game Privacy & Terms note.
 
 **Ads** (`ADS_ENABLED` in `js/platform.js`), tuned to earn without driving players off. No ad is requested off CrazyGames, so no rewards are handed out for free elsewhere, and rewarded buttons hide when an ad-blocker is detected.
-- Midgame: only at natural breaks (Next, Retry, Again, Next Match), at most one every 3 minutes, and never until the player has finished the tutorial and cleared 3 stages.
+- Midgame: requested on Play, Endless, Arena FIGHT, picking a stage in Stages, and Next / Retry / Again. None is launched automatically. The SDK applies CrazyGames' frequency limits.
 - Rewarded, always opt-in: revive once per stage run; double gems on stage, Endless and Arena results; double the daily chest; and "+60 gems" when short of gems for an element or upgrade (5 a day).
-- Banner: desktop home screen only, 728×90 (or 468×60 in smaller windows) in the open sky right of the menu. It is never shown during gameplay or on phones, and is cleared whenever the home screen is left.
+- Banner: one 320×50 banner, requested when Stages, Elements or Upgrades opens, in a strip the menus keep free at the bottom. It stays when returning to the main menu, is never requested again while it exists (refreshed every 30 s instead), and is cleared only when gameplay starts.
 
 - `SDK.init()`, `environment`
 - `game.loadingStart` / `loadingStop` around boot
 - `game.gameplayStart` / `gameplayStop` on combat start/end, pause, menus and ads
 - `game.happytime` on stage clears and element unlocks
 - `game.settings` + `addSettingsChangeListener` (`muteAudio` is respected)
-- `ad.requestAd('midgame')` between stages, rate-limited to one every 3 minutes
+- `ad.requestAd('midgame')` on Play / Endless / FIGHT / stage pick / Next / Retry / Again
 - `ad.requestAd('rewarded')`: revive once per run, or double the gems from a stage
 - `ad.hasAdblock`
-- `banner.requestResponsiveBanner` on the home screen (desktop, 300×250) and `banner.clearAllBanners` when gameplay starts
+- `banner.requestBanner({ id, width: 320, height: 50 })` on the menus, refreshed every 30 s, and `banner.clearAllBanners` when gameplay starts
 - `user.isUserAccountAvailable`, `getUser`, `showAuthPrompt`, `addAuthListener` (login chip on home; the save reloads on login)
 - `user.systemInfo.device.type` for mobile detection (hides keyboard hints)
 - `user.submitScore({ encryptedScore })`: Arena trophies, for logged-in players only. This is inactive until `LEADERBOARD_KEY` is set (leaderboards are invite-only)

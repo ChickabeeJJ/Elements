@@ -1673,3 +1673,73 @@ body.touch .sheet.result > .result-actions .act-main .btn.primary { order: -1; }
 /* ad tag on a yellow (primary) button, e.g. TRY ONCE in the element shop */
 .btn.primary.rw-offer { background: var(--acc); }
 .trial-lbl { font-style: normal; color: var(--acc); }
+
+/* CrazyGames 320x50 banner: menus keep a strip free at the bottom for it */
+body.has-banner #map, body.has-banner #codex, body.has-banner #forge, body.has-banner #hub { padding-bottom: calc(62px + var(--safe-b)); }
+.ad-slot { background: rgba(10, 12, 18, 0.55); }
+/* Stages: realm tabs always fit the frame, no sideways scrolling (two rows of four) */
+#map .bar > .seg#realmTabs { display: grid; flex-wrap: nowrap; overflow: hidden; touch-action: auto; max-width: 640px; margin: 0 auto; }
+#map .bar > .seg#realmTabs button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 8px 6px; font-size: 11px; text-align: center; }
+#map .bar > .seg#realmTabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* Elements detail: on shorter frames everything fits without a scrollbar */
+@media (max-height: 760px) {
+  #codexDetail .cd-head .hex { width: 46px; height: 46px; }
+  #codexDetail .cd-head h3 { font-size: 24px; }
+  #codexDetail .cd-head p { font-size: 12.5px; line-height: 1.3; }
+  #codexDetail .cd-tags { margin: 3px 0 2px; }
+  #codexDetail .moves { gap: 5px; }
+  #codexDetail .move { padding: 6px 8px; gap: 3px 8px; }
+  #codexDetail .move-top { gap: 8px; }
+  #codexDetail .move h4 { font-size: 12px; }
+  #codexDetail .move .tags { margin-top: 2px; }
+  #codexDetail .move .tags span { font-size: 9.5px; padding: 2px 5px; }
+  #codexDetail .move p { font-size: 11.5px; line-height: 1.3; }
+  #codexDetail .move .meta { font-size: 11px; }
+  #codexDetail .combos { gap: 4px; }
+  #codexDetail .combo-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+  #codexDetail .combo-card { padding: 4px 8px 4px 4px; gap: 8px; }
+  #codexDetail .combo-card .pair .hex { width: 22px; height: 22px; border-radius: 5px; }
+  #codexDetail .combo-card p { display: none; }
+  #codexDetail .combo-card b { font-size: 11px; }
+}
+@media (max-height: 760px) {
+  #codexDetail { padding: 10px 12px; gap: 6px; }
+  #codexDetail .move-ic { width: 30px; height: 30px; }
+  #codexDetail .cd-btns .btn { min-height: 32px; padding: 4px 10px; }
+}
+@media (max-height: 640px) {
+  /* short frames: the three moves sit side by side, and the unlock row is one line */
+  #codexDetail .moves { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #codexDetail .move { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  #codexDetail .move-top { flex: none; }
+  #codexDetail .move-ic { width: 26px; height: 26px; }
+  #codexDetail .move .tags { display: none; }
+  #codexDetail .cd-head p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #codexDetail .buy-row { flex-wrap: nowrap; padding: 6px 8px; gap: 8px; }
+  #codexDetail .buy-row p { font-size: 12px; line-height: 1.3; }
+  #codexDetail .buy-row .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
+}
+@media (max-height: 640px) {
+  #codexDetail .move p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  #codexDetail .move .meta { margin-top: 2px; }
+  #codexDetail .combo-card .pair .or, #codexDetail .combo-card .pair .or + .hex { display: none; }
+  #codexDetail .combo-card { padding: 3px 8px 3px 3px; min-width: 0; }
+  #codexDetail .combo-card > div:last-child { min-width: 0; }
+  #codexDetail .combo-card b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #codexDetail .combo-card .plus { font-size: 12px; }
+  #codexDetail .combo-card .pair .hex { width: 20px; height: 20px; }
+  #codexDetail .combo-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  #codexDetail .cd-btns .btn { min-height: 28px; }
+  #codexDetail .moves { gap: 4px; }
+}
+@media (max-height: 640px) {
+  #codexDetail .cd-head .hex { width: 40px; height: 40px; }
+  #codexDetail .cd-head h3 { font-size: 22px; line-height: 1.1; }
+  #codexDetail .combos h4 { font-size: 10.5px; }
+  #codexDetail { gap: 5px; padding: 8px 10px; }
+}
+/* combo cards never push the detail pane sideways */
+.codex-detail { overflow-x: hidden; }
+.combo-card { min-width: 0; }
+.combo-card > div:last-child { min-width: 0; flex: 1; }
+.combo-card .pair { flex-wrap: wrap; max-width: 55%; }
