@@ -103,13 +103,20 @@ const UI = (() => {
       if (brLeft - left >= BANNER_W) return { x: left + (brLeft - left - BANNER_W) / 2, y: innerHeight - BANNER_H - 8 };
       const trLeft = tr && tr.offsetWidth ? tr.getBoundingClientRect().left - 12 : innerWidth - 12;
       if (trLeft - left >= BANNER_W) return { x: left + (trLeft - left - BANNER_W) / 2, y: 8 };
+      // top strip across the whole width when the menu column starts below it
+      const panelTop = Math.min(...[...document.querySelectorAll('.home-panel > *')].map(e => e.getBoundingClientRect().top).filter(t => t > 0));
+      if (panelTop >= BANNER_H + 16 && trLeft - 12 >= BANNER_W) return { x: Math.max(12, (trLeft - BANNER_W) / 2), y: 8 };
+      // bottom strip across the whole width when the menu column ends above it
+      const panelBottom = Math.max(...[...document.querySelectorAll('.home-panel > *')].map(e => e.getBoundingClientRect().bottom));
+      if (panelBottom <= innerHeight - BANNER_H - 10 && brLeft - 12 >= BANNER_W) return { x: Math.max(12, (brLeft - BANNER_W) / 2), y: innerHeight - BANNER_H - 6 };
       return null;
     }
     return { x: (innerWidth - BANNER_W) / 2, y: innerHeight - BANNER_H - 6 };   // other menus: bottom centre, in the reserved strip
   }
   function syncBanner() {
     const slot = $('cgBanner');
-    const want = Platform.adsEnabled && current && (BANNER_MENUS.includes(current) || Platform.bannerActive);
+    // the Event / Quests / Ranks hub keeps its full height: the banner is only hidden there, not cleared
+    const want = Platform.adsEnabled && current && current !== 'hub' && (BANNER_MENUS.includes(current) || Platform.bannerActive);
     const spot = want ? bannerSpot() : null;
     document.body.classList.toggle('has-banner', !!want && current !== 'home');
     if (!spot) { slot.classList.add('hidden'); return; }
