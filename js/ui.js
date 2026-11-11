@@ -66,7 +66,7 @@ const UI = (() => {
     else if (name === null) Sfx.setMusicPaused(false);
     homeShift();
     syncBanner();
-    if (name && Platform.inGameplay) Platform.gameplayStop();
+    if (name) Platform.gameplayStop();   // no-op unless gameplay was on; also drops a held start
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
 
@@ -1455,8 +1455,9 @@ const UI = (() => {
     applySettings();
     Game.idleScene(0);
     show('home');
-    // gameplay (and the SDK's gameplayStart) begins only when the player presses Play:
-    // a new player's Play starts the tutorial (see btnPlay), never straight after loading
+    // a new player goes straight into the tutorial, as before; the SDK's gameplayStart for it
+    // waits for the player's first input, so it is never sent during the loading screen
+    if (!Save.data.tutorialDone) { Platform.holdGameplayUntilInput(); startTutorial(); }
     checkRotate();
   }
 
