@@ -76,7 +76,7 @@ The covers come from real gameplay. The only text on them is the game title, wit
 **Ads** (`ADS_ENABLED` in `js/platform.js`), tuned to earn without driving players off. No ad is requested off CrazyGames, so no rewards are handed out for free elsewhere, and rewarded buttons hide when an ad-blocker is detected.
 - Midgame: requested on Play, Endless, Arena FIGHT, picking a stage in Stages, and Next / Retry / Again. None is launched automatically. The SDK applies CrazyGames' frequency limits.
 - Rewarded, always opt-in: revive once per stage run; double gems on stage, Endless and Arena results; double the daily chest; and "+60 gems" when short of gems for an element or upgrade (5 a day).
-- Banner: one 320×50 banner, requested when Stages, Elements or Upgrades opens, in a strip the menus keep free at the bottom. It stays when returning to the main menu, is never requested again while it exists (refreshed every 30 s instead), and is cleared only when gameplay starts.
+- Banner: one 320×50 banner in a fixed spot (bottom-centre on computers, top-centre on touch devices), no background. Requested when Stages, Elements or Upgrades opens, then kept on every menu and pop-up (main menu, loadout, Event / Quests / Ranks, settings), which keep that strip free. Never requested again while it exists (refreshed every 30 s instead); cleared only when gameplay starts.
 
 - `SDK.init()`, `environment`
 - `game.loadingStart` / `loadingStop` around boot

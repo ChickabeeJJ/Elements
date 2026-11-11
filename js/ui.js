@@ -88,41 +88,45 @@ const UI = (() => {
   }
 
   /* -------------------------------------------------------- banner ad */
-  // CrazyGames only. One 320x50 banner: first requested when the Stages, Elements or
-  // Upgrades menu opens, kept on every menu after that (main menu included), refreshed
-  // by the SDK wrapper every 30 s and cleared only when gameplay starts. Menus reserve a
-  // strip at the bottom for it (body.has-banner), so it never covers a button.
-  const BANNER_W = 320, BANNER_H = 50, BANNER_MENUS = ['map', 'codex', 'forge'];
-  function bannerSpot() {
-    if (current === 'home') {
-      // the open area right of the menu column: bottom strip first, else the top strip
-      const left = document.querySelector('.home-panel').getBoundingClientRect().right + 12;
-      const rail = $('homeRail'), tr = document.querySelector('#home .corner.tr');
-      const rr = rail && rail.offsetWidth ? rail.getBoundingClientRect() : null;
-      const brLeft = rr && rr.bottom > innerHeight - BANNER_H - 20 ? rr.left - 12 : innerWidth - 12;
-      if (brLeft - left >= BANNER_W) return { x: left + (brLeft - left - BANNER_W) / 2, y: innerHeight - BANNER_H - 8 };
-      const trLeft = tr && tr.offsetWidth ? tr.getBoundingClientRect().left - 12 : innerWidth - 12;
-      if (trLeft - left >= BANNER_W) return { x: left + (trLeft - left - BANNER_W) / 2, y: 8 };
-      // top strip across the whole width when the menu column starts below it
-      const panelTop = Math.min(...[...document.querySelectorAll('.home-panel > *')].map(e => e.getBoundingClientRect().top).filter(t => t > 0));
-      if (panelTop >= BANNER_H + 16 && trLeft - 12 >= BANNER_W) return { x: Math.max(12, (trLeft - BANNER_W) / 2), y: 8 };
-      // bottom strip across the whole width when the menu column ends above it
-      const panelBottom = Math.max(...[...document.querySelectorAll('.home-panel > *')].map(e => e.getBoundingClientRect().bottom));
-      if (panelBottom <= innerHeight - BANNER_H - 10 && brLeft - 12 >= BANNER_W) return { x: Math.max(12, (brLeft - BANNER_W) / 2), y: innerHeight - BANNER_H - 6 };
-      return null;
-    }
-    return { x: (innerWidth - BANNER_W) / 2, y: innerHeight - BANNER_H - 6 };   // other menus: bottom centre, in the reserved strip
-  }
+  // CrazyGames only. One 320x50 banner in a fixed spot that never moves: bottom-centre on
+  // computers, top-centre on phones and tablets. It is first requested when the Stages,
+  // Elements or Upgrades menu opens, then stays on every menu and pop-up (main menu,
+  // loadout, Event / Quests / Ranks, settings…), is refreshed by the SDK wrapper every 30 s
+  // and is cleared only when gameplay starts. While it shows, body.banner-on makes every
+  // menu and pop-up keep that strip free, so it never covers the game's UI.
+  const BANNER_MENUS = ['map', 'codex', 'forge'];
   function syncBanner() {
     const slot = $('cgBanner');
-    // the Event / Quests / Ranks hub keeps its full height: the banner is only hidden there, not cleared
-    const want = Platform.adsEnabled && current && current !== 'hub' && (BANNER_MENUS.includes(current) || Platform.bannerActive);
-    const spot = want ? bannerSpot() : null;
-    document.body.classList.toggle('has-banner', !!want && current !== 'home');
-    if (!spot) { slot.classList.add('hidden'); return; }
-    Object.assign(slot.style, { width: BANNER_W + 'px', height: BANNER_H + 'px', left: Math.round(spot.x) + 'px', top: Math.round(spot.y) + 'px' });
-    slot.classList.remove('hidden');
-    Platform.showBanner('cgBanner');   // no-op while a banner already exists
+    const want = !!(Platform.adsEnabled && current && (BANNER_MENUS.includes(current) || Platform.bannerActive));
+    document.body.classList.toggle('banner-on', want);
+    slot.classList.toggle('hidden', !want);
+    if (want) Platform.showBanner('cgBanner');   // no-op while a banner already exists
+    fitScreen();
+  }
+
+  // Menus that must fit the game frame without a scrollbar: if the content is a little
+  // taller than the frame (small windows, banner strip), scale it down to fit.
+  const FIT_SCREENS = ['map', 'forge', 'hub'];
+  function fitScreen() {
+    for (const id of FIT_SCREENS) {
+      const el = $(id);
+      el.style.setProperty('--fit', 1);
+      if (id !== current) continue;
+      for (let i = 0; i < 3; i++) {
+        const over = el.scrollHeight - el.clientHeight;
+        if (over <= 1) break;
+        const k = parseFloat(el.style.getPropertyValue('--fit')) || 1;
+        el.style.setProperty('--fit', Math.max(0.72, k * el.clientHeight / el.scrollHeight).toFixed(3));
+      }
+    }
+    // the Elements detail pane: scale its content down a little rather than scroll
+    const det = $('codexDetail');
+    det.style.setProperty('--fit', 1);
+    if (current === 'codex') for (let i = 0; i < 3; i++) {
+      if (det.scrollHeight - det.clientHeight <= 1) break;
+      const k = parseFloat(det.style.getPropertyValue('--fit')) || 1;
+      det.style.setProperty('--fit', Math.max(0.72, k * det.clientHeight / det.scrollHeight).toFixed(3));
+    }
   }
 
   // every rewarded-ad offer uses the same button as its alternative (same size, font and
@@ -240,6 +244,7 @@ const UI = (() => {
       grid.appendChild(el);
     }
     Icons.hydrate(tabs); Icons.hydrate($('realmHead')); Icons.hydrate(grid);
+    fitScreen();
   }
 
   /* --------------------------------------------------- element browser */
@@ -436,6 +441,7 @@ const UI = (() => {
           </div>`).join('')}</div></div>`;
       })()}`;
     Icons.hydrate(det);
+    requestAnimationFrame(fitScreen);
     det.scrollTop = 0;
     det.querySelector('#previewEl').onclick = () => { Sfx.click(); previewFrom = 'codex'; openPreview(e); };
     const eq = det.querySelector('#equipEl');
@@ -535,6 +541,7 @@ const UI = (() => {
     Icons.hydrate(body); Icons.hydrate($('hubTabs'));
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
     bindHub(body);
+    fitScreen();
   }
 
   function eventTab() {
@@ -669,6 +676,7 @@ const UI = (() => {
     $('hubTabs').querySelectorAll('button').forEach(b => { const dot = b.querySelector('.dot'); if (dot) dot.classList.toggle('hidden', !(b.dataset.tab === 'event' ? c.event : c.daily)); });
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
     bindHub(body);
+    fitScreen();
   }
   function bindHub(body) {
     const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
@@ -814,6 +822,7 @@ const UI = (() => {
       grid.appendChild(card);
     }
     Icons.hydrate(grid);
+    fitScreen();
   }
 
   /* -------------------------------------------------------------- modal */
@@ -1446,7 +1455,8 @@ const UI = (() => {
     applySettings();
     Game.idleScene(0);
     show('home');
-    if (!Save.data.tutorialDone) startTutorial();
+    // gameplay (and the SDK's gameplayStart) begins only when the player presses Play:
+    // a new player's Play starts the tutorial (see btnPlay), never straight after loading
     checkRotate();
   }
 

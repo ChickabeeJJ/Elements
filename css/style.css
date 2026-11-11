@@ -1675,8 +1675,6 @@ body.touch .sheet.result > .result-actions .act-main .btn.primary { order: -1; }
 .trial-lbl { font-style: normal; color: var(--acc); }
 
 /* CrazyGames 320x50 banner: menus keep a strip free at the bottom for it */
-body.has-banner #map, body.has-banner #codex, body.has-banner #forge { padding-bottom: calc(62px + var(--safe-b)); }
-.ad-slot { background: rgba(10, 12, 18, 0.55); }
 /* Stages: realm tabs always fit the frame, no sideways scrolling (two rows of four) */
 #map .bar > .seg#realmTabs { display: grid; flex-wrap: nowrap; overflow: hidden; touch-action: auto; max-width: 640px; margin: 0 auto; }
 #map .bar > .seg#realmTabs > button { margin: 0; }
@@ -1810,3 +1808,39 @@ body.has-banner #map, body.has-banner #codex, body.has-banner #forge { padding-b
   .event-tab .hub-col > .card > p.fine { display: none; }
   .event-tab .panel h4, .event-tab .panel-head { margin-bottom: 0; }
 }
+
+/* ---------------------------------------------------- CrazyGames 320x50 banner
+   One fixed spot that never moves: bottom-centre on computers, top-centre on touch
+   devices. No background of its own. It sits above menus and pop-ups, and while it shows
+   (body.banner-on) every screen and pop-up keeps that strip free. */
+.ad-slot { position: fixed; z-index: 40; width: 320px; height: 50px; left: calc(50% - 160px); top: auto; bottom: calc(6px + var(--safe-b)); background: none; overflow: hidden; pointer-events: auto; }
+body.touch .ad-slot { top: calc(4px + var(--safe-t)); bottom: auto; }
+
+/* computers: keep the bottom strip free */
+body.banner-on:not(.touch) .screen:not(#home) { padding-bottom: calc(62px + var(--safe-b)); }
+body.banner-on:not(.touch) #home .home-panel { padding-bottom: calc(66px + var(--safe-b)); }
+body.banner-on:not(.touch) #home .live-rail { bottom: calc(66px + var(--safe-b)); }
+body.banner-on:not(.touch) .modal { padding-bottom: calc(66px + var(--safe-b)); }
+body.banner-on:not(.touch) .modal .sheet { max-height: calc((100dvh - 76px - var(--safe-t) - var(--safe-b)) / var(--ui)); }
+
+/* touch devices: keep the top strip free */
+body.banner-on.touch .screen:not(#home) { padding-top: calc(60px + var(--safe-t)); }
+body.banner-on.touch #home .corner.tr { top: calc(60px + var(--safe-t)); }
+body.banner-on.touch .modal { padding-top: calc(62px + var(--safe-t)); }
+body.banner-on.touch .modal .sheet { max-height: calc((100dvh - 72px - var(--safe-t) - var(--safe-b)) / var(--ui)); }
+
+/* menus that scale down a little to fit the frame instead of scrolling (see fitScreen) */
+#map > *, #forge > *, #hub > * { zoom: calc(var(--ui) * var(--fit, 1)); }
+body.banner-on .sheet.loadout .lo-grid { min-height: 56px; }
+@media (max-height: 520px) {
+  body.banner-on .modal .sheet { padding-top: 14px; padding-bottom: 14px; gap: 10px; }
+}
+@media (max-height: 520px) {
+  body.banner-on .modal .keys { gap: 2px 12px; font-size: 13px; }
+  body.banner-on .modal .sheet h2 { font-size: 22px; }
+}
+@media (max-height: 380px) {
+  body.banner-on .modal .sheet { padding-top: 10px; padding-bottom: 10px; gap: 6px; }
+  body.banner-on .sheet.loadout .lo-grid { min-height: 44px; }
+}
+#codexDetail > * { zoom: var(--fit, 1); }
