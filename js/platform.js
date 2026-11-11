@@ -106,32 +106,12 @@ const Platform = (() => {
   /* ------------------------------------------------------------ events */
   function loadingStart() { safe(() => sdk && sdk.game.loadingStart()); }
   function loadingStop() { safe(() => sdk && sdk.game.loadingStop()); }
-  // A new player is dropped straight into the tutorial when the game opens. So that the
-  // SDK's gameplayStart is not sent while the CrazyGames loading screen may still be up,
-  // it is held until the player's first key press, click or tap; if gameplay is still on
-  // by then it is sent at that moment.
-  let holdForInput = false, heldStart = false;
-  function holdGameplayUntilInput() {
-    if (holdForInput) return;
-    holdForInput = true;
-    const types = ['keydown', 'pointerdown', 'touchstart'];
-    const release = e => {
-      // Skip / Pause are not "playing": wait for real input
-      if (e && e.target && e.target.closest && e.target.closest('#tutSkip, #btnPause, #modal')) return;
-      types.forEach(t => window.removeEventListener(t, release, true));
-      holdForInput = false;
-      if (heldStart) { heldStart = false; gameplayStart(); }
-    };
-    types.forEach(t => window.addEventListener(t, release, true));
-  }
   function gameplayStart() {
-    if (holdForInput) { heldStart = true; clearBanners(); return; }
     if (inGameplay) return; inGameplay = true;
     clearBanners();
     safe(() => sdk && sdk.game.gameplayStart());
   }
   function gameplayStop() {
-    if (holdForInput) { heldStart = false; return; }
     if (!inGameplay) return; inGameplay = false;
     safe(() => sdk && sdk.game.gameplayStop());
   }
@@ -276,7 +256,7 @@ const Platform = (() => {
   }
 
   return {
-    init, holdGameplayUntilInput, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
+    init, getItem, setItem, removeItem, loadingStart, loadingStop, gameplayStart, gameplayStop,
     happytime, reportProgress, requestAd, maybeMidgame, rewarded, showBanner, clearBanners, login, onAuth, device, submitScore, fetchLeaderboard,
     get leaderboardEnabled() { return leaderboardOn(); },
     get hasSdk() { return !!sdk; }, get ready() { return ready; }, get env() { return env; },
