@@ -1458,6 +1458,7 @@ const UI = (() => {
     // a new player goes straight into the tutorial once loading has stopped (main.js calls
     // loadingStop before UI.init), and gameplayStart is sent as the tutorial starts
     if (!Save.data.tutorialDone) startTutorial();
+    TitleFx.init();
     checkRotate();
   }
 
