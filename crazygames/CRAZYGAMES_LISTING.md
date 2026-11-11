@@ -76,7 +76,7 @@ The covers come from real gameplay. The only text on them is the game title, wit
 **Ads** (`ADS_ENABLED` in `js/platform.js`), tuned to earn without driving players off. No ad is requested off CrazyGames, so no rewards are handed out for free elsewhere, and rewarded buttons hide when an ad-blocker is detected.
 - Midgame: requested on Play, Endless, Arena FIGHT, picking a stage in Stages, and Next / Retry / Again. None is launched automatically. The SDK applies CrazyGames' frequency limits.
 - Rewarded, always opt-in: revive once per stage run; double gems on stage, Endless and Arena results; double the daily chest; and "+60 gems" when short of gems for an element or upgrade (5 a day).
-- Banner: one 320×50 banner in a fixed spot (bottom-centre on computers, top-centre on touch devices), no background. Requested when Stages, Elements or Upgrades opens, then kept on every menu and pop-up (main menu, loadout, Event / Quests / Ranks, settings), which keep that strip free. Never requested again while it exists (refreshed every 30 s instead); cleared only when gameplay starts.
+- Banner: none. Banner ads are switched off (`BANNERS_ENABLED = false` in `js/platform.js`).
 
 - `SDK.init()`, `environment`
 - `game.loadingStart` / `loadingStop` around boot
@@ -86,7 +86,7 @@ The covers come from real gameplay. The only text on them is the game title, wit
 - `ad.requestAd('midgame')` on Play / Endless / FIGHT / stage pick / Next / Retry / Again
 - `ad.requestAd('rewarded')`: revive once per run, or double the gems from a stage
 - `ad.hasAdblock`
-- `banner.requestBanner({ id, width: 320, height: 50 })` on the menus, refreshed every 30 s, and `banner.clearAllBanners` when gameplay starts
+- No banner calls (banners are switched off)
 - `user.isUserAccountAvailable`, `getUser`, `showAuthPrompt`, `addAuthListener` (login chip on home; the save reloads on login)
 - `user.systemInfo.device.type` for mobile detection (hides keyboard hints)
 - `user.submitScore({ encryptedScore })`: Arena trophies, for logged-in players only. This is inactive until `LEADERBOARD_KEY` is set (leaderboards are invite-only)

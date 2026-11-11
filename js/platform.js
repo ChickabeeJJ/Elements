@@ -35,6 +35,11 @@ const Platform = (() => {
   //  - banner: one 320x50 banner, first requested on the Stages / Elements / Upgrades
   //    menus, kept on the main menu, refreshed every 30 s, cleared only when gameplay starts
   const ADS_ENABLED = true;
+  // Banner ads are OFF: no banner is requested and no screen reserves space for one.
+  // The banner code below follows the CrazyGames review rules (320x50, fixed bottom-centre /
+  // top-centre on touch, kept on menus, refreshed every 30 s, cleared at gameplay): set this
+  // to true to bring it back.
+  const BANNERS_ENABLED = false;
   // CrazyGames leaderboards are invite-only and need the encryption key from the
   // developer portal. Leave the key empty and no score is ever sent.
   // The score is AES-GCM encrypted (random 12-byte IV, sent as base64 of IV + ciphertext + tag)
@@ -182,7 +187,7 @@ const Platform = (() => {
     } catch (e) { /* ignore */ }
   }
   function showBanner(containerId) {
-    if (!ADS_ENABLED || !sdk || inGameplay) return false;
+    if (!BANNERS_ENABLED || !ADS_ENABLED || !sdk || inGameplay) return false;
     if (bannerOn) return true;                       // already showing: the timer refreshes it
     if (!slotVisible(containerId)) return false;
     bannerOn = true; bannerId = containerId;
@@ -258,7 +263,7 @@ const Platform = (() => {
     get inGameplay() { return inGameplay; },
     get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED && !!sdk; },
     get rewardedAvailable() { return ADS_ENABLED && !!sdk && !adBlock; },
-    get bannerActive() { return bannerOn; }, get user() { return user; },
+    get bannerActive() { return bannerOn; }, get bannersEnabled() { return BANNERS_ENABLED && ADS_ENABLED && !!sdk; }, get user() { return user; },
     get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },
   };
 })();

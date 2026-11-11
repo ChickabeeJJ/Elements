@@ -97,7 +97,7 @@ const UI = (() => {
   const BANNER_MENUS = ['map', 'codex', 'forge'];
   function syncBanner() {
     const slot = $('cgBanner');
-    const want = !!(Platform.adsEnabled && current && (BANNER_MENUS.includes(current) || Platform.bannerActive));
+    const want = !!(Platform.bannersEnabled && current && (BANNER_MENUS.includes(current) || Platform.bannerActive));
     document.body.classList.toggle('banner-on', want);
     slot.classList.toggle('hidden', !want);
     if (want) Platform.showBanner('cgBanner');   // no-op while a banner already exists
@@ -1482,7 +1482,7 @@ const UI = (() => {
         <p>Element Rag saves your progress (stars, gems, unlocked elements, upgrades and settings) so you can continue later. On CrazyGames it is stored with the CrazyGames SDK, linked to your CrazyGames account if you are logged in; elsewhere it stays in this browser.</p>
         <p>Quests, events and Arena trophies are part of that same save. There is no chat, and nothing about you is shown to other players.</p>
         <p>If the CrazyGames leaderboard is active and you are logged in, your Arena trophy count (one number) is sent to it and shown with your CrazyGames username. Nothing else is sent.</p>
-        <p>On CrazyGames the game shows ads served by CrazyGames: a short ad now and then before a match or stage, optional ads you can choose to watch for a bonus, and a small banner on the menus. The game itself does not ask for or collect any other personal information and has no purchases.</p>
+        <p>On CrazyGames the game shows ads served by CrazyGames: a short ad now and then before a match or stage and optional ads you can choose to watch for a bonus. The game itself does not ask for or collect any other personal information and has no purchases.</p>
         <p>Playing on CrazyGames is covered by the CrazyGames <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
       </div>
       <div class="actions"><button class="btn primary" id="prBack"><b>BACK</b></button></div>`, s => {
