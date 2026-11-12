@@ -336,7 +336,7 @@ const ELEMENTS = [
         desc: 'Drop a grand piano from the sky onto your aim. It crushes and stuns whatever it lands on.', cd: 9, windup: 0.2, active: 0.1, recover: 0.2,
         dmg: 34, radius: 90, knock: 520, lift: 0.4, stun: 1.2 },
       { slot: 'p2', id: 'encore', name: 'Encore', type: 'power', icon: 'rhythm', kind: 'rhythm', pose: 'raise',
-        desc: 'Time stops and a 15s rhythm game begins (lanes 5 6 7 8, or tap). The share of notes you hit becomes a sound blast that damages every foe.', cd: 30, windup: 0.1, active: 0.1, recover: 0.2,
+        desc: 'Time stops and a 15s rhythm game begins (lanes 5 6 7 8, or tap). The share of notes you hit becomes a sound blast that damages every foe, and deals triple damage to bosses.', cd: 30, windup: 0.1, active: 0.1, recover: 0.2,
         dmg: 70, knock: 1050, lift: 0.6, dur: 15 },
     ],
   },
@@ -533,6 +533,8 @@ const AFFINITY = {
   water:     { weak: ['lightning', 'nature'], resist: ['water', 'fire', 'frost'] },
   venom:     { weak: ['fire', 'arcane'], resist: ['venom', 'nature', 'water'] },
   crystal:   { weak: ['earth', 'midas', 'echo'], resist: ['crystal', 'light', 'frost'] },
+  sand:      { weak: ['water', 'wind'], resist: ['sand', 'fire', 'lightning'] },
+  light:     { weak: ['void', 'shadow'], resist: ['light', 'arcane', 'fire'] },
 };
 /* element combos: set a foe up with one element, then hit it with the partner.
    a: element(s) that apply the setup status; b: element that cashes it in. */

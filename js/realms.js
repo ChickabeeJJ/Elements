@@ -69,6 +69,22 @@ const REALMS = [
     ambient: 'shard', tint: '#9ff0e8',
     boss: { name: 'The Shardmother', title: 'Heart of the Geode' },
   },
+  {
+    id: 'dunes', name: 'Sunscorch Dunes', element: 'sand',
+    sky: ['#e9a24a', '#f6cf86', '#fff1c9'], sun: '#fff8dc', sunPos: [0.66, 0.18], showSun: true,
+    hills: ['#e2b06b', '#c48946', '#99642e'], fog: '#f7deaa',
+    top: '#f0cf8a', topDark: '#d2a55c', rock: '#a8733f', rockDark: '#7a4f2a',
+    ambient: 'grit', tint: '#f2c46b',
+    boss: { name: 'Dunemaw', title: 'Devourer of Caravans' },
+  },
+  {
+    id: 'citadel', name: 'Radiant Citadel', element: 'light',
+    sky: ['#3b2a6e', '#b36fa8', '#ffd59a'], sun: '#fff6d6', sunPos: [0.5, 0.24], showSun: true,
+    hills: ['#e7c58c', '#c39a62', '#8d6a45'], fog: '#ffe8b8',
+    top: '#fff0c2', topDark: '#e8c477', rock: '#c9a46a', rockDark: '#94723f',
+    ambient: 'glimmer', tint: '#fff3b0', glowTop: true,
+    boss: { name: 'Solaris Ascendant', title: 'The Final Radiance' },
+  },
 ];
 // the first seven realms keep the difficulty curve they launched with
 const CLASSIC_STAGES = 56;
@@ -165,13 +181,15 @@ function buildStage(r, s) {
   const realm = REALMS[r];
   const g = r * STAGES_PER_REALM + s;
   const ease = STAGE_EASE[r + '-' + s];
-  const d = ease && ease.d != null ? ease.d : r < 7 ? g / (CLASSIC_STAGES - 1) : lerp(0.72, 0.92, s / (STAGES_PER_REALM - 1));
+  // from Crystal Caverns on, each chapter starts and ends a little harder than the last
+  const late = Math.max(0, r - 7) * 0.06;
+  const d = ease && ease.d != null ? ease.d : r < 7 ? g / (CLASSIC_STAGES - 1) : lerp(0.72 + late, 0.92 + late * 0.7, s / (STAGES_PER_REALM - 1));
   const rng = mulberry32(9137 + g * 7919);
   const mix = r === 6 ? 0.3 : 0;   // the Void Rift mixes in other elements
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * 1.05 * (r >= REALMS.length - 4 ? 0.9 : 1) }]);   // all bosses +5%; last 4 realms' bosses -10%
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * 1.05 * (r >= 4 && r <= 7 ? 0.9 : 1) }]);   // all bosses +5%; Stormspire..Crystal Caverns bosses -10%
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
   }
   const arena = ARENAS[(g * 3 + r) % ARENAS.length];

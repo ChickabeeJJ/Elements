@@ -1676,10 +1676,21 @@ body.touch .sheet.result > .result-actions .act-main .btn.primary { order: -1; }
 
 /* CrazyGames 320x50 banner: menus keep a strip free at the bottom for it */
 /* Stages: realm tabs always fit the frame, no sideways scrolling (two rows of four) */
-#map .bar > .seg#realmTabs { display: grid; flex-wrap: nowrap; overflow: hidden; touch-action: auto; max-width: 640px; margin: 0 auto; }
+#map .bar > .seg#realmTabs { display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; align-items: center; gap: 4px; flex-wrap: nowrap; overflow: hidden; touch-action: auto; max-width: 720px; margin: 0 auto; }
 #map .bar > .seg#realmTabs > button { margin: 0; }
-#map .bar > .seg#realmTabs button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 8px 6px; font-size: 11px; text-align: center; }
-#map .bar > .seg#realmTabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#realmTabs .tab-page { display: flex; justify-content: center; gap: 4px; min-width: 0; }
+#realmTabs .tab-page > button { flex: 0 0 calc(25% - 3px); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 8px 6px; font-size: 11px; text-align: center; margin: 0; }
+#realmTabs .tab-page > button small { font-weight: 900; font-size: 10px; opacity: 0.55; margin-right: 6px; }
+#realmTabs .tab-page > button.active small { opacity: 0.7; }
+#realmTabs .tab-page.from-right { animation: tabsFromRight 0.28s cubic-bezier(.2, .8, .2, 1); }
+#realmTabs .tab-page.from-left { animation: tabsFromLeft 0.28s cubic-bezier(.2, .8, .2, 1); }
+@keyframes tabsFromRight { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+@keyframes tabsFromLeft { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+#realmTabs .tab-arrow { display: grid; place-items: center; width: 34px; height: 32px; padding: 0; margin: 0; border-radius: 4px; color: var(--text); background: rgba(255, 255, 255, 0.06); }
+#realmTabs .tab-arrow:hover:not(:disabled) { background: color-mix(in srgb, var(--acc) 30%, transparent); }
+#realmTabs .tab-arrow:disabled { opacity: 0.25; cursor: default; }
+#realmTabs .tab-arrow .ic { width: 15px; height: 15px; margin: 0; }
+#realmTabs .tab-arrow.next .ic { transform: scaleX(-1); }
 /* Elements detail: on shorter frames everything fits without a scrollbar */
 @media (max-height: 760px) {
   #codexDetail .cd-head .hex { width: 46px; height: 46px; }

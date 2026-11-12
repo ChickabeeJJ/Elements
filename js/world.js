@@ -245,7 +245,7 @@ class Ambience {
       c.x += c.v * dt;
       if (c.x - 260 * c.s > view.x0 + view.w) c.x = view.x0 - 260 * c.s;
     }
-    const want = { leaf: 26, ember: 60, snow: 110, rain: 150, mote: 70, bubble: 45, spore: 55, shard: 60 }[r.ambient] || 0;
+    const want = { leaf: 26, ember: 60, snow: 110, rain: 150, mote: 70, bubble: 45, spore: 55, shard: 60, grit: 120, glimmer: 55 }[r.ambient] || 0;
     while (this.parts.length < want) this.parts.push(this.spawn(view, true));
     for (const p of this.parts) {
       p.t += dt;
@@ -276,6 +276,7 @@ class Ambience {
     if (r === 'leaf') { p.vx = rand(20, 60); p.vy = rand(30, 60); }
     else if (r === 'snow') { p.vx = rand(-10, 15); p.vy = rand(40, 90); }
     else if (r === 'rain') { p.vx = -180; p.vy = rand(900, 1200); }
+    else if (r === 'grit') { p.x = anywhere ? x : view.x0 - 50; p.y = rand(top, bot); p.vx = rand(260, 520); p.vy = rand(-20, 30); }   // wind-blown sand
     else { // embers + motes rise
       p.y = anywhere ? rand(top, bot) : bot; p.vx = rand(-12, 12); p.vy = r === 'ember' ? rand(-70, -30) : rand(-40, -15);
     }
@@ -321,6 +322,27 @@ class Ambience {
         ctx.beginPath(); ctx.ellipse(0, 0, 6 * p.s, 2.6 * p.s, 0, 0, TAU); ctx.fill();
         ctx.restore();
       }
+    } else if (kind === 'grit') {
+      // grains of sand streaking sideways on the desert wind, plus a few slow dust puffs
+      ctx.lineCap = 'round';
+      for (const p of this.parts) {
+        const big = p.s > 1.2;
+        if (big) { Glow.draw(ctx, '#f7deaa', p.x, p.y, 16 * p.s, 0.12); continue; }
+        ctx.strokeStyle = p.s > 0.9 ? 'rgba(255,236,190,0.55)' : 'rgba(214,160,90,0.5)';
+        ctx.lineWidth = 1.3 * p.s;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
+      }
+    } else if (kind === 'glimmer') {
+      // golden motes of light rising past the citadel, twinkling into four-point stars
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of this.parts) {
+        const tw = 0.35 + Math.abs(Math.sin(p.t * 2 + p.ph)) * 0.65, r = 5 * p.s * tw;
+        Glow.draw(ctx, '#ffe39a', p.x, p.y, 10 * p.s, 0.35 * tw);
+        ctx.fillStyle = `rgba(255,250,225,${tw})`;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y - r); ctx.lineTo(p.x + r * 0.18, p.y - r * 0.18); ctx.lineTo(p.x + r, p.y); ctx.lineTo(p.x + r * 0.18, p.y + r * 0.18);
+        ctx.lineTo(p.x, p.y + r); ctx.lineTo(p.x - r * 0.18, p.y + r * 0.18); ctx.lineTo(p.x - r, p.y); ctx.lineTo(p.x - r * 0.18, p.y - r * 0.18); ctx.closePath(); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
     } else if (kind === 'shard') {
       // slow glinting crystal flecks drifting up through the cavern
       for (const p of this.parts) {

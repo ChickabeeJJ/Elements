@@ -1702,7 +1702,9 @@ const Game = (() => {
     for (const t of opponents(f)) {
       if (!t.alive || blocked(t)) continue;
       const tc = t.center();
-      applyHit(f, t, { mv: { shock: 0.6 * pct }, el: 'tempo', dmg: mv.dmg * pct, knock: mv.knock * (0.35 + 0.65 * pct), lift: mv.lift, dirX: Math.sign(tc.x - c.x) || 1, dirY: -0.2, idx: P.PELVIS, px: tc.x, py: tc.y });
+      // the 15 s minigame pays off against bosses: triple damage to them
+      const bossMul = t.kind === 'boss' ? 3 : 1;
+      applyHit(f, t, { mv: { shock: 0.6 * pct }, el: 'tempo', dmg: mv.dmg * pct * bossMul, knock: mv.knock * (0.35 + 0.65 * pct), lift: mv.lift, dirX: Math.sign(tc.x - c.x) || 1, dirY: -0.2, idx: P.PELVIS, px: tc.x, py: tc.y });
     }
     for (let i = 0; i < 5; i++) blasts.push({ x: c.x, y: c.y, t: -i * 0.09, done: false });
     for (let i = 0; i < 26; i++) { const a = rand(0, TAU); fx.add({ kind: 'star', x: c.x, y: c.y, vx: Math.cos(a) * rand(300, 700), vy: Math.sin(a) * rand(300, 700), vr: rand(-6, 6), color: pick(['#b9a8ff', '#ff3d9a', '#ffffff']), size: rand(5, 9), life: 0.7, drag: 2, add: true }); }

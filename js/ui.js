@@ -180,28 +180,46 @@ const UI = (() => {
   function openMap(r) {
     const [nr] = Save.nextStage();
     mapRealm = r != null ? r : nr;
+    tabPage = null;
     Game.idleScene(mapRealm);
     show('map');
     renderMap();
   }
 
-  function renderMap() {
+  // chapter tabs: one row of four, with arrows that page to the next / previous four
+  const TAB_PAGE = 4;
+  let tabPage = null, tabSlide = '';
+  function renderTabs() {
     const tabs = $('realmTabs');
-    tabs.innerHTML = '';
-    REALMS.forEach((realm, i) => {
-      const open = Save.realmOpen(i);
+    const pages = Math.ceil(REALMS.length / TAB_PAGE);
+    if (tabPage == null) tabPage = Math.floor(mapRealm / TAB_PAGE);
+    tabPage = Math.max(0, Math.min(pages - 1, tabPage));
+    const first = tabPage * TAB_PAGE;
+    const arrow = (dir, label) => `<button type="button" class="tab-arrow ${dir}" aria-label="${label}" ${dir === 'prev' ? (tabPage === 0 ? 'disabled' : '') : (tabPage === pages - 1 ? 'disabled' : '')}>${ic('back')}</button>`;
+    tabs.innerHTML = `${arrow('prev', 'Previous chapters')}<div class="tab-page ${tabSlide}"></div>${arrow('next', 'Next chapters')}`;
+    tabSlide = '';
+    const row = tabs.querySelector('.tab-page');
+    REALMS.slice(first, first + TAB_PAGE).forEach((realm, j) => {
+      const i = first + j, open = Save.realmOpen(i);
       const b = document.createElement('button');
       b.className = (i === mapRealm ? 'active' : '') + (open ? '' : ' locked');
       b.style.setProperty('--c', realm.tint);
-      b.innerHTML = realm.name.toUpperCase() + (open ? '' : '<span class="ic" data-icon="lock"></span>');
+      b.innerHTML = `<small>${i + 1}</small>${realm.name.toUpperCase()}${open ? '' : '<span class="ic" data-icon="lock"></span>'}`;
+      b.title = realm.name;
       b.onclick = () => {
         if (!open) { Sfx.denied(); toast(`DEFEAT ${REALMS[i - 1].boss.name.toUpperCase()} FIRST`); return; }
         Sfx.click(); mapRealm = i; Game.idleScene(i); renderMap();
       };
-      tabs.appendChild(b);
+      row.appendChild(b);
     });
-    const act = tabs.querySelector('.active');
-    if (act) tabs.scrollLeft = act.offsetLeft - (tabs.clientWidth - act.offsetWidth) / 2;
+    tabs.querySelector('.tab-arrow.prev').onclick = () => { Sfx.click(); tabPage--; tabSlide = 'from-left'; renderTabs(); };
+    tabs.querySelector('.tab-arrow.next').onclick = () => { Sfx.click(); tabPage++; tabSlide = 'from-right'; renderTabs(); };
+    Icons.hydrate(tabs);
+  }
+
+  function renderMap() {
+    if (tabPage != null && Math.floor(mapRealm / TAB_PAGE) !== tabPage && !$('realmTabs').contains(document.activeElement)) tabPage = null;
+    renderTabs();
     const realm = REALMS[mapRealm];
     const aff = AFFINITY[realm.element];
     const stars = Array.from({ length: STAGES_PER_REALM }, (_, s) => Save.data.stars[stageKey(mapRealm, s)] || 0).reduce((a, b) => a + b, 0);
@@ -243,7 +261,7 @@ const UI = (() => {
       };
       grid.appendChild(el);
     }
-    Icons.hydrate(tabs); Icons.hydrate($('realmHead')); Icons.hydrate(grid);
+    Icons.hydrate($('realmHead')); Icons.hydrate(grid);
     fitScreen();
   }
 
