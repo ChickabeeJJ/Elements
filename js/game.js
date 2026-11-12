@@ -90,11 +90,13 @@ const Game = (() => {
   }
 
   function setRealm(i) {
-    realmIdx = i; realm = REALMS[i];
+    const def = typeof i === 'object' ? i : null;
+    realmIdx = def ? 3 : i; realm = def || REALMS[i];   // the Winterfest realm borrows Frostpeak's music
     amb.setRealm(realm, view);
-    Sfx.setRealm(i);
-    hooks.onRealm && hooks.onRealm(i);
+    Sfx.setRealm(realmIdx);
+    hooks.onRealm && hooks.onRealm(realmIdx);
   }
+  const idleRealm = () => (realm && realm.id === 'winterfest' ? WINTER_REALM : realmIdx);
 
   // variant reseeds island shapes so each stage looks a little different
   function buildArena(a, variant = 0) {
@@ -108,9 +110,11 @@ const Game = (() => {
   function makePlayer() {
     const sp = spawnPoint();
     const f = new Fighter({
-      x: sp.x - 120, y: sp.y, facing: 1, isPlayer: true, scale: 1.05, body: '#f4f4f4', shade: '#cdcdcd',
+      x: sp.x - 120, y: sp.y, facing: 1, isPlayer: true, scale: 1.05, body: Cosmetics.colour().body, shade: Cosmetics.shadeOf(Cosmetics.colour().body),
       hp: pStats.hp, speed: 380 * pStats.speedMul, jumpV: 1060 * pStats.jumpMul, maxJumps: 2, weight: 1,
     });
+    f.hat = Cosmetics.hat();
+    if (run && run.twist === 'lowgrav') f.gMul = LOWGRAV;
     f.root.grounded = true; f.root.plat = islands[0];
     f.team = 'player';
     f.loadout = Save.loadout();
@@ -162,11 +166,23 @@ const Game = (() => {
     pStats = Save.playerStats();
     run = { kills: 0, ringouts: 0, hits: 0, essence: 0, essenceRemainder: 0, dmgTaken: 0, r: opts.r || 0, s: opts.s || 0, falls: 0 };
     // a trial element lasts this whole run (stage, Arena match or Endless run), then it's gone
-    if (mode === 'stage' || mode === 'duel' || mode === 'endless') run.trial = Save.takeTrial();
+    if (mode === 'stage' || mode === 'duel' || mode === 'endless' || mode === 'event') run.trial = Save.takeTrial();
+    // armed Shop items are spent on a stage, an Endless run or an event stage (never the Arena)
+    run.items = mode === 'stage' || mode === 'endless' || mode === 'event' ? Cosmetics.consume() : [];
+    applyItems(run.items);
     if (mode === 'stage') {
       stageDef = buildStage(opts.r, opts.s);
+      run.twist = stageDef.twist || 'none';
       setRealm(opts.r);
       buildArena(stageDef.arena, 1 + opts.r * 16 + opts.s);
+      waveIdx = -1;
+    } else if (mode === 'event') {
+      // Winterfest: one of the 20 event stages (or the first-time how-to)
+      stageDef = buildWinterStage(opts.i);
+      run.twist = opts.tutorial ? 'none' : stageDef.twist;
+      run.evI = opts.i;
+      setRealm(WINTER_REALM);
+      buildArena(opts.tutorial ? { name: 'Snowfield', isl: [[800, 700, 760], [330, 590, 200], [1270, 590, 200], [800, 470, 200]] } : stageDef.arena, 5000 + opts.i * 13);
       waveIdx = -1;
     } else if (mode === 'duel') {
       // Arena: one rival, one island chain, first knock-out or ring-out wins
@@ -196,6 +212,7 @@ const Game = (() => {
     }
     if (mode === 'test') spawnTestDummy();
     if (mode === 'duel') spawnRival(opts.rival);
+    if (mode === 'event') setupEvent(!!opts.tutorial);
     waveTimer = 1.0;
     pickupTimer = rand(9, 13);
     state = 'play';
@@ -321,14 +338,20 @@ const Game = (() => {
     const T = ENEMY_TYPES[spec.type];
     const stats = enemyStats(spec.type, spec.d);
     if (spec.dmgBoost) stats.dmgMul *= spec.dmgBoost;
+    if (spec.cdMul) { stats.cdMul *= spec.cdMul; stats.think *= spec.cdMul; }
     const [body, shade] = bodyColors(spec.element, spec.type);
     const f = new Fighter({
-      x, y: instant ? y : y - 520, facing: player && x > player.root.x ? -1 : 1, scale: spec.scale || T.scale,
-      kind: spec.type, el: spec.element, body, shade, accent: AURA[spec.element], weight: spec.weight || T.weight,
-      speed: T.speed * (1 + Math.min(spec.d, 1.2) * 0.3), jumpV: 1000, maxJumps: spec.type === 'boss' ? 3 : 2,
+      x, y: instant ? y : y - 520, facing: player && x > player.root.x ? -1 : 1, scale: (spec.scale || T.scale) * (spec.elite ? 1.2 : 1),
+      kind: spec.type, el: spec.element, body, shade, accent: AURA[spec.element], weight: (spec.weight || T.weight) * (spec.elite ? 1.4 : 1),
+      speed: T.speed * (1 + Math.min(spec.d, 1.2) * 0.3) * (spec.speedMul || 1), jumpV: 1000, maxJumps: spec.type === 'boss' ? 3 : 2,
       hp: spec.hp || Math.round(stats.hp * (spec.hpMul || 1)),
     });
     f.team = 'enemy';
+    if (spec.elite) f.elite = true;
+    if (spec.raider) f.raider = true;
+    if (spec.hat) f.hat = spec.hat;
+    if (spec.frenzy || spec.speedMul > 1) f.frenzy = true;
+    if (run && run.twist === 'lowgrav') f.gMul = LOWGRAV;
     f.ai = { stats, thinkT: 0.6, kit: enemyKit(spec.element, spec.type, realm.id), boss: spec.boss || null, rival: !!spec.rival, summoned: 0, d: spec.d, jumpCd: 0 };
     if (instant) { f.root.grounded = true; f.root.plat = islands.find(i => x >= i.left && x <= i.right && Math.abs(i.top - y) < 4) || null; }
     else { f.root.grounded = false; f.root.vy = 600; f.root.ghostTo = isl || null; }
@@ -1347,10 +1370,35 @@ const Game = (() => {
     hooks.onCombo && hooks.onCombo(combo.n);
   }
 
+  // Shop items: their effects for this run
+  function applyItems(ids) {
+    const has = id => ids.includes(id);
+    if (has('tonic')) pStats.hp = Math.round(pStats.hp * 1.3);
+    if (has('charm')) pStats.dmgMul *= 1.2;
+    if (has('clover')) pStats.essenceMul *= 1.5;
+    if (has('boots')) { pStats.speedMul *= 1.15; pStats.jumpMul *= 1.08; }
+    run.feather = has('feather');
+  }
+  // Guardian Feather: the first knock-out or fall of the run is undone
+  function useFeather(f) {
+    run.feather = false;
+    const sp = spawnPoint();
+    f.gone = false;
+    teleport(f, sp.x, sp.y - 300);
+    f.mode = 'active'; f.m = 1; f.stunT = 0; f.action = null; f.dash = null; f.slam = false;
+    f.hp = f.maxHp * 0.5; f.invuln = 2.5;
+    for (const k in f.status) f.status[k] = 0;
+    const c = f.center();
+    fx.ring(c.x, c.y, '#e8dcff', 120, 0.5, 10); fx.burst(c.x, c.y, '#ffffff', 30, 380);
+    fx.text(c.x, c.y - 120, 'GUARDIAN FEATHER!', '#e8dcff', 30, { dur: 1.4 });
+    Sfx.unlock(); hooks.onItemUsed && hooks.onItemUsed('feather');
+  }
+
   function kill(t, att, kx, ky, idx, ringout) {
     if (t.decor) return;
     if (t.mode === 'dead' && !ringout) return;
     if (t.isPlayer && t.secondLife > 0 && state === 'play' && !ringout) { secondLife(t); return; }
+    if (t.isPlayer && run && run.feather && state === 'play') { useFeather(t); return; }
     t.die(kx, ky, idx);
     if (t.isPlayer) { lose(); return; }
     const c = t.center();
@@ -1365,7 +1413,7 @@ const Game = (() => {
     if (run) {
       run.kills++;
       Save.data.stats.kills++;
-      const reward = t.ai && t.ai.rival ? 0 : (t.kind === 'boss' ? 25 : t.kind === 'brute' ? 4 : 2) + (t.status.gilded > 0 ? 5 : 0);   // golden foes pay out; Arena pays on the result screen
+      const reward = t.ai && t.ai.rival ? 0 : (t.kind === 'boss' ? 25 : t.elite ? 12 : t.kind === 'brute' ? 4 : 2) + (t.status.gilded > 0 ? 5 : 0);   // golden foes pay out; Arena pays on the result screen
       const at = ringout && player ? player.center() : c;
       grantEssence(reward + (ringout ? 1 : 0), clamp(at.x, 60, W - 60), clamp(at.y - 80, 60, H - 60));
     }
@@ -1376,11 +1424,12 @@ const Game = (() => {
       if (!t.happytimeSent) { t.happytimeSent = true; Platform.happytime(); }
       Sfx.boom(2); fx.ring(c.x, c.y, t.accent, 300, 0.9, 16); slowmo = 1.6; if (!(t.ai && t.ai.rival)) Save.data.stats.bosses++;
       // the boss's reinforcements collapse with it
-      if (mode === 'stage') {
+      if (mode === 'stage' || mode === 'event') {
         spawns.length = 0;
         for (const e of aliveEnemies()) { const ec = e.center(); e.die(0, -300, P.PELVIS); fx.burst(ec.x, ec.y, e.accent, 18, 300); fx.ring(ec.x, ec.y, e.accent, 90, 0.45, 8); }
       }
     }
+    if (run && run.ev) eventKill(t, c);
     hooks.onKill && hooks.onKill(t, ringout);
     if (state === 'play' && aliveEnemies().length === 0 && spawns.length === 0) waveCleared();
   }
@@ -1418,6 +1467,7 @@ const Game = (() => {
       return;
     }
     if (f.isPlayer && f.secondLife > 0 && f.alive && state === 'play') { secondLife(f); return; }
+    if (f.isPlayer && run && run.feather && state === 'play') { useFeather(f); return; }
     if (f.isPlayer) {
       f.gone = true;
       if (f.mode === 'dead' || state !== 'play') return;
@@ -2741,17 +2791,307 @@ const Game = (() => {
     else grantEssence(5, p.x, p.y - 30);
   }
 
+  /* ---------------------------------------------------------- twists */
+  // the runtime half of the stage twists (the data half is in realms.js)
+  const LOWGRAV = 0.6;
+  function updateTwist(dt) {
+    if (!run || state !== 'play') return;
+    if (run.twist === 'gale') {
+      // a gust every few seconds: 1.3 s of warning arrows, then 2.4 s of wind
+      const G = run.gust || (run.gust = { t: 3.5, phase: 'calm', dir: 1 });
+      G.t -= dt;
+      if (G.t <= 0) {
+        if (G.phase === 'calm') { G.phase = 'warn'; G.t = 1.3; G.dir = (run.gustN = (run.gustN || 0) + 1) % 3 === 0 ? -G.dir : Math.random() < 0.5 ? 1 : -1; Sfx.whoosh(); }
+        else if (G.phase === 'warn') { G.phase = 'blow'; G.t = 2.4; shake = Math.max(shake, 4); }
+        else { G.phase = 'calm'; G.t = rand(3.2, 4.6); }
+      }
+      if (G.phase === 'blow') {
+        for (const f of player ? enemies.concat([player]) : enemies) {
+          if (!f.alive || f.decor || f.mode !== 'active') continue;
+          f.root.vx += G.dir * (f.root.grounded ? 1500 : 1100) * dt / Math.max(0.6, f.weight);
+        }
+        if (Math.random() < dt * 60) fx.add({ x: G.dir > 0 ? view.x0 - 20 : view.x0 + view.w + 20, y: rand(view.y0 + 60, view.y0 + view.h - 120), vx: G.dir * rand(900, 1400), vy: rand(-20, 20), color: pick(['rgba(255,255,255,0.7)', realm.fog]), size: rand(2, 4), life: 1.4 });
+      }
+    }
+  }
+  function drawTwistWorld(c) {
+    if (!run) return;
+    for (const e of enemies) if (e.alive && e.elite) {
+      // Elite: a pulsing aura and a crown marker
+      const q = e.center(), pulse = 0.5 + Math.sin(time * 5) * 0.2;
+      c.globalCompositeOperation = 'lighter'; Glow.draw(c, e.accent, q.x, q.y, 120 * e.s, 0.35 * pulse); c.globalCompositeOperation = 'source-over';
+    }
+    const G = run.gust;
+    if (run.twist === 'gale' && G && G.phase !== 'calm') {
+      // big chevrons sweeping across the top of the arena in the wind's direction
+      const a = G.phase === 'warn' ? 0.35 + Math.sin(time * 14) * 0.25 : 0.55;
+      c.save(); c.globalAlpha = a; c.fillStyle = '#ffffff'; c.strokeStyle = 'rgba(20,18,28,0.6)'; c.lineWidth = 4; c.lineJoin = 'round';
+      const y = view.y0 + 150, span = view.w, off = (time * 420 * G.dir) % 160;
+      for (let x = view.x0 - 160; x < view.x0 + span + 160; x += 160) {
+        const cx = x + off;
+        c.beginPath(); c.moveTo(cx - G.dir * 18, y - 26); c.lineTo(cx + G.dir * 18, y); c.lineTo(cx - G.dir * 18, y + 26); c.lineTo(cx - G.dir * 2, y); c.closePath(); c.stroke(); c.fill();
+      }
+      c.restore();
+    }
+  }
+  function drawTwistScreen(c) {
+    if (!run || run.twist !== 'night' || !player) return;
+    // Nightfall: everything dark except a pool of light around the hero (and faint glows on foes)
+    const p = player.chest(), sx = p.x * cam.k + cam.ox, sy = p.y * cam.k + cam.oy, R = 260 * cam.k;
+    const g = c.createRadialGradient(sx, sy, R * 0.35, sx, sy, R);
+    g.addColorStop(0, 'rgba(4,6,16,0)'); g.addColorStop(1, 'rgba(4,6,16,0.86)');
+    c.fillStyle = g; c.fillRect(0, 0, view.cw, view.ch);
+    c.globalCompositeOperation = 'lighter';
+    for (const e of enemies) if (e.alive && !e.decor) { const q = e.head(); Glow.draw(c, e.accent, q.x * cam.k + cam.ox, q.y * cam.k + cam.oy, 26 * cam.k, 0.55); }
+    c.globalCompositeOperation = 'source-over';
+  }
+
+  /* -------------------------------------------------------- Winterfest */
+  // the event chapter's own game modes (data in winterfest.js)
+  const GIFT_COLS = [['#e2394b', '#ffd34d'], ['#2f9e62', '#ffffff'], ['#4f8cff', '#ffd34d'], ['#ffcf4a', '#e2394b'], ['#b46bff', '#7fe0ff']];
+  function setupEvent(tutorial) {
+    const def = stageDef, i = run.evI;
+    const ev = run.ev = { mode: tutorial ? 'tut' : def.mode, n: def.n, d: def.d, gifts: null, snow: null, left: 0, trickleT: 2.2, spawned: 0, tut: null };
+    if (tutorial) { ev.tut = { phase: 'intro' }; return; }
+    if (def.mode === 'gifts') { ev.gifts = { need: def.n, got: 0, list: [], spawnT: 0.4 }; }
+    if (def.mode === 'snowman') makeSnowman(def.snowmanHp, def.n);
+  }
+  function makeSnowman(hp, secs) {
+    const isl = islands[0];
+    run.ev.snow = { isl, ox: 0, hp, max: hp, hitT: 0, wob: 0 };
+    run.ev.left = secs;
+    if (player) { const sp = spawnPoint(); if (Math.abs(player.root.x - sp.x) < 60) teleport(player, sp.x - 150, player.root.y); }
+  }
+  function placeGift(near) {
+    const g = run.ev.gifts;
+    // spread presents out: prefer an island other than the hero's, away from the last one
+    const pool = islands.filter(isl => !near || isl !== (player && player.root.plat));
+    const isl = pick(pool.length ? pool : islands);
+    const ox = rand(-isl.w * 0.38, isl.w * 0.38);
+    const [col, rib] = pick(GIFT_COLS);
+    g.list.push({ isl, ox, t: rand(0, 6), col, rib, born: 0 });
+  }
+  function giftAt(x, y) {
+    const isl = platformBelow(x, y - 5, 900) || nearestIsland(x);
+    const [col, rib] = pick(GIFT_COLS);
+    run.ev.gifts.list.push({ isl, ox: clamp(x - isl.x, -isl.w * 0.42, isl.w * 0.42), t: 0, col, rib, born: 0 });
+  }
+  function eventKill(t, c) {
+    const ev = run.ev;
+    hooks.onEventKill && hooks.onEventKill();
+    // Gift Rush: a defeated Krampling sometimes drops a present
+    if (ev.gifts && ev.gifts.got + ev.gifts.list.length < ev.gifts.need + 1 && Math.random() < 0.35 && !t.gone) giftAt(c.x, c.y);
+  }
+  function trickle(dt, raiders) {
+    const ev = run.ev, tr = stageDef.trickle;
+    if (!tr) return;
+    ev.trickleT -= dt;
+    if (ev.trickleT > 0 || aliveEnemies().length + spawns.length >= (ev.cap || tr.cap)) return;
+    ev.trickleT = tr.every * rand(0.85, 1.15);
+    const spec = Object.assign(tr.spec(), ev.weak ? { d: 0.08, hpMul: 0.55 } : {});
+    ev.spawned++;
+    if (raiders && ev.spawned % 3 !== 0) {
+      // raiders walk in from the ends of the snowman's island
+      spec.raider = true;
+      const isl = islands[0], side = Math.random() < 0.5 ? -1 : 1;
+      spawns.push({ spec, isl, ox: side * (isl.w / 2 - 50), t: 1.0, el: spec.element });
+    } else queueSpawn(spec);
+  }
+  function card(key, then) {
+    // the how-to pauses on a card; the UI resumes it
+    paused = true;
+    const go = () => { paused = false; then && then(); };
+    if (hooks.onEventCard) hooks.onEventCard(key, go); else go();
+  }
+  function updateEvent(dt) {
+    const ev = run && run.ev;
+    if (!ev || state !== 'play') return;
+    // ---- the first-time how-to
+    if (ev.tut) {
+      const T = ev.tut;
+      if (T.phase === 'intro') { T.phase = 'wait'; card('welcome', () => {
+        T.phase = 'gifts'; ev.gifts = { need: 3, got: 0, list: [], spawnT: 99 };
+        for (let k = 0; k < 3; k++) placeGift(k > 0);
+      }); }
+      else if (T.phase === 'gifts' && ev.gifts.got >= 3) { T.phase = 'wait'; card('snowman', () => {
+        T.phase = 'snowman'; ev.gifts = null; ev.weak = true; ev.cap = 2; makeSnowman(70, 16);
+      }); }
+      else if (T.phase === 'snowman' && ev.left <= 0) {
+        T.phase = 'wait';
+        for (const e of aliveEnemies()) { const ec = e.center(); e.die(0, -300, P.PELVIS); fx.burst(ec.x, ec.y, '#ffffff', 18, 300); }
+        spawns.length = 0;
+        card('rewards', () => { T.phase = 'done'; Save.data.winter.tutDone = true; Save.save(); win(); });
+      }
+    }
+    // ---- presents
+    const g = ev.gifts;
+    if (g) {
+      if (!ev.tut) {
+        g.spawnT -= dt;
+        const want = g.need - g.got > 2 ? 2 : 1;
+        if (g.spawnT <= 0 && g.list.length < want && g.got + g.list.length < g.need + 1) { placeGift(true); g.spawnT = rand(1.2, 2.4); }
+      }
+      for (const p of g.list) {
+        p.t += dt; p.born += dt;
+        p.x = p.isl.x + p.ox; p.y = p.isl.top - 22 + Math.sin(p.t * 2.4) * 5;
+        if (p.born > 0.3 && player && player.alive && dist(player.chest().x, player.chest().y, p.x, p.y) < 62) {
+          p.dead = true; g.got++;
+          fx.burst(p.x, p.y, p.col, 26, 340); fx.burst(p.x, p.y, p.rib, 14, 260); fx.ring(p.x, p.y, '#ffffff', 80, 0.4, 6);
+          for (let k = 0; k < 18; k++) fx.add({ kind: 'star', x: p.x, y: p.y, vx: rand(-320, 320), vy: -rand(200, 520), g: 900, vr: rand(-8, 8), color: pick(['#ffd34d', '#ffffff', p.col]), size: rand(4, 7), life: 0.9, add: true });
+          fx.text(p.x, p.y - 60, `${Math.min(g.got, g.need)}/${g.need}`, '#ffd34d', 26, { dur: 0.9 });
+          Sfx.pickup(); grantEssence(2, p.x, p.y - 30);
+          hooks.onGift && hooks.onGift();
+        }
+      }
+      g.list = g.list.filter(p => !p.dead);
+      if (!ev.tut && g.got >= g.need) win();
+      else if (!ev.tut) trickle(dt, false);
+    }
+    // ---- the snowman
+    const S = ev.snow;
+    if (S) {
+      S.hitT = Math.max(0, S.hitT - dt); S.wob *= Math.pow(0.02, dt);
+      ev.left = Math.max(0, ev.left - dt);
+      trickle(dt, true);
+      if (S.hp <= 0) {
+        const x = S.isl.x + S.ox, y = S.isl.top;
+        fx.chunks(x, y - 60, '#ffffff', 30, 520, 12); fx.burst(x, y - 60, '#dff4ff', 40, 420);
+        ev.snow = null; shake = Math.max(shake, 16);
+        ev.snowFell = true;
+        hooks.onToast && hooks.onToast('The snowman fell!', true);
+        lose();
+      } else if (!ev.tut && ev.left <= 0) {
+        for (const e of aliveEnemies()) { const ec = e.center(); e.die(0, -300, P.PELVIS); fx.burst(ec.x, ec.y, '#ffffff', 18, 300); }
+        spawns.length = 0;
+        win();
+      }
+    }
+  }
+  function hitSnowman(e, dmg) {
+    const S = run.ev.snow;
+    if (!S || S.hp <= 0) return;
+    S.hp = Math.max(0, S.hp - dmg); S.hitT = 0.25; S.wob = Math.sign(S.isl.x + S.ox - e.root.x) * 1 || 1;
+    const x = S.isl.x + S.ox, y = S.isl.top - 70;
+    fx.burst(x, y, '#ffffff', 12, 260); fx.chunks(x, y, '#e8f6ff', 5, 300, 7);
+    Sfx.thud && Sfx.thud();
+  }
+  // raiders go for the snowman, but turn on the hero if they get close
+  function raiderAI(e, dt) {
+    const S = run.ev.snow, me = e.root, ai = e.ai;
+    if (player && player.alive && dist(player.root.x, player.root.y, me.x, me.y) < 130) return false;
+    const sx = S.isl.x + S.ox, dx = sx - me.x;
+    if (me.plat !== S.isl) return false;                     // knocked off the snowman's island: fight normally
+    if (Math.abs(dx) > 70) { e.input.x = Math.sign(dx); e.facing = Math.sign(dx); return true; }
+    e.input.x = 0; e.facing = Math.sign(dx) || 1;
+    ai.smashT = (ai.smashT ?? 0.6) - dt;
+    if (ai.smashT <= 0 && !e.action) {
+      ai.smashT = lerp(1.6, 1.0, run.ev.d) * (e.frenzy ? 0.78 : 1);
+      const mv = ai.kit.melee || ai.kit.powers[0] || ai.kit.ranged;
+      if (mv) { e.cds[mv.id] = 0; tryMove(e, mv, sx, S.isl.top - 60); }
+      hitSnowman(e, (7 + run.ev.d * 7) * (e.kind === 'brute' ? 1.5 : 1));
+    }
+    return true;
+  }
+
+  function drawGift(c, p) {
+    const x = p.x, y = p.y, w = 34, h = 26, pop = Math.min(1, p.born * 5);
+    c.save(); c.translate(x, y); c.scale(pop, pop);
+    c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#ffe9a8', 0, 0, 58, 0.35 + Math.sin(p.t * 4) * 0.1); c.globalCompositeOperation = 'source-over';
+    const gr = c.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+    gr.addColorStop(0, mixHex(p.col, '#ffffff', 0.25)); gr.addColorStop(1, mixHex(p.col, '#000000', 0.2));
+    c.fillStyle = gr; c.beginPath(); c.roundRect(-w / 2, -h / 2 + 4, w, h - 4, 3); c.fill();
+    c.fillStyle = mixHex(p.col, '#ffffff', 0.12); c.beginPath(); c.roundRect(-w / 2 - 3, -h / 2 - 2, w + 6, 9, 3); c.fill();   // lid
+    c.fillStyle = p.rib; c.fillRect(-3.5, -h / 2 - 2, 7, h + 2); c.fillRect(-w / 2, -2, w, 6);
+    // bow
+    c.beginPath(); c.ellipse(-8, -h / 2 - 7, 8, 5, -0.5, 0, TAU); c.ellipse(8, -h / 2 - 7, 8, 5, 0.5, 0, TAU); c.fill();
+    c.fillStyle = mixHex(p.rib, '#000000', 0.25); c.beginPath(); c.arc(0, -h / 2 - 5, 3.5, 0, TAU); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(-w / 2 + 3, -h / 2 + 7, 4, h - 12);
+    // a twinkle
+    const tw = Math.max(0, Math.sin(p.t * 3));
+    c.globalCompositeOperation = 'lighter'; c.fillStyle = `rgba(255,255,255,${tw})`;
+    c.beginPath(); c.moveTo(w / 2 + 2, -h / 2 - 12); c.lineTo(w / 2 + 4, -h / 2 - 6); c.lineTo(w / 2 + 10, -h / 2 - 4); c.lineTo(w / 2 + 4, -h / 2 - 2); c.lineTo(w / 2 + 2, -h / 2 + 4); c.lineTo(w / 2, -h / 2 - 2); c.lineTo(w / 2 - 6, -h / 2 - 4); c.lineTo(w / 2, -h / 2 - 6); c.closePath(); c.fill();
+    c.restore();
+  }
+  function drawSnowman(c, S) {
+    const x = S.isl.x + S.ox, base = S.isl.top, wob = S.wob * Math.sin(time * 30) * 0.08 + (S.hitT > 0 ? Math.sin(time * 60) * 0.03 : 0);
+    const dmg = 1 - S.hp / S.max;
+    c.save(); c.translate(x, base); c.rotate(wob);
+    c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.ellipse(0, 0, 46, 8, 0, 0, TAU); c.fill();
+    const ball = (y, r) => {
+      const g = c.createRadialGradient(-r * 0.35, y - r * 0.4, r * 0.1, 0, y, r);
+      g.addColorStop(0, '#ffffff'); g.addColorStop(0.7, '#eef7ff'); g.addColorStop(1, '#c6dcef');
+      c.fillStyle = S.hitT > 0 ? '#ffffff' : g; c.beginPath(); c.arc(0, y, r, 0, TAU); c.fill();
+    };
+    ball(-34, 36); ball(-92, 27); ball(-136, 20);
+    // cracks as it takes damage
+    if (dmg > 0.35) { c.strokeStyle = 'rgba(120,150,180,0.7)'; c.lineWidth = 2; c.beginPath(); c.moveTo(-14, -50); c.lineTo(-4, -36); c.lineTo(-12, -22); c.lineTo(-2, -10); if (dmg > 0.65) { c.moveTo(12, -110); c.lineTo(4, -96); c.lineTo(14, -84); } c.stroke(); }
+    // stick arms
+    c.strokeStyle = '#6b4a2e'; c.lineWidth = 3.5; c.lineCap = 'round';
+    const wave = Math.sin(time * 2) * 0.15;
+    c.beginPath(); c.moveTo(-22, -98); c.lineTo(-58, -122 + wave * 20); c.moveTo(-48, -116 + wave * 15); c.lineTo(-56, -132); c.moveTo(22, -98); c.lineTo(58, -118 - wave * 20); c.moveTo(48, -113 - wave * 15); c.lineTo(60, -104); c.stroke();
+    // buttons, eyes, smile, carrot
+    c.fillStyle = '#2b2f3a';
+    for (const by of [-78, -96, -112]) { c.beginPath(); c.arc(0, by, 3.4, 0, TAU); c.fill(); }
+    c.beginPath(); c.arc(-7, -141, 3, 0, TAU); c.arc(7, -141, 3, 0, TAU); c.fill();
+    for (let k = -2; k <= 2; k++) { c.beginPath(); c.arc(k * 4.5, -126 + Math.abs(k) * -1.4, 1.6, 0, TAU); c.fill(); }
+    c.fillStyle = '#ff8a2a'; c.beginPath(); c.moveTo(0, -136); c.lineTo(20, -132); c.lineTo(0, -131); c.closePath(); c.fill();
+    // scarf
+    c.fillStyle = '#e2394b'; c.beginPath(); c.roundRect(-24, -122, 48, 9, 4); c.fill();
+    c.beginPath(); c.moveTo(8, -116); c.lineTo(20, -96 + Math.sin(time * 4) * 3); c.lineTo(11, -95); c.lineTo(2, -115); c.closePath(); c.fill();
+    c.fillStyle = '#ffffff'; for (let k = 0; k < 4; k++) c.fillRect(-22 + k * 12, -122, 4, 9);
+    // top hat
+    c.fillStyle = '#1d1f27'; c.beginPath(); c.roundRect(-24, -158, 48, 6, 3); c.fill(); c.fillRect(-15, -184, 30, 28);
+    c.fillStyle = '#2f9e62'; c.fillRect(-15, -164, 30, 5);
+    c.restore();
+    // health bar
+    const w = 90, bx = x - w / 2, by = base - 206;
+    c.fillStyle = 'rgba(20,18,28,0.75)'; c.beginPath(); c.roundRect(bx - 2, by - 2, w + 4, 12, 6); c.fill();
+    c.fillStyle = S.hp / S.max < 0.3 ? '#ff6b6b' : '#7fe0ff'; c.beginPath(); c.roundRect(bx, by, Math.max(8, w * S.hp / S.max), 8, 4); c.fill();
+  }
+  function drawEventWorld(c) {
+    const ev = run && run.ev;
+    if (!ev) return;
+    if (ev.snow) drawSnowman(c, ev.snow);
+    if (ev.gifts) for (const p of ev.gifts.list) if (p.x != null) drawGift(c, p);
+  }
+  // gold edge arrows for presents outside the zoomed camera
+  function drawEventScreen(c) {
+    const ev = run && run.ev;
+    if (!ev || !ev.gifts || state !== 'play') return;
+    const cw = view.cw, ch = view.ch, m = 30;
+    for (const p of ev.gifts.list) {
+      if (p.x == null) continue;
+      const sx = p.x * cam.k + cam.ox, sy = p.y * cam.k + cam.oy;
+      if (sx > 0 && sx < cw && sy > 0 && sy < ch) continue;
+      const x = clamp(sx, m, cw - m), y = clamp(sy, m + 110, ch - m), a = Math.atan2(sy - y, sx - x);
+      c.save(); c.translate(x, y);
+      c.fillStyle = 'rgba(16,19,31,0.8)'; c.beginPath(); c.arc(0, 0, 17, 0, TAU); c.fill();
+      c.fillStyle = p.col; c.fillRect(-7, -5, 14, 11); c.fillStyle = p.rib; c.fillRect(-1.5, -5, 3, 11);
+      c.rotate(a); c.fillStyle = '#ffd34d'; c.beginPath(); c.moveTo(24, 0); c.lineTo(15, -6); c.lineTo(15, 6); c.closePath(); c.fill();
+      c.restore();
+    }
+  }
+  function eventObjective() {
+    const ev = run && run.ev;
+    if (!ev) return null;
+    if (ev.gifts) return { kind: 'gifts', cur: Math.min(ev.gifts.got, ev.gifts.need), max: ev.gifts.need };
+    if (ev.snow) return { kind: 'snowman', hp: ev.snow.hp / ev.snow.max, left: ev.left };
+    if (ev.tut) return { kind: 'tut' };
+    return { kind: ev.mode };
+  }
+
   /* ----------------------------------------------------------- waves */
   function waveCleared() {
     if (state !== 'play') return;
     if (mode === 'duel') duelRoundOver(true);
-    else if (mode === 'stage' && waveIdx >= stageDef.waves.length - 1) win();
+    else if ((mode === 'stage' || (mode === 'event' && stageDef.waves.length)) && waveIdx >= stageDef.waves.length - 1) win();
     else waveTimer = 1.2;
   }
 
   function nextWave() {
     if (mode === 'tutorial' || mode === 'test' || mode === 'duel') return;
-    if (mode === 'stage') {
+    if (mode === 'event' && !stageDef.waves.length) return;      // gift / snowman stages use the trickle instead
+    if (mode === 'stage' || mode === 'event') {
       waveIdx++;
       queueSpawnWave(stageDef.waves[waveIdx]);
       hooks.onWave && hooks.onWave(waveIdx, stageDef.waves.length, stageDef.boss && waveIdx === stageDef.waves.length - 1);
@@ -2796,7 +3136,7 @@ const Game = (() => {
     Platform.gameplayStop();
     const hpRatio = Math.max(0, player.hp) / player.maxHp;
     const res = {
-      mode, won, canRevive: !won && !run.revived && mode !== 'duel', rival: run.rival || null, rounds: run.rounds || null, hpLeft: hpRatio, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
+      mode, won, canRevive: !won && !run.revived && mode !== 'duel' && !(run.ev && (run.ev.snowFell || run.ev.tut)), rival: run.rival || null, rounds: run.rounds || null, hpLeft: hpRatio, r: run.r, s: run.s, kills: run.kills, ringouts: run.ringouts, bestCombo: combo.best,
       essence: run.essence + Math.round(run.essenceRemainder || 0), stars: 0, unlocked: null, firstClear: false, best: false,
     };
     if (mode === 'stage' && res.won) {
@@ -2808,6 +3148,21 @@ const Game = (() => {
       res.bonus = Math.round((10 + run.r * 5 + (rec.firstClear ? 15 : 0) + rec.newStars * 5) * pStats.essenceMul);
       res.essence += res.bonus;
       if (rec.firstClear) res.unlocked = elementUnlockedBy(run.r, run.s);
+    }
+    if (mode === 'event') {
+      res.evI = run.evI; res.evMode = stageDef.mode; res.tutorial = !!(run.ev && run.ev.tut);
+      if (res.won) {
+        res.stars = hpRatio >= 0.65 && run.falls === 0 ? 3 : hpRatio >= 0.3 ? 2 : 1;
+        const W = Save.data.winter, k = winterKey(run.evI), prev = W.stars[k] || 0;
+        if (res.stars > prev) W.stars[k] = res.stars;
+        res.firstClear = prev === 0;
+        res.bonus = Math.round((14 + run.evI * 2 + (res.firstClear ? 20 : 0) + Math.max(0, res.stars - prev) * 5) * pStats.essenceMul);
+        res.essence += res.bonus;
+        // milestone stages award an exclusive hat the first time they're cleared
+        const hat = WINTER_MILESTONES[run.evI];
+        if (hat && Cosmetics.grant('hat', hat)) res.hat = hat;
+        if (res.firstClear && (run.evI + 1) % 10 === 0) Platform.happytime();
+      }
     }
     if (mode === 'endless') {
       res.best = run.kills > Save.data.endlessBest;
@@ -2843,7 +3198,7 @@ const Game = (() => {
       Save.save();
     }
     Platform.gameplayStop();
-    idleScene(realmIdx);
+    idleScene(idleRealm());
   }
 
   /* --------------------------------------------------------------- AI */
@@ -2892,6 +3247,7 @@ const Game = (() => {
       return;
     }
     if (!player || !player.alive || state !== 'play') { e.input.x = 0; return; }
+    if (e.raider && run && run.ev && run.ev.snow && run.ev.snow.hp > 0 && me.grounded && raiderAI(e, dt)) return;
     if (e.action) { e.input.x = 0; return; }
     if (ai.boss) {
       const ratio = e.hp / e.maxHp;
@@ -3569,7 +3925,7 @@ const Game = (() => {
   let preview = null;
   const PREVIEW_SEQ = [0, 0, 1, 0, 2];
   function startPreview(id) {
-    idleScene(realmIdx);
+    idleScene(idleRealm());
     player.loadout = [id];
     setPlayerElement(player, id, true);
     const sp = islands[0];
@@ -3745,6 +4101,8 @@ const Game = (() => {
       if (Math.abs(dx) < 34 && Math.abs(b.root.y - a.root.y) < 60) { const push = (34 - Math.abs(dx)) * 4 * (Math.sign(dx) || 1); a.root.vx -= push; b.root.vx += push; }
     }
 
+    updateTwist(dt);
+    updateEvent(dt);
     updateProjectiles(dt);
     updateWaves(dt);
     updateZones(dt);
@@ -3885,6 +4243,8 @@ const Game = (() => {
 
     drawStrikeMarkers(c);
     drawSpecials(c);
+    drawTwistWorld(c);
+    drawEventWorld(c);
     fx.draw(c);
     if (dev.cinematic) { amb.drawFront(c, view, time); c.setTransform(dpr, 0, 0, dpr, 0, 0); return; }
     for (const e of enemies) if (e.alive && !e.decor && e.kind !== 'boss') drawEnemyBar(c, e);
@@ -3895,6 +4255,8 @@ const Game = (() => {
     amb.drawFront(c, view, time);
     fx.drawTexts(c);
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawTwistScreen(c);
+    drawEventScreen(c);
     if (cam.z > 1.001 && state === 'play') drawOffscreen(c);
     drawVignettes(c);
   }
@@ -4505,7 +4867,14 @@ const Game = (() => {
     if (f.shield > 0) { c.fillStyle = 'rgba(160,215,255,0.9)'; c.beginPath(); c.roundRect(x, y, Math.max(4, w * clamp(f.shield / f.maxHp, 0, 1)), h / 2, 2); c.fill(); }
     return y;
   }
-  function drawEnemyBar(c, e) { drawHeadBar(c, e, '#e5484d', 50 * Math.max(1, e.s * 0.9)); }
+  function drawEnemyBar(c, e) {
+    const y = drawHeadBar(c, e, e.elite ? '#ffcf4a' : '#e5484d', 50 * Math.max(1, e.s * 0.9));
+    if (e.elite) {   // a small crown over the Elite's bar
+      const x = e.head().x, yy = y - 10;
+      c.fillStyle = '#ffcf4a'; c.strokeStyle = 'rgba(20,18,28,0.85)'; c.lineWidth = 3; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(x - 11, yy + 5); c.lineTo(x - 11, yy - 5); c.lineTo(x - 5, yy); c.lineTo(x, yy - 8); c.lineTo(x + 5, yy); c.lineTo(x + 11, yy - 5); c.lineTo(x + 11, yy + 5); c.closePath(); c.stroke(); c.fill();
+    }
+  }
   function drawPlayerMarker(c) {
     const f = player;
     const y = drawHeadBar(c, f, '#56d364', 62);
@@ -4578,6 +4947,7 @@ const Game = (() => {
       left: aliveEnemies().length + spawns.length + (stageDef && waveIdx >= 0 ? stageDef.waves.slice(waveIdx + 1).reduce((n, w) => n + w.length, 0) : 0),
       boss: boss ? { name: boss.ai.boss.name, title: boss.ai.boss.title, ratio: boss.hp / boss.maxHp, el: boss.el } : null,
       status: player.status, rounds: run && run.rounds ? Object.assign({}, run.rounds) : null,
+      obj: eventObjective(), twist: run ? run.twist : null, items: run ? run.items : [],
     };
   }
 
@@ -4595,6 +4965,8 @@ const Game = (() => {
     setEl: id => { setPlayerElement(player, id, true); for (const k in player.cds) player.cds[k] = 0; },
     spawn: (spec, x, y) => spawnEnemyAt(Object.assign({ type: 'grunt', element: realm.element, d: 0.3 }, spec), x, y, true),
     hold: () => { waveTimer = 1e9; spawns = []; },   // stop the stage's own waves (staged scenes)
+    ev: () => run && run.ev,
+    tp: (x, y) => teleport(player, x, y),
     clearWave: () => { for (const e of aliveEnemies()) kill(e, player, 0, -200, P.PELVIS); },   // test helper
   };
 

@@ -135,7 +135,14 @@ const Meta = (() => {
     { type: 'gems', n: [100, 160], gems: [30, 40], text: q => `Earn ${q.n} gems in battle` },
     { type: 'elKills', n: [12, 20], gems: [35, 50], el: true, text: q => `Defeat ${q.n} foes with ${(ELEMENT_BY_ID[q.el] || NEUTRAL).name}` },
   ];
-  const POOL_BY_TYPE = Object.fromEntries(QUEST_POOL.map(q => [q.type, q]));
+  // quest types that only appear in an event's own quests (never as daily quests)
+  const EVENT_ONLY = [
+    { type: 'gifts', text: q => `Grab ${q.n} presents in Winterfest` },
+    { type: 'evStages', text: q => `Clear ${q.n} Winterfest stage${q.n > 1 ? 's' : ''}` },
+    { type: 'snowman', text: q => `Win ${q.n} Snowman Defence${q.n > 1 ? 's' : ''}` },
+    { type: 'evKills', text: q => `Defeat ${q.n} Kramplings` },
+  ];
+  const POOL_BY_TYPE = Object.fromEntries(QUEST_POOL.concat(EVENT_ONLY).map(q => [q.type, q]));
   const DAILY_BONUS = 60;
   const round5 = v => Math.max(1, Math.round(v / 5) * 5);
 
@@ -165,7 +172,14 @@ const Meta = (() => {
       start: '2026-11-01T00:00:00Z', end: '2026-12-01T00:00:00Z',
       tagline: 'Something broke out of the game\'s code. Corrupt, cut, paste and crash your way to the Glitch.',
     },
-  ].map(e => Object.assign({}, e, { start: Date.parse(e.start), end: Date.parse(e.end) }));
+  ].map(e => Object.assign({ kind: 'element' }, e, { start: Date.parse(e.start), end: Date.parse(e.end) }));
+  // Winterfest comes back every year, 1-31 December (UTC). Its rewards are cosmetics:
+  // milestone hats in its 20-stage chapter, and colours / a hat in its token shop.
+  for (let y = 2026; y <= 2060; y++) EVENTS.push({
+    id: 'winterfest-' + y, kind: 'winterfest', name: 'Winterfest', element: null, color: '#7fe0ff', deep: '#e2394b',
+    start: Date.UTC(y, 11, 1), end: Date.UTC(y + 1, 0, 1),
+    tagline: 'Kramplings are loose in the snow. Grab the presents, defend the snowmen and take back Winterfest from Frostbeard.',
+  });
   const CACHE = { cost: 100, gems: 150 };
   // Event quests: three new ones every day (00:00 UTC), worth 100-120 tokens in total,
   // so an event element takes several days of play. Spare tokens go to the gem cache.
@@ -174,10 +188,16 @@ const Meta = (() => {
     { type: 'ringouts', n: [10, 15] }, { type: 'stages', n: [2, 3] }, { type: 'stars3', n: [1, 2] },
     { type: 'combo', n: [8, 12], max: true }, { type: 'endlessKills', n: [25, 40] },
   ];
+  const WINTER_POOL = [
+    { type: 'gifts', n: [8, 14] }, { type: 'evStages', n: [2, 3] }, { type: 'snowman', n: [1, 2] },
+    { type: 'evKills', n: [20, 35] }, { type: 'ringouts', n: [8, 12] }, { type: 'combo', n: [8, 12], max: true },
+  ];
   function syncEventDaily() {
     const s = Save.data.event, t = today();
     if (s.day === t && Array.isArray(s.list) && s.list.length) return s.list;
-    const picks = EVENT_POOL.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+    const ev = liveEvent();
+    const pool = ev && ev.kind === 'winterfest' ? WINTER_POOL : EVENT_POOL;
+    const picks = pool.slice().sort(() => Math.random() - 0.5).slice(0, 3);
     const total = round5(rand(100, 120));
     const a = round5(total / 3), b = round5(total / 3);
     const tokens = [a, b, total - a - b];
@@ -200,7 +220,15 @@ const Meta = (() => {
     if (!ev) return null;
     const s = Save.data.event;
     const quests = syncEventDaily().map((q, i) => Object.assign({}, q, { i, done: q.prog >= q.n, text: questText(q) }));
-    return { ev, tokens: s.tokens, quests, refresh: (today() + 1) * DAY, owned: Save.elementOpen(ev.element), price: ELEMENT_BY_ID[ev.element].tokenPrice, left: ev.end - Date.now(), upcoming: upcomingEvents(), cache: CACHE };
+    const base = { ev, tokens: s.tokens, quests, refresh: (today() + 1) * DAY, left: ev.end - Date.now(), upcoming: upcomingEvents(), cache: CACHE };
+    if (ev.kind === 'winterfest') {
+      const shop = COLOURS.filter(c => c.event === 'winterfest').map(c => ({ kind: 'colour', id: c.id, name: c.name, cost: c.tokens, owned: Cosmetics.ownsColour(c.id) }))
+        .concat(HATS.filter(h => h.event === 'winterfest' && h.tokens).map(h => ({ kind: 'hat', id: h.id, name: h.name, cost: h.tokens, owned: Cosmetics.ownsHat(h.id) })));
+      const cleared = WINTER_STAGES.filter(w => winterStars(w.i) > 0).length;
+      const stars = WINTER_STAGES.reduce((t, w) => t + winterStars(w.i), 0);
+      return Object.assign(base, { shop, chapter: { cleared, stars, total: WINTER_COUNT } });
+    }
+    return Object.assign(base, { owned: Save.elementOpen(ev.element), price: ELEMENT_BY_ID[ev.element].tokenPrice });
   }
   function claimEvent(i) {
     if (!syncEvent()) return 0;
@@ -216,6 +244,16 @@ const Meta = (() => {
     if (Save.elementOpen(el.id) || s.tokens < el.tokenPrice) return false;
     s.tokens -= el.tokenPrice;
     Save.grantElement(el.id);
+    return true;
+  }
+  function buyEventCosmetic(kind, id) {
+    const ev = syncEvent();
+    if (!ev || ev.kind !== 'winterfest') return false;
+    const def = kind === 'hat' ? HAT_BY_ID[id] : COLOUR_BY_ID[id];
+    const s = Save.data.event;
+    if (!def || def.event !== 'winterfest' || !def.tokens || (kind === 'hat' ? Cosmetics.ownsHat(id) : Cosmetics.ownsColour(id)) || s.tokens < def.tokens) return false;
+    s.tokens -= def.tokens;
+    Cosmetics.grant(kind, id);
     return true;
   }
   function buyCache() {
@@ -276,7 +314,7 @@ const Meta = (() => {
     const d = dailyState(), e = eventState();
     return {
       daily: d.list.filter(q => q.done && !q.claimed).length + (d.bonusReady ? 1 : 0),
-      event: e ? e.quests.filter(q => q.done && !q.claimed).length + (!e.owned && e.tokens >= e.price ? 1 : 0) : 0,
+      event: e ? e.quests.filter(q => q.done && !q.claimed).length + (e.ev.kind === 'element' && !e.owned && e.tokens >= e.price ? 1 : 0) : 0,
     };
   }
 
@@ -287,7 +325,8 @@ const Meta = (() => {
 
   return {
     TIERS, EVENTS, tierOf, makeRival, findMatch, recordDuel,
-    track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyCache, elementEvent, liveEvent,
+    track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyEventCosmetic, buyCache, elementEvent, liveEvent,
+    winterLive: () => { const e = liveEvent(); return !!(e && e.kind === 'winterfest'); },
     claimable, fmtLeft, onNotify: cb => listeners.push(cb), questText,
   };
 })();

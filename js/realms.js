@@ -82,7 +82,7 @@ const REALMS = [
     sky: ['#3b2a6e', '#b36fa8', '#ffd59a'], sun: '#fff6d6', sunPos: [0.5, 0.24], showSun: true,
     hills: ['#e7c58c', '#c39a62', '#8d6a45'], fog: '#ffe8b8',
     top: '#fff0c2', topDark: '#e8c477', rock: '#c9a46a', rockDark: '#94723f',
-    ambient: 'glimmer', tint: '#fff3b0', glowTop: true,
+    ambient: 'glimmer', tint: '#fff3b0', glowTop: true, decor: 'citadel',
     boss: { name: 'Solaris Ascendant', title: 'The Final Radiance' },
   },
 ];
@@ -102,7 +102,40 @@ const ARENAS = [
   { name: 'Stairway', isl: [[640, 710, 680], [1220, 590, 280], [1460, 440, 240], [210, 580, 240], [860, 450, 240]] },
   { name: 'Islets', isl: [[800, 700, 480], [300, 640, 320], [1300, 640, 320], [540, 470, 200], [1060, 470, 200]] },
   { name: 'Drift', isl: [[800, 705, 640], [270, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 0 }], [1330, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 3 }], [800, 440, 240, { ax: 120, ay: 0, speed: 0.6, phase: 1 }]] },
+  { name: 'Pillars', isl: [[800, 690, 440], [330, 610, 200], [1270, 610, 200], [800, 470, 160]] },
+  { name: 'Causeway', isl: [[800, 700, 920], [420, 560, 160], [1180, 560, 160], [800, 470, 200]] },
+  { name: 'Terraces', isl: [[580, 720, 560], [1080, 640, 360], [1380, 520, 200], [300, 560, 200]] },
+  { name: 'Spire', isl: [[800, 700, 640], [800, 540, 240], [800, 380, 120], [330, 600, 160], [1270, 600, 160]] },
+  { name: 'Archipelago', isl: [[700, 700, 440], [1200, 700, 280], [290, 620, 200], [1010, 530, 200], [520, 480, 160]] },
 ];
+// arenas a twist can't use (Tight trims every island, so it skips the ones that are already small)
+const TWIST_ARENA_SKIP = { tight: ['Islets', 'Archipelago', 'Pillars'] };
+
+/* Stage twists: every campaign stage has its own fixed twist (the same each time it's
+   played), so neighbouring stages never play alike. */
+const TWISTS = {
+  none:    { name: 'Classic', desc: 'A straight fight.', icon: 'swords' },
+  swarm:   { name: 'Swarm', desc: 'More foes, each a little frailer.', icon: 'skull' },
+  elite:   { name: 'Elite', desc: 'One foe is an Elite: bigger, tougher and glowing.', icon: 'crown' },
+  gale:    { name: 'Gale Force', desc: 'Gusts sweep the arena every few seconds. Watch the arrows.', icon: 'cyclone' },
+  lowgrav: { name: 'Low Gravity', desc: 'Everyone floats: higher jumps, longer flights.', icon: 'antigrav' },
+  drift:   { name: 'Drifting Isles', desc: 'The side islands move.', icon: 'map' },
+  frenzy:  { name: 'Frenzy', desc: 'Foes move and attack faster.', icon: 'burst' },
+  night:   { name: 'Nightfall', desc: 'Darkness falls: only the area around you is lit.', icon: 'moondisc' },
+  tight:   { name: 'Tight Quarters', desc: 'Every island is narrower.', icon: 'crush' },
+};
+const TWIST_ORDER = ['swarm', 'gale', 'elite', 'lowgrav', 'drift', 'frenzy', 'night', 'tight'];
+function stageTwist(r, s) {
+  if (s === STAGES_PER_REALM - 1) return 'none';                 // boss stages stay a clean duel with the boss
+  if (r === 0 && s < 2) return 'none';                            // the first two stages teach the basics
+  return TWIST_ORDER[(s * 3 + r * 5) % TWIST_ORDER.length];        // step 3 of 8: neighbours always differ
+}
+// apply an arena-shaping twist to a layout (returns a new layout)
+function twistArena(a, twist) {
+  if (twist === 'drift') return { name: a.name, isl: a.isl.map((d, i) => i === 0 || d[3] ? d : [d[0], d[1], d[2], { ax: i % 2 ? 90 : 0, ay: i % 2 ? 0 : 50, speed: 0.55 + i * 0.08, phase: i * 1.7 }]) };
+  if (twist === 'tight') return { name: a.name, isl: a.isl.map(d => [d[0], d[1], Math.max(120, Math.round(d[2] * 0.72 / 40) * 40), d[3]]) };
+  return a;
+}
 const BOSS_ARENA = { name: 'Throne', isl: [[800, 705, 960], [270, 520, 240], [1330, 520, 240]] };
 
 const ENEMY_TYPES = {
@@ -190,9 +223,12 @@ function buildStage(r, s) {
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
     waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * 1.05 * (r >= 4 && r <= 7 ? 0.9 : 1) }]);   // all bosses +5%; Stormspire..Crystal Caverns bosses -10%
-    return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true };
+    return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true, twist: 'none' };
   }
-  const arena = ARENAS[(g * 3 + r) % ARENAS.length];
+  const twist = stageTwist(r, s);
+  let ai = (g * 3 + r) % ARENAS.length;
+  while ((TWIST_ARENA_SKIP[twist] || []).includes(ARENAS[ai].name) || (twist === 'drift' && ARENAS[ai].name === 'Drift')) ai = (ai + 1) % ARENAS.length;
+  const arena = twistArena(ARENAS[ai], twist);
   // at most three waves; early stages are short and gentle
   // at most three waves of at most three foes; individual foes carry the difficulty
   const total = Math.min(TOUGH_REALMS[realm.element] ? 8 : 9, 2 + Math.floor(s * 0.7) + Math.floor(Math.min(r, 5) * 0.8));
@@ -202,10 +238,14 @@ function buildStage(r, s) {
     const wave = [];
     // from Toxic Mire on, foes get sturdier and hit harder chapter by chapter
     const tier = Math.max(0, r - 4);
-    for (let i = 0; i < n; i++) wave.push({ type: ease && ease.noBrutes ? rollType(rng, r, s).replace('brute', 'grunt') : rollType(rng, r, s), element: rollElement(rng, realm, mix), d, hpMul: 1 + tier * 0.08, dmgBoost: 1 + tier * 0.07 });
+    const extra = twist === 'swarm' ? 1 + (w < 2 ? 1 : 0) : 0;      // Swarm: one or two more per wave, each frailer
+    for (let i = 0; i < n + extra; i++) wave.push({ type: ease && ease.noBrutes ? rollType(rng, r, s).replace('brute', 'grunt') : rollType(rng, r, s), element: rollElement(rng, realm, mix), d, hpMul: (1 + tier * 0.08) * (twist === 'swarm' ? 0.62 : 1), dmgBoost: 1 + tier * 0.07 });
+    if (twist === 'frenzy') for (const sp of wave) { sp.speedMul = 1.28; sp.cdMul = 0.78; }
     waves.push(capRoles(capElements(wave), realm));
   }
-  return { realm: r, stage: s, arena, waves, d, boss: false };
+  // Elite: the last wave's first foe becomes a big glowing brute
+  if (twist === 'elite') { const last = waves[waves.length - 1]; last[0] = Object.assign(last[0], { type: 'brute', elite: true, hpMul: (last[0].hpMul || 1) * 2.1, element: realm.element }); }
+  return { realm: r, stage: s, arena, waves, d, boss: false, twist };
 }
 
 /* Endless: infinite waves; realm (and arena) rotates every 10 kills, champions every 8th wave. */

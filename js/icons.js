@@ -52,6 +52,7 @@ const Icons = (() => {
     token: `<circle cx="12" cy="12" r="9" ${F}/><circle cx="12" cy="12" r="6.2" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.5"/><path d="m12 7.6 1.3 2.8 3 .4-2.2 2.1.6 3L12 14.4l-2.7 1.5.6-3-2.2-2.1 3-.4z" fill="rgba(0,0,0,.32)"/>`,
     search: `<circle cx="10.5" cy="10.5" r="6.5" ${S} stroke-width="2.6"/><path d="m15.5 15.5 5 5" ${S} stroke-width="2.8"/>`,
     ranks: `<path d="M3.5 20.5V14h5v6.5zM9.5 20.5V8h5v12.5zM15.5 20.5v-9h5v9z" ${F}/><path d="m12 2.2.9 1.9 2 .3-1.5 1.4.4 2L12 6.9l-1.8.9.4-2-1.5-1.4 2-.3z" ${F}/>`,
+    snowman: `<circle cx="12" cy="16.5" r="5.2" ${F}/><circle cx="12" cy="8.6" r="3.6" ${F}/><path d="M8.3 4.6h7.4M9.6 4.6V1.8h4.8v2.8" ${S} stroke-width="2"/>`,
     gift: `<rect x="3.5" y="9" width="17" height="11.5" rx="1.5" ${F}/><rect x="2.5" y="6.5" width="19" height="4" rx="1" ${F}/><path d="M12 6.5v14" stroke="rgba(0,0,0,.35)" stroke-width="2"/><path d="M12 6.5C10 3 6.5 3 7 5.2c.3 1.3 2.6 1.3 5 1.3 2.4 0 4.7 0 5-1.3.5-2.2-3-2.2-5 1.3z" ${S} stroke-width="1.8"/>`,
     bot: `<rect x="4" y="7.5" width="16" height="12" rx="3.5" ${F}/><path d="M12 7.5V4M12 3.5h.01" ${S} stroke-width="2.4"/><circle cx="9" cy="13" r="1.7" fill="rgba(0,0,0,.45)"/><circle cx="15" cy="13" r="1.7" fill="rgba(0,0,0,.45)"/><path d="M2 12.5v3M22 12.5v3" ${S} stroke-width="2.2"/>`,
     user: `<circle cx="12" cy="8" r="4.3" ${F}/><path d="M3.5 21c.8-4.6 4.2-7 8.5-7s7.7 2.4 8.5 7z" ${F}/>`,

@@ -181,7 +181,8 @@ const UI = (() => {
     const [nr] = Save.nextStage();
     mapRealm = r != null ? r : nr;
     tabPage = null;
-    Game.idleScene(mapRealm);
+    if (r != null || !Meta.winterLive()) mapMode = 'chapters';   // a specific chapter (or no event) means the chapter view
+    Game.idleScene(mapMode === 'event' ? WINTER_REALM : mapRealm);
     show('map');
     renderMap();
   }
@@ -202,13 +203,13 @@ const UI = (() => {
     REALMS.slice(first, first + TAB_PAGE).forEach((realm, j) => {
       const i = first + j, open = Save.realmOpen(i);
       const b = document.createElement('button');
-      b.className = (i === mapRealm ? 'active' : '') + (open ? '' : ' locked');
+      b.className = (i === mapRealm && mapMode !== 'event' ? 'active' : '') + (open ? '' : ' locked');
       b.style.setProperty('--c', realm.tint);
       b.innerHTML = `<small>${i + 1}</small>${realm.name.toUpperCase()}${open ? '' : '<span class="ic" data-icon="lock"></span>'}`;
       b.title = realm.name;
       b.onclick = () => {
         if (!open) { Sfx.denied(); toast(`DEFEAT ${REALMS[i - 1].boss.name.toUpperCase()} FIRST`); return; }
-        Sfx.click(); mapRealm = i; Game.idleScene(i); renderMap();
+        Sfx.click(); mapRealm = i; mapMode = 'chapters'; Game.idleScene(i); renderMap();
       };
       row.appendChild(b);
     });
@@ -217,7 +218,15 @@ const UI = (() => {
     Icons.hydrate(tabs);
   }
 
+  // Winterfest: the event chapter lives under Stages while the event runs
+  let mapMode = 'chapters';
   function renderMap() {
+    const evBtn = $('mapEvent'), live = Meta.winterLive();
+    evBtn.classList.toggle('hidden', !live);
+    if (!live) mapMode = 'chapters';
+    evBtn.classList.toggle('on', mapMode === 'event');
+    evBtn.onclick = () => { Sfx.click(); mapMode = mapMode === 'event' ? 'chapters' : 'event'; Game.idleScene(mapMode === 'event' ? WINTER_REALM : mapRealm); renderMap(); };
+    if (mapMode === 'event') { renderWinterMap(); return; }
     if (tabPage != null && Math.floor(mapRealm / TAB_PAGE) !== tabPage && !$('realmTabs').contains(document.activeElement)) tabPage = null;
     renderTabs();
     const realm = REALMS[mapRealm];
@@ -230,6 +239,7 @@ const UI = (() => {
     const [nr, ns] = Save.nextStage();
     const grid = $('stageGrid');
     grid.innerHTML = '';
+    grid.classList.remove('winter');
     grid.classList.toggle('nine', mapRealm === 0);
     if (mapRealm === 0) {
       // stage 0: the tutorial the first time, afterwards a sandbox to try elements on a dummy
@@ -250,11 +260,13 @@ const UI = (() => {
       const el = document.createElement('button');
       if (boss) el.title = realm.boss.name;
       el.className = 'stage-card' + (boss ? ' boss' : '') + (!open ? ' locked' : cur ? ' current' : '');
+      if (stageTwist(mapRealm, s) !== 'none') el.classList.add('has-twist');
       el.style.setProperty('--c', realm.tint);
       el.innerHTML = `<span class="n">${open ? (boss ? '<span class="ic" data-icon="crown"></span>' : s + 1) : '<span class="ic" data-icon="lock"></span>'}</span>
         <span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>
         <small>${boss ? 'BOSS' : '<span class="st-word">STAGE </span>' + stageLabel(mapRealm, s)}</small>
-        ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}`;
+        ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}
+        ${twistBadge(stageTwist(mapRealm, s))}`;
       el.onclick = () => {
         if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }
         Sfx.click(); const r = mapRealm; Platform.maybeMidgame(() => startStage(r, s));
@@ -263,6 +275,83 @@ const UI = (() => {
     }
     Icons.hydrate($('realmHead')); Icons.hydrate(grid);
     fitScreen();
+  }
+
+  /* ------------------------------------------------------- Winterfest */
+  function hatThumb(id, size = 34) { return `<canvas class="hat-thumb" data-hat="${id}" width="${size}" height="${size}"></canvas>`; }
+  function drawHatThumbs(root) {
+    root.querySelectorAll('canvas[data-hat]').forEach(cv => {
+      const n = +cv.getAttribute('width'), dpr = Math.min(2, window.devicePixelRatio || 1);
+      cv.width = n * dpr; cv.height = n * dpr; cv.style.width = cv.style.height = n + 'px';
+      const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const sc = n / 52;   // frame the head and hat: the head sits ~100 units above the feet
+      Cosmetics.drawMannequin(g, n / 2 - 1, n * 0.66 + 100 * sc, sc, Cosmetics.colour().id, cv.dataset.hat, 0);
+    });
+  }
+  function renderWinterMap() {
+    renderTabs();
+    const ev = Meta.liveEvent();
+    const cleared = WINTER_STAGES.filter(w => winterStars(w.i) > 0).length, stars = WINTER_STAGES.reduce((t, w) => t + winterStars(w.i), 0);
+    $('realmHead').innerHTML = `<h3 class="wf-title">${ic('snow')}WINTERFEST</h3>
+      <span class="tag"><i class="live-dot"></i>ENDS IN ${until(ev.end)}</span>
+      <span class="tag">${ic('check')} ${cleared}/${WINTER_COUNT} CLEARED</span>
+      <span class="tag"><span class="ic star" data-icon="star"></span> ${stars}/${WINTER_COUNT * 3}</span>`;
+    const grid = $('stageGrid');
+    grid.innerHTML = '';
+    grid.classList.remove('nine'); grid.classList.add('winter');
+    const firstOpen = WINTER_STAGES.find(w => !winterStars(w.i));
+    for (const w of WINTER_STAGES) {
+      const open = winterOpen(w.i), st = winterStars(w.i), M = WINTER_MODES[w.mode], hat = WINTER_MILESTONES[w.i];
+      const el = document.createElement('button');
+      el.className = 'stage-card wf' + (w.mode === 'boss' ? ' boss' : '') + (!open ? ' locked' : firstOpen === w ? ' current' : '') + (hat ? ' milestone' : '');
+      el.style.setProperty('--c', w.mode === 'gifts' ? '#ffd34d' : w.mode === 'snowman' ? '#7fe0ff' : w.mode === 'boss' ? '#ff6b7d' : '#c9f2ff');
+      const tw = TWISTS[w.twist];
+      el.title = `${M.name}: ${M.goal(w.n)}${w.twist !== 'none' ? ' · ' + tw.name : ''}`;
+      el.innerHTML = `<span class="n">${open ? (w.mode === 'boss' ? ic('crown') : w.i + 1) : ic('lock')}</span>
+        <span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>
+        <span class="wf-mode">${ic(M.icon)}<b>${M.name.toUpperCase()}</b></span>
+        ${hat ? `<span class="wf-hat${Cosmetics.ownsHat(hat) ? ' got' : ''}" title="Clear it to win the ${HAT_BY_ID[hat].name}">${hatThumb(hat, 30)}</span>` : ''}
+        ${w.i === 0 && !Save.data.winter.tutDone ? '<span class="wf-new">HOW-TO</span>' : ''}
+        ${w.twist !== 'none' ? `<span class="wf-tw" title="${tw.name}: ${tw.desc}">${ic(tw.icon)}</span>` : ''}`;
+      el.onclick = () => {
+        if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }
+        Sfx.click(); Platform.maybeMidgame(() => startWinter(w.i));
+      };
+      grid.appendChild(el);
+    }
+    Icons.hydrate($('realmHead')); Icons.hydrate(grid); drawHatThumbs(grid);
+    fitScreen();
+  }
+  function startWinter(i) {
+    if (!Meta.winterLive()) { toast('WINTERFEST HAS ENDED'); return; }
+    const tutorial = i === 0 && !Save.data.winter.tutDone;
+    lastStart = { mode: 'event', i };
+    closeModal(); show(null);
+    Game.start({ mode: 'event', i, tutorial });
+    hudCache = {};
+    buildHud();
+    const w = WINTER_STAGES[i], M = WINTER_MODES[w.mode];
+    setChip('frost', `WINTERFEST ${winterLabel(i)}`);
+    if (tutorial) return;
+    banner(w.mode === 'boss' ? 'BOSS STAGE' : M.name.toUpperCase(), w.mode === 'boss' ? 'boss' : '');
+    setTimeout(() => { if (Game.state === 'play') toast(M.goal(w.n).toUpperCase()); }, 1100);
+    if (w.twist !== 'none') setTimeout(() => { if (Game.state === 'play') toast(`${TWISTS[w.twist].name.toUpperCase()} · ${TWISTS[w.twist].desc}`); }, 3000);
+  }
+  // the first-time how-to: cards between its three short parts (the game pauses on each)
+  const WF_CARDS = {
+    welcome: { icon: 'snow', title: 'WELCOME TO WINTERFEST', text: 'Winterfest is here all December, with its own 20-stage chapter and new game modes. Each stage shows its goal at the top of the screen.',
+      extra: () => `<div class="wf-modes">${['gifts', 'snowman', 'brawl', 'boss'].map(m => `<div>${ic(WINTER_MODES[m].icon)}<b>${WINTER_MODES[m].name.toUpperCase()}</b></div>`).join('')}</div><p class="wf-next">First up: <b>Gift Rush</b>. Grab the 3 glowing presents.</p>`, btn: 'GRAB THE PRESENTS' },
+    snowman: { icon: 'snowman', title: 'SNOWMAN DEFENCE', text: 'Kramplings march on the snowman to smash it. Knock them away and keep it standing until the timer runs out. If it falls, the stage is lost.', btn: 'DEFEND IT' },
+    rewards: { icon: 'gift', title: 'EXCLUSIVE REWARDS', text: 'Clear stages 5, 10, 15 and 20 to win exclusive hats. Daily Winterfest quests pay Snowflakes: trade them in the Event tab for exclusive colours and the Pom Beanie. Everything you earn is yours to keep.',
+      extra: () => `<div class="wf-prizes">${Object.values(WINTER_MILESTONES).map(h => hatThumb(h, 46)).join('')}${COLOURS.filter(c => c.event).map(c => `<span class="sw" style="--c:${c.body}"></span>`).join('')}</div>`, btn: 'START WINTERFEST' },
+  };
+  function eventCard(key, go) {
+    const C = WF_CARDS[key];
+    modal(`<div class="wf-card-ic">${ic(C.icon)}</div><h2>${C.title}</h2><p class="tip">${C.text}</p>${C.extra ? C.extra() : ''}
+      <div class="actions"><button class="btn primary" id="wfGo"><b>${C.btn}</b></button></div>`, sh => {
+      drawHatThumbs(sh);
+      sh.querySelector('#wfGo').onclick = () => { Sfx.click(); closeModal(); go(); if (key === 'welcome') toast('GRAB THE 3 PRESENTS'); };
+    }, 'wf-card');
   }
 
   /* --------------------------------------------------- element browser */
@@ -389,13 +478,135 @@ const UI = (() => {
 
   /* -------------------------------------------------------------- codex */
   const cxFilter = { q: '', show: 'all', type: 'all', sort: 'price' };
-  function openCodex() {
+  function openCodex(tab) {
     show('codex');
     mountTools($('codexTools'), cxFilter, renderCodexList);
     renderCodex();
+    setShopTab(tab || 'elements');
     const on = $('codexList').querySelector('.et.on');
     if (on) on.scrollIntoView({ block: 'nearest' });
     nudgeScroll($('codexList'), 'y');
+  }
+
+  /* --------------------------------------------------------------- shop */
+  // the Shop: Elements (the element browser above) plus Items, Accessories and Colours
+  let shopTab = 'elements';
+  const shopSel = { items: ITEMS[0].id, hats: HATS[0].id, colours: 'snow' };
+  function setShopTab(t) {
+    shopTab = t;
+    $('shopTabs').querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.shop === t);
+      b.onclick = () => { if (shopTab !== b.dataset.shop) { Sfx.click(); setShopTab(b.dataset.shop); } };
+    });
+    Icons.hydrate($('shopTabs'));
+    const els = t === 'elements';
+    $('codex').querySelector('.codex').classList.toggle('hidden', !els);
+    $('shopPane').classList.toggle('hidden', els);
+    $('codexCountPill').classList.toggle('hidden', !els);
+    if (!els) renderShop();
+    fitScreen();
+  }
+  const tokIc = () => ic('snow', 'tok');
+  function shopStatus(kind, def) {
+    const owned = kind === 'hat' ? Cosmetics.ownsHat(def.id) : Cosmetics.ownsColour(def.id);
+    const worn = kind === 'hat' ? Cosmetics.hat() === def.id : Cosmetics.colour().id === def.id;
+    if (worn) return `<span class="sh-st worn">${ic('check')}WORN</span>`;
+    if (owned) return '<span class="sh-st owned">OWNED</span>';
+    if (def.event) return `<span class="sh-st ev">${tokIc()}${def.tokens ? def.tokens : 'EVENT'}</span>`;
+    return `<span class="sh-st price${Save.data.essence >= def.price ? ' can' : ''}">${ic('gem', 'gem')}${def.price}</span>`;
+  }
+  function renderShop() {
+    const grid = $('shopGrid');
+    if (shopTab === 'items') {
+      const armed = Cosmetics.armed();
+      grid.className = 'shop-grid items';
+      grid.innerHTML = ITEMS.map(it => `<button type="button" class="sh-card item${shopSel.items === it.id ? ' on' : ''}${armed.includes(it.id) ? ' armed' : ''}" data-id="${it.id}" style="--c:${it.color}">
+        <span class="sh-item-ic">${ic(it.icon)}</span><b>${it.name.toUpperCase()}</b>
+        <span class="sh-count">×${Cosmetics.count(it.id)}</span>${armed.includes(it.id) ? '<span class="sh-armed">ARMED</span>' : ''}
+        <span class="sh-st price${Save.data.essence >= it.price ? ' can' : ''}">${ic('gem', 'gem')}${it.price}</span></button>`).join('');
+    } else {
+      const kind = shopTab === 'hats' ? 'hat' : 'colour', list = shopTab === 'hats' ? HATS : COLOURS;
+      grid.className = 'shop-grid ' + shopTab;
+      grid.innerHTML = (kind === 'hat' ? [`<button type="button" class="sh-card none${!Cosmetics.hat() ? ' worn-c' : ''}${shopSel.hats === null ? ' on' : ''}" data-id=""><canvas class="sh-thumb" data-thumb="hat:"></canvas><b>NONE</b>${!Cosmetics.hat() ? `<span class="sh-st worn">${ic('check')}WORN</span>` : '<span class="sh-st owned">TAKE OFF</span>'}</button>`] : []).concat(list.map(d => `<button type="button" class="sh-card${(shopTab === 'hats' ? shopSel.hats : shopSel.colours) === d.id ? ' on' : ''}${d.event ? ' event' : ''}" data-id="${d.id}">
+        ${d.event ? `<span class="sh-flag">${ic('snow')}</span>` : ''}<canvas class="sh-thumb" data-thumb="${kind}:${d.id}"></canvas><b>${d.name.toUpperCase()}</b>${shopStatus(kind, d)}</button>`)).join('');
+      // static thumbnails: the hero wearing it (hats on the current colour, colours with the current hat)
+      grid.querySelectorAll('canvas[data-thumb]').forEach(cv => {
+        const [k, id] = cv.dataset.thumb.split(':');
+        const dpr = Math.min(2, window.devicePixelRatio || 1), w = 76, h = 76;
+        cv.width = w * dpr; cv.height = h * dpr;
+        const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (k === 'hat') Cosmetics.drawMannequin(g, w / 2 - 2, h * 1.55, 0.78, Cosmetics.colour().id, id || null, 0);
+        else Cosmetics.drawMannequin(g, w / 2 - 2, h * 0.98, 0.5, id, Cosmetics.hat(), 0);
+      });
+    }
+    Icons.hydrate(grid);
+    grid.querySelectorAll('.sh-card').forEach(b => b.onclick = () => {
+      Sfx.click();
+      const id = b.dataset.id || null;
+      shopSel[shopTab] = id;
+      grid.querySelectorAll('.sh-card.on').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      renderShopDetail();
+    });
+    renderShopDetail();
+    document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
+  }
+  function renderShopDetail() {
+    const det = $('shopDetail');
+    if (shopTab === 'items') {
+      const it = ITEM_BY_ID[shopSel.items], n = Cosmetics.count(it.id), armed = Cosmetics.armed();
+      const isArmed = armed.includes(it.id);
+      det.innerHTML = `<div class="sd-item" style="--c:${it.color}"><span class="sh-item-ic big">${ic(it.icon)}</span></div>
+        <div class="sd-body"><small class="kicker">ONE-RUN BOOST</small><h3>${it.name.toUpperCase()}</h3><p>${it.desc}.</p>
+          <div class="sd-own">YOU HAVE <b>${n}</b></div>
+          <div class="sd-btns">
+            <button class="btn${Save.data.essence >= it.price ? ' primary' : ''}" id="sdBuy">${ic('gem')}<b>BUY · ${it.price}</b></button>
+            <button class="btn${isArmed ? ' primary' : ''}" id="sdArm" ${!n && !isArmed ? 'disabled' : ''}><b>${isArmed ? 'ARMED · TAP TO DISARM' : 'ARM FOR NEXT RUN'}</b></button>
+          </div>
+          <div class="sd-slots"><small>ARMED FOR YOUR NEXT RUN (${armed.length}/${ITEM_ARM_MAX})</small><div>${[0, 1].map(k => armed[k] ? `<span class="slot" style="--c:${ITEM_BY_ID[armed[k]].color}">${ic(ITEM_BY_ID[armed[k]].icon)}${ITEM_BY_ID[armed[k]].name.toUpperCase()}</span>` : '<span class="slot empty">EMPTY</span>').join('')}</div>
+          <p class="fine">Armed items are used up when your next stage, Endless run or Winterfest stage starts. They are never used in the Arena.</p></div>
+        </div>`;
+      Icons.hydrate(det);
+      det.querySelector('#sdBuy').onclick = () => {
+        if (Cosmetics.buyItem(it.id)) { Sfx.pickup(); toast(`${it.name.toUpperCase()} +1`); renderShop(); }
+        else needGems(it.price - Save.data.essence, () => renderShop());
+      };
+      det.querySelector('#sdArm').onclick = () => {
+        if (Cosmetics.toggleArm(it.id)) { Sfx.click(); renderShop(); }
+        else { Sfx.denied(); toast(n ? `ONLY ${ITEM_ARM_MAX} ITEMS CAN BE ARMED` : 'BUY ONE FIRST'); }
+      };
+      return;
+    }
+    const kind = shopTab === 'hats' ? 'hat' : 'colour';
+    const id = shopTab === 'hats' ? shopSel.hats : shopSel.colours;
+    const def = id ? (kind === 'hat' ? HAT_BY_ID[id] : COLOUR_BY_ID[id]) : null;
+    const owned = !def || (kind === 'hat' ? Cosmetics.ownsHat(id) : Cosmetics.ownsColour(id));
+    const worn = kind === 'hat' ? Cosmetics.hat() === id : Cosmetics.colour().id === id;
+    const evLive = Meta.winterLive();
+    let btns = '';
+    if (!def) btns = `<button class="btn${Cosmetics.hat() ? ' primary' : ''}" id="sdEquip" ${Cosmetics.hat() ? '' : 'disabled'}><b>${Cosmetics.hat() ? 'TAKE OFF YOUR HAT' : 'NOTHING WORN'}</b></button>`;
+    else if (owned) btns = worn ? (kind === 'hat' ? '<button class="btn" id="sdUnequip"><b>TAKE OFF</b></button>' : '<button class="btn" disabled><b>WORN</b></button>') : '<button class="btn primary" id="sdEquip"><b>WEAR IT</b></button>';
+    else if (def.event) btns = evLive ? `<button class="btn primary" id="sdEvent">${ic('snow')}<b>GO TO WINTERFEST</b></button>` : '<button class="btn" disabled><b>RETURNS IN DECEMBER</b></button>';
+    else btns = `<button class="btn${Save.data.essence >= def.price ? ' primary' : ''}" id="sdBuy">${ic('gem')}<b>BUY · ${def.price}</b></button>`;
+    const how = def && def.event ? (def.how ? def.how + '.' : `Trade ${def.tokens} Snowflakes in the Winterfest token shop.`) : '';
+    det.innerHTML = `<div class="sd-preview"><canvas id="sdCanvas"></canvas></div>
+      <div class="sd-body">
+        <small class="kicker">${def && def.event ? `${ic('snow')}WINTERFEST EXCLUSIVE` : kind === 'hat' ? 'ACCESSORY' : 'CHARACTER COLOUR'}</small>
+        <h3>${def ? def.name.toUpperCase() : 'NO HAT'}</h3>
+        <p>${def && def.event ? `Exclusive to Winterfest (every December). ${how}` : kind === 'hat' ? (def ? 'Worn on your hero in every fight.' : 'Go bare-headed: just your element band.') : 'Your hero\'s body colour in every fight.'}</p>
+        <div class="sd-btns">${btns}</div>
+      </div>`;
+    Icons.hydrate(det);
+    const look = () => ({ colour: kind === 'colour' && def ? def.id : Cosmetics.colour().id, hat: kind === 'hat' ? id : Cosmetics.hat(), accent: (ELEMENT_BY_ID[Save.loadout()[0]] || NEUTRAL).color });
+    Cosmetics.liveMannequin(det.querySelector('#sdCanvas'), look);
+    const on = (sel, fn) => { const b = det.querySelector(sel); if (b) b.onclick = fn; };
+    on('#sdBuy', () => {
+      if (Cosmetics.buy(kind, id)) { Sfx.unlock(); Cosmetics.equip(kind, id); toast(`${def.name.toUpperCase()} · YOURS`); renderShop(); }
+      else needGems(def.price - Save.data.essence, () => renderShop());
+    });
+    on('#sdEquip', () => { Sfx.click(); Cosmetics.equip(kind, def ? id : null); renderShop(); });
+    on('#sdUnequip', () => { Sfx.click(); Cosmetics.equip('hat', null); renderShop(); });
+    on('#sdEvent', () => { Sfx.click(); openHub('event'); });
   }
   function renderCodex() { renderCodexList(); renderCodexDetail(); }
   function renderCodexList() {
@@ -556,7 +767,7 @@ const UI = (() => {
     const body = $('hubBody');
     body.innerHTML = hubTab === 'event' ? eventTab() : hubTab === 'quests' ? questsTab() : ranksTab();
     if (hubTab === 'ranks') loadLeaderboard();
-    Icons.hydrate(body); Icons.hydrate($('hubTabs'));
+    Icons.hydrate(body); Icons.hydrate($('hubTabs')); drawHatThumbs(body);
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
     bindHub(body);
     fitScreen();
@@ -564,7 +775,8 @@ const UI = (() => {
 
   function eventTab() {
     const st = Meta.eventState();
-    if (!st) return `<div class="hub-empty card">${ic('clock')}<h3>NO EVENT RIGHT NOW</h3><p>There's no event running at the moment. New events bring exclusive elements, event quests and tokens. Check back soon.</p></div>`;
+    if (!st) return `<div class="hub-empty card">${ic('clock')}<h3>NO EVENT RIGHT NOW</h3><p>There's no event running at the moment. New events bring exclusive rewards, event quests and tokens. Check back soon.</p></div>`;
+    if (st.ev.kind === 'winterfest') return winterTab(st);
     const ev = st.ev, el = ELEMENT_BY_ID[ev.element];
     const pct = Math.min(100, Math.round(st.tokens / st.price * 100));
     const doneN = st.quests.filter(q => q.claimed).length;
@@ -604,6 +816,40 @@ const UI = (() => {
           <div class="panel-head"><h4>${ic('clock')}COMING UP</h4></div>
           <div class="upcoming">${st.upcoming.map(u => `<div class="up-ev" style="--c:${u.color}">${hex(u.element)}<div><b>${u.name.toUpperCase()}</b><small>${NAME(u.element)} · STARTS IN ${until(u.start)}</small></div></div>`).join('')}</div>
         </div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function winterTab(st) {
+    const ev = st.ev, ch = st.chapter, doneN = st.quests.filter(q => q.claimed).length;
+    const ms = Object.entries(WINTER_MILESTONES).map(([i, h]) => `<div class="wf-ms${Cosmetics.ownsHat(h) ? ' got' : ''}">${hatThumb(h, 44)}<small>STAGE ${+i + 1}</small><b>${HAT_BY_ID[h].name.toUpperCase()}</b>${Cosmetics.ownsHat(h) ? `<span class="q-done">${ic('check')}</span>` : ''}</div>`).join('');
+    const snow = n => `<span class="tok-rw">${ic('snow')}<b>${n}</b></span>`;
+    return `<div class="hub-grid event-tab wf-tab" style="--ec:${ev.color};--ed:${ev.deep}">
+      <div class="ev-hero card">
+        <div class="ev-art wf-art"><span class="wf-snow"></span><span class="wf-glow"></span><span class="wf-emblem">${ic('snowman')}</span></div>
+        <div class="ev-info">
+          <span class="kicker"><i class="live-dot"></i>LIVE EVENT · ENDS IN ${until(ev.end)}</span>
+          <h3>WINTERFEST</h3>
+          <p class="ev-tag">${ev.tagline}</p>
+          <div class="ev-el"><small>EVENT CHAPTER · ${ch.cleared}/${ch.total} CLEARED · ${ch.stars}/${ch.total * 3} STARS</small>
+            <div class="bar-track"><i style="width:${Math.round(ch.cleared / ch.total * 100)}%"></i></div>
+            <div class="wf-milestones">${ms}</div>
+          </div>
+          <div class="ev-cta"><button class="btn primary" id="wfPlay">${ic('play')}<b>${ch.cleared ? 'CONTINUE' : 'PLAY'} WINTERFEST</b></button></div>
+        </div>
+      </div>
+      <div class="hub-col">
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('scroll')}WINTERFEST QUESTS</h4><small>NEW QUESTS IN ${until(st.refresh)}</small></div>
+          <div class="quest-list" data-part="evq">${st.quests.map(q => questRow(q, snow(q.tokens), `data-evq="${q.i}"`)).join('')}</div>
+          <p class="fine" data-part="evqn">${doneN}/${st.quests.length} claimed today · up to ${st.quests.reduce((t, q) => t + q.tokens, 0)} Snowflakes a day</p>
+        </div>
+        <div class="card panel">
+          <div class="panel-head"><h4>${ic('gift')}SNOWFLAKE SHOP</h4><span class="tok-bal" data-part="evbal">${ic('snow')}<b>${fmt(st.tokens)}</b></span></div>
+          <div class="wf-shop" data-part="shop">${st.shop.map(it => `<div class="wf-item${it.owned ? ' owned' : ''}">${it.kind === 'hat' ? hatThumb(it.id, 40) : `<span class="sw" style="--c:${COLOUR_BY_ID[it.id].body}"></span>`}<div><b>${it.name.toUpperCase()}</b><small>${it.kind === 'hat' ? 'HAT' : 'COLOUR'}</small></div>${it.owned ? `<span class="q-done">${ic('check')}</span>` : `<button class="btn small${st.tokens >= it.cost ? ' primary' : ''}" data-wfbuy="${it.kind}:${it.id}">${ic('snow')}<b>${it.cost}</b></button>`}</div>`).join('')}
+            <div class="wf-item"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} GEMS · ANY TIME</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('snow')}<b>${st.cache.cost}</b></button></div></div>
+          <p class="fine">Snowflakes come only from Winterfest quests and melt when the event ends. What you buy is yours to keep.</p>
+        </div>
       </div>
     </div>`;
   }
@@ -689,7 +935,7 @@ const UI = (() => {
     const fresh = [...tmp.querySelectorAll('[data-part]')];
     if (!fresh.length || fresh.some(n => !body.querySelector(`[data-part="${n.dataset.part}"]`))) { renderHub(); return; }
     for (const n of fresh) body.querySelector(`[data-part="${n.dataset.part}"]`).replaceWith(n);
-    Icons.hydrate(body);
+    Icons.hydrate(body); drawHatThumbs(body);
     const c = Meta.claimable();
     $('hubTabs').querySelectorAll('button').forEach(b => { const dot = b.querySelector('.dot'); if (dot) dot.classList.toggle('hidden', !(b.dataset.tab === 'event' ? c.event : c.daily)); });
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
@@ -708,6 +954,12 @@ const UI = (() => {
     }); });
     on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); ; toast(`DAILY CHEST · +${n} GEMS`); softRefreshHub(); } });
     on('#rkPlay', () => { Sfx.click(); openArena(); });
+    on('#wfPlay', () => { Sfx.click(); mapMode = 'event'; openMap(); Game.idleScene(WINTER_REALM); });
+    on('[data-wfbuy]', b => {
+      const [kind, id] = b.dataset.wfbuy.split(':');
+      if (Meta.buyEventCosmetic(kind, id)) { Sfx.unlock(); Cosmetics.equip(kind, id); toast(`${(kind === 'hat' ? HAT_BY_ID[id] : COLOUR_BY_ID[id]).name.toUpperCase()} · YOURS`); renderHub(); }
+      else { Sfx.denied(); toast('NOT ENOUGH SNOWFLAKES'); }
+    });
     on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); softRefreshHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
     on('#evBuy', () => {
       const st = Meta.eventState(); if (!st) return;
@@ -736,7 +988,7 @@ const UI = (() => {
     ev.classList.toggle('hidden', !es);   // no event, no card
     if (es) {
       ev.style.setProperty('--c', es.ev.color);
-      ev.innerHTML = `<span class="rc-gl">${elementIcon(es.ev.element)}</span><span class="rc-t"><small><i class="live-dot"></i>EVENT · ${until(es.ev.end)}</small><b>${es.ev.name.toUpperCase()}</b></span>${badge(c.event)}`;
+      ev.innerHTML = `<span class="rc-gl">${es.ev.element ? elementIcon(es.ev.element) : ic('snow')}</span><span class="rc-t"><small><i class="live-dot"></i>EVENT · ${until(es.ev.end)}</small><b>${es.ev.name.toUpperCase()}</b></span>${badge(c.event)}`;
     }
     $('railQuests').innerHTML = `<span class="rc-gl">${ic('scroll')}</span><span class="rc-t"><small>QUESTS</small><b>${ds.list.filter(q => q.done).length}/${ds.list.length} DONE</b></span>${badge(c.daily)}`;
     $('railRanks').style.setProperty('--c', t.color);
@@ -1017,6 +1269,7 @@ const UI = (() => {
     };
     if (res.mode !== 'duel') Meta.track('gems', res.essence);
     if (res.mode === 'duel') { showDuelResult(res, tiles); return; }
+    if (res.mode === 'event') { showWinterResult(res, tiles, reward, adRow, offers, bindAds); return; }
     if (res.mode === 'endless') {
       modal(`
         <h2 class="${res.best ? 'win' : ''}">${res.best ? 'NEW RECORD!' : 'RUN OVER'}</h2>
@@ -1113,6 +1366,18 @@ const UI = (() => {
     const realm = REALMS[r];
     setChip(realm.element, `${realm.name.toUpperCase()} ${stageLabel(r, s)}`);
     banner(s === STAGES_PER_REALM - 1 ? 'BOSS STAGE' : `STAGE ${stageLabel(r, s)}`, s === STAGES_PER_REALM - 1 ? 'boss' : '');
+    announceTwist(stageTwist(r, s));
+  }
+  // stage twists: a badge on the stage card, and a heads-up when the stage starts
+  function twistBadge(id) {
+    const t = TWISTS[id];
+    if (!t || id === 'none') return '';
+    return `<span class="twist-badge" title="${t.name}: ${t.desc}">${ic(t.icon)}<b>${t.name.toUpperCase()}</b></span>`;
+  }
+  function announceTwist(id) {
+    const t = TWISTS[id];
+    if (!t || id === 'none') return;
+    setTimeout(() => { if (Game.state === 'play') toast(`${t.name.toUpperCase()} · ${t.desc}`); }, 1300);
   }
   function startEndless() {
     lastStart = { mode: 'endless' };
@@ -1197,7 +1462,7 @@ const UI = (() => {
     startStage(r, s);
   }
 
-  function relaunch() { if (!lastStart) return; if (lastStart.mode === 'duel') { startDuel(lastStart.rival); return; } lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : lastStart.mode === 'tutorial' ? startTutorial() : lastStart.mode === 'test' ? startTesting() : startEndless(); }
+  function relaunch() { if (!lastStart) return; if (lastStart.mode === 'duel') { startDuel(lastStart.rival); return; } if (lastStart.mode === 'event') { startWinter(lastStart.i); return; } lastStart.mode === 'stage' ? startStage(lastStart.r, lastStart.s) : lastStart.mode === 'tutorial' ? startTutorial() : lastStart.mode === 'test' ? startTesting() : startEndless(); }
 
   // Testing ground: the tutorial island with a dummy that respawns; no waves, no rewards
   function startTesting() {
@@ -1294,6 +1559,17 @@ const UI = (() => {
       });
     } else if (Game.mode === 'endless') {
       set('endless', h.kills, k => { $('waveDots').innerHTML = ''; $('chipSub').textContent = `${k} DEFEATED · BEST ${Save.data.endlessBest}`; });
+    }
+    else if (Game.mode === 'event' && h.obj) {
+      const o = h.obj;
+      const txt = o.kind === 'gifts' ? `PRESENTS ${o.cur}/${o.max}`
+        : o.kind === 'snowman' ? `SNOWMAN ${Math.ceil(o.hp * 100)}% · ${Math.floor(o.left / 60)}:${String(Math.ceil(o.left) % 60).padStart(2, '0')}`
+        : o.kind === 'tut' ? 'HOW-TO' : `${h.left} FOE${h.left === 1 ? '' : 'S'} REMAIN`;
+      set('evobj', txt + ':' + h.wave + ':' + h.waves, () => {
+        $('waveDots').innerHTML = (o.kind === 'brawl' || o.kind === 'boss') ? Array.from({ length: h.waves }, (_, i) => `<i class="${i < h.wave || (i === h.wave && h.left === 0) ? 'done' : i === h.wave ? 'now' : ''}"></i>`).join('') : '';
+        $('chipSub').textContent = txt;
+        $('stageChip').classList.toggle('wf-urgent', o.kind === 'snowman' && o.hp < 0.3);
+      });
     }
     const bb = $('bossBar');
     if (h.boss) {
@@ -1452,20 +1728,24 @@ const UI = (() => {
       if (r.over) banner(r.won ? 'ROUND WON' : 'ROUND LOST', r.won ? '' : 'boss');
       else { hudCache = {}; buildHud(); banner(r.n === 3 ? 'FINAL ROUND' : `ROUND ${r.n}`); }
     };
-    Game.hooks.onCombo = n => { onCombo(n); if (Game.mode === 'stage' || Game.mode === 'endless' || Game.mode === 'duel') Meta.track('combo', n); };
+    Game.hooks.onCombo = n => { onCombo(n); if (Game.mode === 'stage' || Game.mode === 'endless' || Game.mode === 'duel' || Game.mode === 'event') Meta.track('combo', n); };
     Game.hooks.onRhythm = (mv, o = {}) => Rhythm.start(mv, pct => Game.endRhythm(pct, o.owner), o);
     Game.hooks.onBoss = e => banner(e.ai.boss.name.toUpperCase(), 'boss');
     Game.hooks.onToast = (t, big) => (big ? banner(t.toUpperCase()) : toast(t.toUpperCase()));
-    Game.hooks.onWave = (i, n, boss) => { if (!boss && Game.mode === 'stage' && i > 0) banner(i === n - 1 ? 'FINAL WAVE' : `WAVE ${i + 1}`); };
+    Game.hooks.onWave = (i, n, boss) => { if (!boss && (Game.mode === 'stage' || Game.mode === 'event') && i > 0) banner(i === n - 1 ? 'FINAL WAVE' : `WAVE ${i + 1}`); };
     Game.hooks.onKill = (e, ringout) => {
       const m = Game.mode;
       if (ringout && m !== 'duel') toast('RING OUT! +2');
-      if (m !== 'stage' && m !== 'endless' && m !== 'duel') return;   // training and testing never count
+      if (m !== 'stage' && m !== 'endless' && m !== 'duel' && m !== 'event') return;   // training and testing never count
       Meta.track('kills');
       if (ringout) Meta.track('ringouts');
       if (m === 'endless') Meta.track('endlessKills');
       const h = Game.hud(); if (h) Meta.track('elKills', 1, { el: h.el });
     };
+    Game.hooks.onEventCard = (key, go) => eventCard(key, go);
+    Game.hooks.onGift = () => Meta.track('gifts');
+    Game.hooks.onEventKill = () => Meta.track('evKills');
+    Game.hooks.onItemUsed = () => {};
     Meta.onNotify(text => toast(text));
 
     Platform.onAuth(() => { Save.load(); applySettings(); if (current === 'home') refreshHome(); });
@@ -1511,6 +1791,46 @@ const UI = (() => {
   }
 
   function toMenu() { Sfx.click(); closeModal(); Game.quit(); Game.idleScene(0); show('home'); }
+  function toWinterMap() { Sfx.click(); closeModal(); Game.quit(); mapMode = Meta.winterLive() ? 'event' : 'chapters'; openMap(); if (mapMode === 'event') Game.idleScene(WINTER_REALM); }
+  function showWinterResult(res, tiles, reward, adRow, offers, bindAds) {
+    const i = res.evI, w = WINTER_STAGES[i], M = WINTER_MODES[w.mode];
+    const hasNext = i + 1 < WINTER_COUNT;
+    if (res.won) {
+      Meta.track('evStages');
+      if (w.mode === 'snowman') Meta.track('snowman');
+      const hat = res.hat ? HAT_BY_ID[res.hat] : null;
+      modal(`
+        <h2 class="win">${res.tutorial ? 'READY FOR WINTERFEST!' : w.mode === 'boss' ? (i === WINTER_COUNT - 1 ? 'WINTERFEST SAVED!' : 'BOSS DEFEATED!') : 'STAGE CLEARED!'}</h2>
+        <div class="result-content">
+          <div class="big-stars">${[1, 2, 3].map(k => `<span class="ic${k <= res.stars ? ' on' : ''}" data-icon="star"></span>`).join('')}</div>
+          <p class="sub">WINTERFEST · ${winterLabel(i)} · ${M.name.toUpperCase()}</p>
+          ${tiles}${reward}${adRow}
+          ${hat ? `<div class="unlock wf-unlock" style="--c:#7fe0ff">${hatThumb(hat.id, 56)}<div><small>EXCLUSIVE HAT UNLOCKED</small><b>${hat.name.toUpperCase()}</b><p>Wear it from the Shop's Accessories tab.</p></div><button class="btn small primary" id="rWear"><b>WEAR IT</b></button></div>` : ''}
+        </div>
+        ${hasNext
+          ? resultActions('<button class="btn" id="rMenu"><b>MENU</b></button><button class="btn" id="rRetry"><b>RETRY</b></button>', '<button class="btn primary" id="rNext"><b>NEXT</b></button>', offers)
+          : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
+        bindAds(sh); drawHatThumbs(sh);
+        sh.querySelector('#rMenu').onclick = toWinterMap;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i)); };
+        const nb = sh.querySelector('#rNext'); if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i + 1)); };
+        const wr = sh.querySelector('#rWear'); if (wr) wr.onclick = () => { Sfx.click(); Cosmetics.equip('hat', hat.id); wr.disabled = true; wr.querySelector('b').textContent = 'WORN'; };
+      }, 'result');
+    } else {
+      modal(`
+        <h2 class="lose">${res.reason === 'snowman' || (w.mode === 'snowman' && !res.won) ? 'THE SNOWMAN FELL' : 'DEFEATED'}</h2>
+        <div class="result-content">
+          <p class="sub">WINTERFEST · ${winterLabel(i)} · ${M.name.toUpperCase()}</p>
+          ${tiles}${reward}${adRow}
+          <p class="tip">${w.mode === 'snowman' ? 'Stand between the snowman and the Kramplings, and knock them off its island.' : w.mode === 'gifts' ? 'Presents glow and gold arrows point to the ones off screen. Kramplings sometimes drop them too.' : pick(TIPS)}</p>
+        </div>
+        ${resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
+        bindAds(sh);
+        sh.querySelector('#rMenu').onclick = toWinterMap;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i)); };
+      }, 'result');
+    }
+  }
 
   function checkRotate() {
     const portrait = window.innerHeight > window.innerWidth * 1.1 && document.body.classList.contains('touch');

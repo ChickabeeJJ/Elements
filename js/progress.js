@@ -33,6 +33,12 @@ const Save = (() => {
     daily: { day: -1, list: [], bonus: false },
     ads: { day: -1, n: 0 },   // opt-in "+gems" rewarded ads watched today (capped)
     event: { cycle: -1, id: '', tokens: 0, prog: {}, claimed: [], day: -1, list: [] },
+    // the Shop: owned / worn cosmetics, and one-run items (counts + the ones armed for the next run)
+    cos: { colours: ['snow'], hats: [], colour: 'snow', hat: null },
+    items: { n: {}, armed: [] },
+    // Winterfest (the yearly December event): its 20-stage chapter keeps its stars across years;
+    // the how-to plays once ever
+    winter: { stars: {}, tutDone: false },
   });
   let data = fresh();
 
@@ -49,6 +55,9 @@ const Save = (() => {
         data.daily = Object.assign(fresh().daily, d.daily || {});
         data.ads = Object.assign(fresh().ads, d.ads || {});
         data.event = Object.assign(fresh().event, d.event || {});
+        data.cos = Object.assign(fresh().cos, d.cos || {});
+        data.items = Object.assign(fresh().items, d.items || {});
+        data.winter = Object.assign(fresh().winter, d.winter || {});
         if (!Array.isArray(data.owned)) data.owned = ['wind'];
       }
     } catch (e) { data = fresh(); }

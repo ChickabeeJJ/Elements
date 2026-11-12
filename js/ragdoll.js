@@ -220,7 +220,7 @@ class Fighter {
       let acc = r.grounded ? 14 : 6;
       if (this.knockT > 0) acc *= 0.15;
       r.vx += (want - r.vx) * Math.min(1, acc * dt);
-      r.vy += ROOT_G * dt * (this.slam ? 1.8 : 1);
+      r.vy += ROOT_G * dt * (this.slam ? 1.8 : 1) * (this.gMul || 1);
       if (forces) { const f = forces(r.x, r.y - 50 * this.s, this); r.vx += f.x * dt * 0.5; r.vy += f.y * dt * 0.5; }
     }
     const prevY = r.y;
@@ -498,7 +498,7 @@ class Fighter {
 
   stepBody(dt, plats, forces) {
     const m = this.m, pts = this.pts, T = this.T, Tp = this.Tp;
-    const g = BODY_G * dt * dt * (1 - 0.9 * m);
+    const g = BODY_G * dt * dt * (1 - 0.9 * m) * (this.gMul || 1);
     const air = m < 0.5 ? 0.998 : 0.99;
     for (let i = 0; i < 11; i++) {
       const p = pts[i];
@@ -881,6 +881,7 @@ class Fighter {
       ctx.moveTo(hd.x - f * hr, hd.y - hr * 0.45);
       ctx.quadraticCurveTo(hd.x - f * (hr + 10 * s), hd.y - hr * 0.5 + wave, hd.x - f * (hr + 18 * s), hd.y - hr * 0.1 + wave);
       ctx.stroke();
+      if (this.hat) Cosmetics.drawHat(ctx, this.hat, hd.x, hd.y, hr, f, time, s);   // shop accessory
       return;
     }
     if (this.kind === 'brute' || this.kind === 'boss') {
@@ -916,6 +917,7 @@ class Fighter {
       ctx.fillStyle = (this.stopT > 0 ? '#b8b8c0' : this.accent);
       ctx.fillRect(hd.x - hr, hd.y - hr * 0.55, hr * 2, 5 * s);
     }
+    if (this.hat) Cosmetics.drawHat(ctx, this.hat, hd.x, hd.y, hr, f, time, s);   // festive foes
   }
 
   drawCape(ctx) {
