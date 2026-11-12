@@ -288,8 +288,9 @@ const UI = (() => {
       Cosmetics.drawMannequin(g, n / 2 - 1, n * 0.66 + 100 * sc, sc, Cosmetics.colour().id, cv.dataset.hat, 0);
     });
   }
-  // the Winterfest chapter screen: header, reward track, a trail of 20 bauble stages, and a detail card
-  const WF_COL = { gifts: '#ffd34d', snowman: '#7fe0ff', brawl: '#7ee081', boss: '#ff5a6e' };
+  // the Winterfest chapter screen: event header, reward track, a 2 x 10 stage grid and a detail panel,
+  // in the same panel language as the campaign screens
+  const WF_COL = { gifts: '#f2c46b', snowman: '#8fd3ff', brawl: '#8be0a4', boss: '#ff6b7d' };
   let wfSel = null;
   function renderWinterMap() {
     renderTabs();
@@ -298,39 +299,43 @@ const UI = (() => {
     const firstOpen = WINTER_STAGES.find(w => !winterStars(w.i)) || WINTER_STAGES[WINTER_COUNT - 1];
     if (wfSel == null || !winterOpen(wfSel)) wfSel = firstOpen.i;
     $('realmHead').innerHTML = `<div class="wf-head">
-        <div class="wf-lights" aria-hidden="true">${Array.from({ length: 26 }, (_, k) => `<i style="--k:${k}"></i>`).join('')}</div>
-        <div class="wf-brand"><span class="wf-flake">${ic('snow')}</span><div><h3>WINTERFEST</h3><small>THE FROSTBEARD CHAPTER</small></div></div>
-        <div class="wf-pills">
-          <span class="wf-pill live"><i class="live-dot"></i>ENDS IN <b data-until="${ev.end}">${Meta.fmtLeft(ev.end - Date.now())}</b></span>
-          <span class="wf-pill">${ic('check')}<b>${cleared}/${WINTER_COUNT}</b></span>
-          <span class="wf-pill">${ic('star')}<b>${stars}/${WINTER_COUNT * 3}</b></span>
+        <div class="wf-brand">
+          <small class="wf-kicker"><i class="live-dot"></i>LIMITED EVENT · ENDS IN <b data-until="${ev.end}">${Meta.fmtLeft(ev.end - Date.now())}</b></small>
+          <h3>WINTERFEST</h3>
+          <p>20 stages · new game modes · exclusive hats</p>
+        </div>
+        <div class="wf-stats">
+          <div><b>${cleared}<small>/${WINTER_COUNT}</small></b><span>CLEARED</span></div>
+          <div><b>${stars}<small>/${WINTER_COUNT * 3}</small></b><span>STARS</span></div>
         </div>
       </div>`;
     const grid = $('stageGrid');
     grid.className = 'stage-grid winter-v2';
-    // reward track: progress over the chapter with the four exclusive hats on it
-    const track = `<div class="wf-track"><div class="wf-bar"><i style="width:${cleared / WINTER_COUNT * 100}%"></i></div>
-      ${Object.entries(WINTER_MILESTONES).map(([i, h]) => { const got = Cosmetics.ownsHat(h); return `<div class="wf-medal${got ? ' got' : ''}" style="left:${(+i + 1) / WINTER_COUNT * 100}%" title="Stage ${+i + 1}: ${HAT_BY_ID[h].name}"><span class="disc">${hatThumb(h, 40)}</span><small>${got ? ic('check') : ''}${+i + 1}</small></div>`; }).join('')}</div>`;
-    const nodes = WINTER_STAGES.map(w => {
-      const open = winterOpen(w.i), st = winterStars(w.i), hat = WINTER_MILESTONES[w.i];
-      const cls = ['wf-node', w.mode, open ? '' : 'locked', st ? 'done' : '', w === firstOpen && !st ? 'current' : '', w.i === wfSel ? 'sel' : ''].join(' ');
-      // snake layout: stages 1-10 left to right, 11-20 right to left
-      const row = w.i < 10 ? 1 : 2, col = w.i < 10 ? w.i + 1 : 20 - w.i;
-      return `<button type="button" class="${cls}" data-i="${w.i}" style="--c:${WF_COL[w.mode]};grid-row:${row};grid-column:${col}" aria-label="Stage ${w.i + 1}, ${WINTER_MODES[w.mode].name}${open ? '' : ', locked'}">
-        <span class="cap"></span><span class="ball">${open ? (w.mode === 'boss' ? ic('crown') : `<b>${w.i + 1}</b>`) : ic('lock')}</span>
+    const track = `<div class="wf-track card">
+      <span class="wf-track-l">REWARDS</span>
+      <div class="wf-rail"><div class="wf-bar"><i style="width:${cleared / WINTER_COUNT * 100}%"></i></div>
+      ${Object.entries(WINTER_MILESTONES).map(([i, h]) => { const got = Cosmetics.ownsHat(h); return `<div class="wf-reward${got ? ' got' : ''}" style="left:${(+i + 1) / WINTER_COUNT * 100}%" title="${HAT_BY_ID[h].name} · stage ${+i + 1}"><span class="pic">${hatThumb(h, 34)}</span><span class="txt"><b>${HAT_BY_ID[h].name.toUpperCase()}</b><small>${got ? 'EARNED' : 'STAGE ' + (+i + 1)}</small></span></div>`; }).join('')}</div></div>`;
+    const tiles = WINTER_STAGES.map(w => {
+      const open = winterOpen(w.i), st = winterStars(w.i), hat = WINTER_MILESTONES[w.i], M = WINTER_MODES[w.mode];
+      const cls = ['wf-tile', w.mode, open ? '' : 'locked', st ? 'done' : '', w === firstOpen && !st ? 'current' : '', w.i === wfSel ? 'sel' : ''].join(' ');
+      return `<button type="button" class="${cls}" data-i="${w.i}" style="--c:${WF_COL[w.mode]}" title="${M.name}${w.twist !== 'none' ? ' · ' + TWISTS[w.twist].name : ''}">
+        <span class="no">${open ? (w.mode === 'boss' ? ic('crown') : w.i + 1) : ic('lock')}</span>
+        <span class="md">${ic(M.icon)}</span>
         <span class="st">${[1, 2, 3].map(k => `<i class="${k <= st ? 'on' : ''}"></i>`).join('')}</span>
-        ${hat ? `<span class="hat">${hatThumb(hat, 26)}</span>` : ''}</button>`;
+        ${hat ? `<span class="rw${Cosmetics.ownsHat(hat) ? ' got' : ''}" title="Reward: ${HAT_BY_ID[hat].name}">${ic('gift')}</span>` : ''}</button>`;
     }).join('');
-    grid.innerHTML = `${track}<div class="wf-main"><div class="wf-trail card"><svg class="wf-path" aria-hidden="true"></svg><div class="wf-nodes">${nodes}</div><div class="wf-legend">${['gifts', 'snowman', 'brawl', 'boss'].map(m => `<span style="--c:${WF_COL[m]}"><i></i>${WINTER_MODES[m].name.toUpperCase()}</span>`).join('')}</div></div>
-      <div class="wf-detail card" id="wfDetail"></div></div><div class="wf-snowfall" aria-hidden="true"></div>`;
+    grid.innerHTML = `${track}<div class="wf-main">
+        <div class="wf-board card"><div class="wf-tiles">${tiles}</div>
+          <div class="wf-legend">${['gifts', 'snowman', 'brawl', 'boss'].map(m => `<span style="--c:${WF_COL[m]}"><i></i>${WINTER_MODES[m].name.toUpperCase()}</span>`).join('')}<span class="rwk">${ic('gift')}HAT REWARD</span></div></div>
+        <div class="wf-detail card" id="wfDetail"></div>
+      </div>`;
     Icons.hydrate($('realmHead')); Icons.hydrate(grid); drawHatThumbs(grid);
-    grid.querySelectorAll('.wf-node').forEach(b => {
+    grid.querySelectorAll('.wf-tile').forEach(b => {
       b.onclick = () => {
         const i = +b.dataset.i;
-        if (!winterOpen(i)) { Sfx.denied(); toast(`CLEAR ${winterLabel(i - 1)} FIRST`); }
-        else Sfx.click();
+        if (!winterOpen(i)) { Sfx.denied(); toast(`CLEAR ${winterLabel(i - 1)} FIRST`); } else Sfx.click();
         wfSel = i;
-        grid.querySelectorAll('.wf-node.sel').forEach(x => x.classList.remove('sel'));
+        grid.querySelectorAll('.wf-tile.sel').forEach(x => x.classList.remove('sel'));
         b.classList.add('sel');
         renderWinterDetail();
       };
@@ -338,52 +343,32 @@ const UI = (() => {
     });
     renderWinterDetail();
     fitScreen();
-    requestAnimationFrame(drawWinterPath);
-  }
-  // the trail between the baubles: a dashed snowy path that lights up as stages are cleared
-  function drawWinterPath() {
-    const trail = document.querySelector('.wf-trail'), svg = trail && trail.querySelector('.wf-path');
-    if (!svg) return;
-    const tr = trail.getBoundingClientRect(), z = tr.width / (trail.offsetWidth || tr.width) || 1;
-    const pts = [...trail.querySelectorAll('.wf-node')].sort((a, b) => a.dataset.i - b.dataset.i).map(n => { const r = n.querySelector('.ball').getBoundingClientRect(); return [(r.left + r.width / 2 - tr.left) / z, (r.top + r.height / 2 - tr.top) / z]; });
-    if (pts.length < 2) return;
-    let d = `M${pts[0][0]},${pts[0][1]}`;
-    for (let k = 1; k < pts.length; k++) {
-      const [x0, y0] = pts[k - 1], [x1, y1] = pts[k];
-      if (Math.abs(y1 - y0) > 4) { const bend = (k === 10 ? 1 : -1) * 46; d += ` C${x0 + bend},${y0} ${x1 + bend},${y1} ${x1},${y1}`; }   // the turn between the two rows
-      else d += ` L${x1},${y1}`;
-    }
-    const cleared = WINTER_STAGES.filter(w => winterStars(w.i) > 0).length;
-    svg.setAttribute('viewBox', `0 0 ${trail.offsetWidth} ${trail.offsetHeight}`);
-    svg.innerHTML = `<path class="base" d="${d}"/><path class="lit" d="${d}" pathLength="${WINTER_COUNT - 1}" style="stroke-dasharray:${Math.min(cleared, WINTER_COUNT - 1)} ${WINTER_COUNT}"/>`;
   }
   function renderWinterDetail() {
     const det = $('wfDetail');
     if (!det) return;
     const w = WINTER_STAGES[wfSel], M = WINTER_MODES[w.mode], open = winterOpen(w.i), st = winterStars(w.i), hat = WINTER_MILESTONES[w.i];
-    const tw = TWISTS[w.twist], col = WF_COL[w.mode];
+    const tw = TWISTS[w.twist];
     const boss = w.mode === 'boss' ? WINTER_BOSSES[w.i < 10 ? 'gloomgrump' : 'frostbeard'] : null;
     const firstTime = w.i === 0 && !Save.data.winter.tutDone;
-    const gems = 14 + w.i * 2 + 20;
-    det.style.setProperty('--c', col);
-    det.innerHTML = `<div class="wfd-art ${w.mode}"><span class="wfd-glow"></span><span class="wfd-ic">${ic(M.icon)}</span><span class="wfd-tag">${winterLabel(w.i)}</span>${w.mode === 'boss' ? '<span class="wfd-boss">BOSS</span>' : ''}</div>
+    const gems = 14 + w.i * 2 + (st ? 0 : 20);
+    det.style.setProperty('--c', WF_COL[w.mode]);
+    det.innerHTML = `<div class="wfd-top">
+        <span class="wfd-ic">${ic(M.icon)}</span>
+        <div><small>STAGE ${winterLabel(w.i)}${boss ? ' · BOSS' : ''}</small><h3>${boss ? boss.name.toUpperCase() : M.name.toUpperCase()}</h3></div>
+      </div>
       <div class="wfd-body">
-        <small class="kicker">${firstTime ? 'FIRST TIME · GUIDED HOW-TO' : M.name.toUpperCase()}</small>
-        <h3>${boss ? boss.name.toUpperCase() : M.name.toUpperCase()}</h3>
-        <p>${boss ? boss.title + '. ' : ''}${firstTime ? 'A short guided round: grab presents, defend a snowman and see the rewards.' : M.goal(w.n) + '.'}</p>
-        ${w.twist !== 'none' && !firstTime ? `<div class="wfd-twist">${ic(tw.icon)}<div><b>${tw.name.toUpperCase()}</b><small>${tw.desc}</small></div></div>` : ''}
-        <div class="wfd-rw">
-          <span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>
-          <span class="gems">${ic('gem', 'gem')}<b>${st ? 14 + w.i * 2 : gems}</b></span>
-          ${hat ? `<span class="hatrw${Cosmetics.ownsHat(hat) ? ' got' : ''}">${hatThumb(hat, 30)}<b>${HAT_BY_ID[hat].name.toUpperCase()}</b>${Cosmetics.ownsHat(hat) ? ic('check') : ''}</span>` : ''}
-        </div>
-        <button class="btn primary big wfd-play" id="wfdPlay" ${open ? '' : 'disabled'}>${open ? ic('play') : ic('lock')}<b>${open ? (st ? 'PLAY AGAIN' : 'PLAY') : `CLEAR ${winterLabel(w.i - 1)} FIRST`}</b></button>
-      </div>`;
+        <div class="wfd-row"><span class="k">GOAL</span><span class="v">${firstTime ? 'Guided how-to: grab presents, defend a snowman, see the rewards' : boss ? `${boss.title}. Defeat them` : M.goal(w.n)}</span></div>
+        <div class="wfd-row"><span class="k">MODE</span><span class="v">${M.name}</span></div>
+        <div class="wfd-row"><span class="k">TWIST</span><span class="v">${w.twist === 'none' || firstTime ? 'None' : `<b>${tw.name}</b> · ${tw.desc}`}</span></div>
+        <div class="wfd-row"><span class="k">BEST</span><span class="v stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span></div>
+        <div class="wfd-row"><span class="k">REWARD</span><span class="v rw">${ic('gem', 'gem')}<b>${gems}</b>${hat ? `<span class="hatrw${Cosmetics.ownsHat(hat) ? ' got' : ''}">${hatThumb(hat, 22)}${HAT_BY_ID[hat].name}${Cosmetics.ownsHat(hat) ? ' · earned' : ''}</span>` : ''}</span></div>
+      </div>
+      <button class="btn primary wfd-play" id="wfdPlay" ${open ? '' : 'disabled'}>${open ? ic('play') : ic('lock')}<b>${open ? (st ? 'PLAY AGAIN' : 'PLAY') : `CLEAR ${winterLabel(w.i - 1)} FIRST`}</b></button>`;
     Icons.hydrate(det); drawHatThumbs(det);
     const pb = det.querySelector('#wfdPlay');
     if (pb && open) pb.onclick = () => { Sfx.click(); Platform.maybeMidgame(() => startWinter(w.i)); };
   }
-
   function startWinter(i) {
     if (!Meta.winterLive()) { toast('WINTERFEST HAS ENDED'); return; }
     const tutorial = i === 0 && !Save.data.winter.tutDone;
@@ -1828,7 +1813,6 @@ const UI = (() => {
     document.documentElement.style.setProperty('--ui', k.toFixed(3));
     homeShift();
     syncBanner();
-    if (current === 'map' && mapMode === 'event') requestAnimationFrame(drawWinterPath);
   }
 
   // the home menu is a column on the left, so frame the arena in the space to its right
