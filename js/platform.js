@@ -149,22 +149,27 @@ const Platform = (() => {
     if (adInFlight) { cb && cb(false); return; }
     adInFlight = true;
     setAdWaitOverlay(true);
-    let done = false;
+    let done = false, watchdog = 0;
     const wasPlaying = inGameplay;
     const finish = ok => {
       if (done) return; done = true; adInFlight = false;
+      clearTimeout(watchdog);
       setAdWaitOverlay(false);
       Sfx.setAdMuted(false);
       if (wasPlaying) gameplayStart();
       cb && cb(ok);
     };
+    // never leave the player stuck behind the tap blocker: if the ad network goes quiet
+    // (no start within 8 s, or no end within 75 s of starting), carry on without the ad
+    watchdog = setTimeout(() => finish(false), 8000);
     gameplayStop();
     try {
-      sdk.ad.requestAd(kind, {
-        adStarted: () => { setAdWaitOverlay(false); Sfx.setAdMuted(true); },
+      const p = sdk.ad.requestAd(kind, {
+        adStarted: () => { clearTimeout(watchdog); watchdog = setTimeout(() => finish(false), 75000); setAdWaitOverlay(false); Sfx.setAdMuted(true); },
         adFinished: () => finish(true),
-        adError: () => finish(false),
+        adError: () => finish(false),   // e.g. "No ad available": the game just continues
       });
+      if (p && p.catch) p.catch(() => finish(false));
     } catch (e) { finish(false); }
   }
   // UI calls this from the buttons that start or restart play; the SDK applies its own
