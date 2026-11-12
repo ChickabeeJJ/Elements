@@ -350,6 +350,8 @@ const Game = (() => {
     if (spec.elite) f.elite = true;
     if (spec.raider) f.raider = true;
     if (spec.hat) f.hat = spec.hat;
+    // during Winterfest some foes everywhere else dress for the season too
+    else if (!spec.rival && (mode === 'stage' || mode === 'endless') && Meta.winterLive() && Math.random() < (spec.type === 'boss' ? 0.6 : 0.35)) f.hat = pick(['santa', 'santa', 'elf', 'beanie', 'antlers']);
     if (spec.frenzy || spec.speedMul > 1) f.frenzy = true;
     if (run && run.twist === 'lowgrav') f.gMul = LOWGRAV;
     f.ai = { stats, thinkT: 0.6, kit: enemyKit(spec.element, spec.type, realm.id), boss: spec.boss || null, rival: !!spec.rival, summoned: 0, d: spec.d, jumpCd: 0 };

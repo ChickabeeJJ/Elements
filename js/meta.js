@@ -85,11 +85,36 @@ const Meta = (() => {
       realm: randi(0, REALMS.length - 1), arena: pick(DUEL_ARENAS), seed: randi(1, 999),
     };
   }
+  /* --------------------------------------------------------- seasons */
+  // Arena seasons follow the calendar quarters (UTC): Jan, Apr, Jul and Oct. October-December
+  // 2026 is Season 1. When a season ends, trophies are halved, the season's best tier pays a
+  // gem reward, tier rewards can be earned again, and a summary is shown on the next visit.
+  const SEASON_REWARD = [40, 100, 180, 280, 400, 560, 800];   // by best tier reached (Bronze..Legend)
+  function seasonOf(t = Date.now()) {
+    const d = new Date(t), y = d.getUTCFullYear(), q = Math.floor(d.getUTCMonth() / 3);
+    return { n: Math.max(1, (y - 2026) * 4 + q - 2), start: Date.UTC(y, q * 3, 1), end: Date.UTC(y, q * 3 + 3, 1) };
+  }
+  function syncSeason() {
+    const a = Save.data.arena, s = seasonOf();
+    if (!a.season) { a.season = s.n; a.seasonPeak = a.trophies; Save.save(); return s; }
+    if (a.season >= s.n) return s;
+    const ended = a.season, before = a.trophies, peak = Math.max(a.seasonPeak || 0, before), pt = tierOf(peak);
+    const after = Math.round(before / 2), reward = SEASON_REWARD[pt.i];
+    a.history = (a.history || []).concat({ season: ended, peak, tier: pt.label, final: before }).slice(-12);
+    a.trophies = after; a.seasonPeak = after; a.streak = 0; a.tiersClaimed = tierOf(after).i; a.season = s.n;
+    Save.data.essence += reward;
+    a.pending = { ended, peak, tier: pt.label, tierId: pt.id, color: pt.color, before, after, reward, next: s.n };
+    Save.save();
+    return s;
+  }
+  function takeSeasonSummary() { syncSeason(); const p = Save.data.arena.pending; if (p) { Save.data.arena.pending = null; Save.save(); } return p || null; }
+
   // the opponent is ready at once: no search, no waiting
   async function findMatch() { return makeRival(); }
 
   /* ----------------------------------------------------------- arena */
   function recordDuel(won, rival) {
+    syncSeason();
     const a = Save.data.arena;
     const before = a.trophies;
     const diff = clamp(((rival ? rival.trophies : before) - before) / 400, -1, 1);
@@ -104,6 +129,7 @@ const Meta = (() => {
     a.trophies = Math.max(0, before + delta);
     delta = a.trophies - before;
     a.peak = Math.max(a.peak, a.trophies);
+    a.seasonPeak = Math.max(a.seasonPeak || 0, a.trophies);
     // first time in a tier pays its reward once
     let promoted = null, tierGems = 0;
     const t = tierOf(a.trophies);
@@ -175,7 +201,9 @@ const Meta = (() => {
   ].map(e => Object.assign({ kind: 'element' }, e, { start: Date.parse(e.start), end: Date.parse(e.end) }));
   // Winterfest comes back every year, 1-31 December (UTC). Its rewards are cosmetics:
   // milestone hats in its 20-stage chapter, and colours / a hat in its token shop.
-  for (let y = 2026; y <= 2060; y++) EVENTS.push({
+  // the years are worked out from today's date, so it keeps coming back with no end year
+  const thisYear = new Date(Date.now()).getUTCFullYear();
+  for (let y = 2026; y <= thisYear + 1; y++) EVENTS.push({
     id: 'winterfest-' + y, kind: 'winterfest', name: 'Winterfest', element: null, color: '#7fe0ff', deep: '#e2394b',
     start: Date.UTC(y, 11, 1), end: Date.UTC(y + 1, 0, 1),
     tagline: 'Kramplings are loose in the snow. Grab the presents, defend the snowmen and take back Winterfest from Frostbeard.',
@@ -324,7 +352,7 @@ const Meta = (() => {
   }
 
   return {
-    TIERS, EVENTS, tierOf, makeRival, findMatch, recordDuel,
+    TIERS, EVENTS, tierOf, makeRival, findMatch, recordDuel, seasonOf, syncSeason, takeSeasonSummary,
     track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyEventCosmetic, buyCache, elementEvent, liveEvent,
     winterLive: () => { const e = liveEvent(); return !!(e && e.kind === 'winterfest'); },
     claimable, fmtLeft, onNotify: cb => listeners.push(cb), questText,

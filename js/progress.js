@@ -29,7 +29,7 @@ const Save = (() => {
     seenHelp: false,
     stats: { kills: 0, ringouts: 0, bosses: 0 },
     // live features (js/meta.js): Arena trophies, daily quests, event progress
-    arena: { trophies: 0, peak: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, tiersClaimed: 0 },
+    arena: { trophies: 0, peak: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, tiersClaimed: 0, season: 0, seasonPeak: 0, history: [], pending: null },
     daily: { day: -1, list: [], bonus: false },
     ads: { day: -1, n: 0 },   // opt-in "+gems" rewarded ads watched today (capped)
     event: { cycle: -1, id: '', tokens: 0, prog: {}, claimed: [], day: -1, list: [] },

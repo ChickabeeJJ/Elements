@@ -71,6 +71,7 @@ const UI = (() => {
   }
 
   function refreshHome() {
+    Meta.syncSeason();
     applyAccentTheme();
     const [r, s] = Save.nextStage();
     const all = Object.keys(Save.data.stars).length >= TOTAL_STAGES;
@@ -85,6 +86,7 @@ const UI = (() => {
     $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS${Save.trial ? ` · <em class="trial-lbl">+ ${NAME(Save.trial)} TRIAL</em>` : ''}</span><div class="row">${(Save.trial ? [Save.trial] : []).concat(Save.loadout()).slice(0, 3).map(id => hex(id)).join('')}<button class="btn small" id="homeChange"><b>CHANGE</b></button></div>`;
     $('homeChange').onclick = () => { Sfx.ensure(); Sfx.click(); openLoadout(); };
     refreshUser();
+    setTimeout(() => { if (current === 'home' && !modalOpen()) maybeSeasonSummary(); }, 400);
   }
 
   /* -------------------------------------------------------- banner ad */
@@ -122,7 +124,8 @@ const UI = (() => {
     // the Elements detail pane: scale its content down a little rather than scroll
     const det = $('codexDetail');
     det.style.setProperty('--fit', 1);
-    if (current === 'codex') for (let i = 0; i < 3; i++) {
+    // phones scroll the pane at full size instead: scaling made text and buttons too small to read or tap
+    if (current === 'codex' && !document.body.classList.contains('touch')) for (let i = 0; i < 3; i++) {
       if (det.scrollHeight - det.clientHeight <= 1) break;
       const k = parseFloat(det.style.getPropertyValue('--fit')) || 1;
       det.style.setProperty('--fit', Math.max(0.72, k * det.clientHeight / det.scrollHeight).toFixed(3));
@@ -173,7 +176,49 @@ const UI = (() => {
     chip.classList.remove('hidden');
     const user = Platform.user;
     chip.innerHTML = user ? `${user.profilePictureUrl ? `<img src="${esc(user.profilePictureUrl)}" alt="">` : ''}<b>${esc(String(user.username || 'PLAYER').toUpperCase().slice(0, 16))}</b>` : '<b>LOG IN TO SAVE</b>';
-    chip.onclick = user ? null : async () => { Sfx.click(); await Platform.login(); };
+    chip.onclick = user ? () => { Sfx.click(); openProfile(); } : async () => { Sfx.click(); await Platform.login(); };
+  }
+
+  // CrazyGames profile: the player's own record (nothing here is shared with anyone)
+  function openProfile() {
+    const user = Platform.user || {};
+    const a = Save.data.arena, d = Save.data, now = Meta.tierOf(a.trophies), best = Meta.tierOf(Math.max(a.peak, a.trophies));
+    const games = a.wins + a.losses;
+    const name = String(user.username || 'PLAYER');
+    const cleared = Object.values(d.stars).filter(v => v > 0).length;
+    const winterCleared = Object.values(d.winter.stars || {}).filter(v => v > 0).length;
+    const cos = d.cos.hats.length + d.cos.colours.length - 1;
+    const stats = [
+      ['sword', 'FOES DEFEATED', fmt(d.stats.kills)], ['burst', 'RING OUTS', fmt(d.stats.ringouts)], ['crown', 'BOSSES BEATEN', fmt(d.stats.bosses)],
+      ['map', 'STAGES CLEARED', `${cleared}/${TOTAL_STAGES}`], ['star', 'CAMPAIGN STARS', `${Save.totalStars()}/${TOTAL_STAGES * 3}`], ['infinity', 'ENDLESS BEST', fmt(d.endlessBest)],
+      ['swirl', 'ELEMENTS', `${Save.unlockedElements().length}/${ELEMENTS.length}`], ['gift', 'COSMETICS', fmt(cos)], ['snow', 'WINTERFEST', `${winterCleared}/${WINTER_COUNT}`],
+    ];
+    const hist = (a.history || []).slice(-3).reverse();
+    modal(`<div class="pf-head" style="--tc:${now.color}">
+        <span class="pf-ava">${user.profilePictureUrl ? `<img src="${esc(user.profilePictureUrl)}" alt="">` : `<b>${esc(name.slice(0, 1).toUpperCase())}</b>`}</span>
+        <div class="pf-id"><small>CRAZYGAMES PLAYER</small><h2>${esc(name.toUpperCase().slice(0, 18))}</h2><div class="pf-tags">${tierBadge(now, 'sm')}<b>${now.label}</b>${seasonChip()}</div></div>
+        <button class="round pf-x" id="pfClose" aria-label="Close">${ic('back')}</button>
+      </div>
+      <div class="pf-body">
+        <div class="pf-hero ol"><canvas id="pfCanvas"></canvas><div class="pf-lo">${Save.loadout().map(id => hex(id)).join('')}</div></div>
+        <div class="pf-main">
+          <div class="pf-arena ol" style="--tc:${best.color}">
+            ${tierBadge(best, 'lg')}
+            <div class="pf-elo"><small>BEST ARENA RATING</small><b>${ic('trophy')}${fmt(Math.max(a.peak, a.trophies))}</b><span>${best.label} · ALL-TIME PEAK</span></div>
+            <div class="pf-ar">
+              <div><b>${fmt(a.trophies)}</b><small>NOW</small></div><div><b>${fmt(Math.max(a.seasonPeak || 0, a.trophies))}</b><small>SEASON PEAK</small></div>
+              <div><b>${a.wins}–${a.losses}</b><small>RECORD</small></div><div><b>${games ? Math.round(a.wins / games * 100) : 0}%</b><small>WIN RATE</small></div><div><b>${a.bestStreak}</b><small>BEST STREAK</small></div>
+            </div>
+            ${hist.length ? `<div class="pf-hist">${hist.map(h => `<span>S${h.season}<b>${h.tier}</b>${fmt(h.peak)}</span>`).join('')}</div>` : ''}
+          </div>
+          <div class="pf-sec">LIFETIME</div>
+          <div class="pf-stats">${stats.map(([i, l, v]) => `<div class="ol">${ic(i)}<b>${v}</b><small>${l}</small></div>`).join('')}</div>
+        </div>
+      </div>`, sh => {
+      Icons.hydrate(sh);
+      Cosmetics.liveMannequin(sh.querySelector('#pfCanvas'), () => ({ colour: Cosmetics.colour().id, hat: Cosmetics.hat(), accent: (ELEMENT_BY_ID[Save.loadout()[0]] || NEUTRAL).color }));
+      sh.querySelector('#pfClose').onclick = () => { Sfx.click(); closeModal(); };
+    }, 'profile');
   }
 
   /* --------------------------------------------------------------- map */
@@ -929,6 +974,7 @@ const UI = (() => {
   }
 
   function ranksTab() {
+    Meta.syncSeason();
     const a = Save.data.arena, t = Meta.tierOf(a.trophies);
     const games = a.wins + a.losses;
     const recs = [
@@ -946,7 +992,7 @@ const UI = (() => {
         <div class="card rank-hero" style="--tc:${t.color}">
           ${tierBadge(t, 'xl')}
           <div class="rk-info">
-            <small>ARENA RANK</small><h3>${t.label}</h3>
+            ${seasonChip()}<small>ARENA RANK</small><h3>${t.label}</h3>
             <div class="trophies">${ic('trophy')}<b>${fmt(a.trophies)}</b><small>TROPHIES</small></div>
             <div class="bar-track"><i style="width:${Math.round(t.pct * 100)}%"></i></div>
             <small class="to-next">${t.next ? `${t.next.min - a.trophies} TO ${t.next.name.toUpperCase()}` : 'TOP TIER REACHED'}</small>
@@ -1060,11 +1106,31 @@ const UI = (() => {
 
   /* ------------------------------------------------------------- arena */
   let mmToken = 0;
+  function seasonChip() {
+    const S = Meta.seasonOf();
+    return `<span class="season-chip">${ic('trophy')}SEASON ${S.n}<i></i>ENDS IN <b data-until="${S.end}">${Meta.fmtLeft(S.end - Date.now())}</b></span>`;
+  }
+  // a season ended since the last visit: a short summary with the reward
+  function maybeSeasonSummary(then) {
+    const p = Meta.takeSeasonSummary();
+    if (!p) return false;
+    modal(`<div class="ssn-top" style="--tc:${p.color}"><small>SEASON ${p.ended} COMPLETE</small><h2>${p.tier}</h2><p>Your best rank this season</p></div>
+      <div class="ssn-stats"><div><b>${fmt(p.peak)}</b><small>SEASON PEAK</small></div><div><b>${fmt(p.before)} → ${fmt(p.after)}</b><small>TROPHIES RESET</small></div><div class="rw"><b>${ic('gem', 'gem')}+${p.reward}</b><small>SEASON REWARD</small></div></div>
+      <p class="tip">Season ${p.next} has begun. Trophies were halved, and tier rewards can be earned again as you climb.</p>
+      <div class="actions"><button class="btn primary" id="ssnGo"><b>START SEASON ${p.next}</b></button></div>`, sh => {
+      Icons.hydrate(sh);
+      sh.querySelector('#ssnGo').onclick = () => { Sfx.click(); closeModal(); document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); }); then && then(); };
+    }, 'season');
+    Sfx.unlock();
+    return true;
+  }
   function openArena() {
+    if (maybeSeasonSummary(() => openArena())) return;
     const a = Save.data.arena, t = Meta.tierOf(a.trophies);
     mmToken++;
     modal(`
       <h2>${ic('swords')} ARENA</h2>
+      ${seasonChip()}
       <p class="sub">1V1 · BEST OF 3 · KNOCK OUT OR RING OUT YOUR RIVAL</p>
       <div class="mm-card" style="--tc:${t.color}">
         ${tierBadge(t, 'lg')}
