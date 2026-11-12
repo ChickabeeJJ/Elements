@@ -242,8 +242,9 @@ const UI = (() => {
     tabPage = Math.max(0, Math.min(pages - 1, tabPage));
     const first = tabPage * TAB_PAGE;
     const arrow = (dir, label) => `<button type="button" class="tab-arrow ${dir}" aria-label="${label}" ${dir === 'prev' ? (tabPage === 0 ? 'disabled' : '') : (tabPage === pages - 1 ? 'disabled' : '')}>${ic('back')}</button>`;
-    tabs.innerHTML = `${arrow('prev', 'Previous chapters')}<div class="tab-page ${tabSlide}"></div>${arrow('next', 'Next chapters')}`;
-    tabSlide = '';
+    const oldRow = tabSlide && tabs.querySelector('.tab-page');
+    const ghost = oldRow ? oldRow.cloneNode(true) : null;
+    tabs.innerHTML = `${arrow('prev', 'Previous chapters')}<div class="tab-view"><div class="tab-page"></div></div>${arrow('next', 'Next chapters')}`;
     const row = tabs.querySelector('.tab-page');
     REALMS.slice(first, first + TAB_PAGE).forEach((realm, j) => {
       const i = first + j, open = Save.realmOpen(i);
@@ -258,6 +259,16 @@ const UI = (() => {
       };
       row.appendChild(b);
     });
+    // slide: the old page leaves one way while the new one comes in from the other side
+    if (ghost && row.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const d = tabSlide === 'from-right' ? 1 : -1, opt = { duration: 340, easing: 'cubic-bezier(.25,.8,.25,1)' };
+      ghost.classList.add('ghost'); ghost.setAttribute('aria-hidden', 'true');
+      ghost.querySelectorAll('button').forEach(x => { x.tabIndex = -1; });
+      row.parentNode.appendChild(ghost);
+      ghost.animate([{ transform: 'translateX(0)', opacity: 1 }, { transform: `translateX(${-d * 100}%)`, opacity: 0 }], opt).onfinish = () => ghost.remove();
+      row.animate([{ transform: `translateX(${d * 100}%)`, opacity: 0 }, { transform: 'translateX(0)', opacity: 1 }], opt);
+    }
+    tabSlide = '';
     tabs.querySelector('.tab-arrow.prev').onclick = () => { Sfx.click(); tabPage--; tabSlide = 'from-left'; renderTabs(); };
     tabs.querySelector('.tab-arrow.next').onclick = () => { Sfx.click(); tabPage++; tabSlide = 'from-right'; renderTabs(); };
     Icons.hydrate(tabs);

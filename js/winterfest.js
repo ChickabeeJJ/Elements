@@ -6,7 +6,7 @@
                               Kramplings keep coming (defeated foes can drop one too)
      snowman  SNOWMAN DEFENCE Kramplings march on the snowman: keep it standing until
                               the timer runs out
-     brawl    BRAWL           classic waves, festive foes
+     brawl    FIGHT           classic waves, festive foes
      boss     BOSS            Gloomgrump (stage 10) and Frostbeard (stage 20)
    Twists from the campaign layer on top (Gale Force on a snowman stage, Nightfall on a
    gift hunt...). Milestones (5, 10, 15, 20) award exclusive hats; the event quests award
@@ -25,7 +25,7 @@ const WINTER_REALM = {
 const WINTER_MODES = {
   gifts: { name: 'Gift Rush', icon: 'gift', goal: n => `Grab ${n} presents` },
   snowman: { name: 'Snowman Defence', icon: 'snowman', goal: n => `Protect the snowman for ${n}s` },
-  brawl: { name: 'Brawl', icon: 'swords', goal: () => 'Defeat every Krampling' },
+  brawl: { name: 'Fight', icon: 'swords', goal: () => 'Defeat every Krampling' },
   boss: { name: 'Boss', icon: 'crown', goal: () => 'Defeat the boss' },
 };
 

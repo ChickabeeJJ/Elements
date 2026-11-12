@@ -174,8 +174,10 @@ const Platform = (() => {
   }
   // UI calls this from the buttons that start or restart play; the SDK applies its own
   // frequency limits on top.
+  // no midgame ads in the player's first 2 minutes after the game loads
+  const MIDGAME_GRACE = 120000, loadedAt = Date.now();
   function maybeMidgame(cb) {
-    if (!ADS_ENABLED || !sdk) { cb && cb(); return; }
+    if (!ADS_ENABLED || !sdk || Date.now() - loadedAt < MIDGAME_GRACE) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
   }
   function rewarded(cb) { requestAd('rewarded', cb); }
