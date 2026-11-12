@@ -201,8 +201,8 @@ const DECOR = {
       g.restore();
       // the moon gets a few soft craters
       const mx = W * realm.sunPos[0], my = H * realm.sunPos[1];
-      g.fillStyle = 'rgba(190,200,225,0.45)';
-      for (const [dx, dy, r] of [[-14, -10, 9], [12, 8, 7], [-4, 16, 5], [16, -16, 4]]) { g.beginPath(); g.arc(mx + dx, my + dy, r, 0, TAU); g.fill(); }
+      g.fillStyle = 'rgba(170,182,210,0.2)';
+      for (const [dx, dy, r] of [[-13, -8, 8], [11, 9, 6], [-3, 15, 4]]) { g.beginPath(); g.arc(mx + dx, my + dy, r, 0, TAU); g.fill(); }
     },
     far(g, realm, x0, x1, y0, y1) {
       const rng = mulberry32(2512), base = H * 0.64;
@@ -210,16 +210,29 @@ const DECOR = {
       for (let i = 0; i < 9; i++) {
         const hx = W * 0.08 + i * W * 0.11 + rng() * 40, hw = 60 + rng() * 40, hh = 44 + rng() * 26;
         if (Math.abs(hx - W * 0.52) < 120) continue;          // leave room for the great tree
-        g.fillStyle = '#6a5a7a'; g.fillRect(hx - hw / 2, base - hh, hw, hh);
-        g.fillStyle = '#f2f6ff';
-        g.beginPath(); g.moveTo(hx - hw / 2 - 8, base - hh); g.lineTo(hx, base - hh - hw * 0.45); g.lineTo(hx + hw / 2 + 8, base - hh); g.closePath(); g.fill();
-        g.fillStyle = '#ffcf7a';
-        for (let k = 0; k < 2; k++) { const wx = hx - hw * 0.25 + k * hw * 0.38; g.fillRect(wx, base - hh * 0.62, hw * 0.16, hh * 0.28); }
+        const L = hx - hw / 2, roofY = base - hh, peak = roofY - hw * 0.42;
+        // walls, a dark roof under a soft snow cap, a chimney with a thin smoke wisp
+        g.fillStyle = '#5c5070'; g.fillRect(L, roofY, hw, hh);
+        g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(L, roofY, hw, 6);
+        g.fillStyle = '#4a4058'; g.fillRect(hx + hw * 0.16, peak + hw * 0.12, 9, hw * 0.24);
+        g.fillStyle = '#463b56';
+        g.beginPath(); g.moveTo(L - 6, roofY + 2); g.lineTo(hx, peak); g.lineTo(L + hw + 6, roofY + 2); g.closePath(); g.fill();
+        g.fillStyle = '#eef3fb';
+        g.beginPath(); g.moveTo(L - 7, roofY - 1); g.lineTo(hx, peak - 3); g.lineTo(L + hw + 7, roofY - 1);
+        g.quadraticCurveTo(L + hw * 0.75, roofY - 7, hx, peak + 9); g.quadraticCurveTo(L + hw * 0.25, roofY - 7, L - 7, roofY - 1); g.closePath(); g.fill();
+        // warm windows with a cross frame and a door
+        const ww = Math.min(14, hw * 0.16), wh = ww * 1.15, wy = base - hh * 0.66;
+        for (const wx of [L + hw * 0.18, L + hw * 0.82 - ww]) {
+          g.fillStyle = '#ffcf7a'; g.fillRect(wx, wy, ww, wh);
+          g.fillStyle = '#5c5070'; g.fillRect(wx + ww / 2 - 1, wy, 2, wh); g.fillRect(wx, wy + wh / 2 - 1, ww, 2);
+        }
+        g.fillStyle = '#3b3048'; g.fillRect(hx - 6, base - 22, 12, 22);
         g.save(); g.globalCompositeOperation = 'lighter';
-        const wg = g.createRadialGradient(hx, base - hh * 0.5, 0, hx, base - hh * 0.5, hw); wg.addColorStop(0, 'rgba(255,200,120,0.25)'); wg.addColorStop(1, 'rgba(255,200,120,0)');
-        g.fillStyle = wg; g.fillRect(hx - hw, base - hh * 1.5, hw * 2, hw * 2); g.restore();
-        g.fillStyle = '#5a4a66'; g.fillRect(hx + hw * 0.18, base - hh - hw * 0.4, 10, 22);
-        for (let k = 0; k < 4; k++) { g.fillStyle = `rgba(230,236,250,${0.25 - k * 0.05})`; g.beginPath(); g.arc(hx + hw * 0.22 + k * 8, base - hh - hw * 0.45 - k * 16, 7 + k * 3, 0, TAU); g.fill(); }
+        const wg = g.createRadialGradient(hx, wy + wh / 2, 0, hx, wy + wh / 2, hw * 0.7); wg.addColorStop(0, 'rgba(255,190,110,0.16)'); wg.addColorStop(1, 'rgba(255,190,110,0)');
+        g.fillStyle = wg; g.fillRect(hx - hw, wy - hw, hw * 2, hw * 2); g.restore();
+        const cx = hx + hw * 0.16 + 4.5, cy = peak + hw * 0.1;
+        g.strokeStyle = 'rgba(225,232,248,0.16)'; g.lineWidth = 5;
+        g.beginPath(); g.moveTo(cx, cy); g.bezierCurveTo(cx + 4, cy - 18, cx - 8, cy - 30, cx + 6, cy - 48); g.stroke();
       }
       // a line of snowy pines with fairy lights
       for (let i = 0; i < 16; i++) drawPine(g, lerp(x0, x1, i / 15) + rng() * 30, base + 30, 90 + rng() * 60, '#2f5a6b', rng() < 0.5, rng, false);

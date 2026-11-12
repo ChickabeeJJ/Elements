@@ -111,6 +111,33 @@ const Cosmetics = (() => {
   }
 
   /* ------------------------------------------------------------ hats */
+  // The head is a rounded block: (x - hr .. x + hr) wide, its top at y - 1.05 hr, corner radius 0.8 hr.
+  // capPath traces that outline from one side, over the top, to the other, `out` px outside it,
+  // down to `depth` below the top, so hats sit ON the head instead of hovering over it.
+  function capPath(ctx, x, top, hr, depth, out = 0, lift = 0) {
+    const r = hr * 0.8 + out, L = x - hr - out, R = x + hr + out, T = top - out - lift;
+    ctx.beginPath();
+    ctx.moveTo(L, top + depth);
+    ctx.lineTo(L, T + r);
+    ctx.quadraticCurveTo(L, T, L + r, T);
+    ctx.lineTo(R - r, T);
+    ctx.quadraticCurveTo(R, T, R, T + r);
+    ctx.lineTo(R, top + depth);
+    ctx.quadraticCurveTo(x, top + depth + hr * 0.12, L, top + depth);   // the rim follows the brow, a touch lower in the middle
+    ctx.closePath();
+  }
+  function headband(ctx, x, top, hr, depth, out, w, col) {
+    const r = hr * 0.8 + out, L = x - hr - out, R = x + hr + out, T = top - out;
+    ctx.strokeStyle = col; ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(L, top + depth); ctx.lineTo(L, T + r); ctx.quadraticCurveTo(L, T, L + r, T); ctx.lineTo(R - r, T); ctx.quadraticCurveTo(R, T, R, T + r); ctx.lineTo(R, top + depth); ctx.stroke();
+  }
+  const shade = (ctx, x, y0, y1, a, b) => { const g = ctx.createLinearGradient(x, y0, x, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; };
+  function fluff(ctx, cx, cy, r) {   // a soft round pom-pom
+    const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.75, '#f1f4f8'); g.addColorStop(1, '#d5dde8');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fill();
+  }
+
   // draws a hat on a head centred at (x, y) of radius hr, facing f (1 right, -1 left)
   function drawHat(ctx, id, x, y, hr, f, time, s = 1) {
     if (!id) return;
@@ -118,139 +145,193 @@ const Cosmetics = (() => {
     ctx.save();
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     switch (id) {
-      case 'santa': case 'elf': {
-        const red = id === 'santa', main = red ? '#d8283b' : '#2fa35a', dark = red ? '#a51627' : '#1f7a40';
-        const sway = Math.sin(time * 3) * 2 * s;
-        const tipX = x - f * hr * (red ? 1.35 : 0.5) + sway, tipY = top - hr * (red ? 0.9 : 1.85);
-        ctx.fillStyle = main;
-        ctx.beginPath(); ctx.moveTo(x - hr * 1.02, top + hr * 0.42);
-        ctx.quadraticCurveTo(x - f * hr * 0.2, top - hr * 1.3, tipX, tipY);
-        ctx.quadraticCurveTo(x + f * hr * 0.4, top - hr * 0.2, x + hr * 1.02, top + hr * 0.42); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = dark;
-        ctx.beginPath(); ctx.moveTo(x + f * hr * 0.25, top - hr * 0.35); ctx.quadraticCurveTo(x + f * hr * 0.5, top - hr * 0.05, x + hr * 1.02 * f, top + hr * 0.42); ctx.lineTo(x + f * hr * 0.2, top + hr * 0.42); ctx.closePath(); ctx.fill();
-        if (red) {   // fluffy brim and pom-pom
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath(); ctx.roundRect(x - hr * 1.18, top + hr * 0.2, hr * 2.36, hr * 0.5, hr * 0.25); ctx.fill();
-          ctx.beginPath(); ctx.arc(tipX, tipY, hr * 0.32, 0, TAU); ctx.fill();
-          ctx.fillStyle = 'rgba(200,215,230,0.7)';
-          for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x - hr + i * hr * 0.66, top + hr * 0.6, hr * 0.12, 0, TAU); ctx.fill(); }
-        } else {     // striped band and a jingle bell
-          ctx.fillStyle = '#d8283b'; ctx.fillRect(x - hr * 1.05, top + hr * 0.18, hr * 2.1, hr * 0.32);
-          ctx.fillStyle = '#ffffff'; for (let i = 0; i < 5; i++) ctx.fillRect(x - hr * 1.05 + i * hr * 0.46, top + hr * 0.18, hr * 0.2, hr * 0.32);
-          ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(tipX, tipY, hr * 0.24, 0, TAU); ctx.fill();
-          ctx.fillStyle = '#b8860b'; ctx.fillRect(tipX - hr * 0.05, tipY, hr * 0.1, hr * 0.14);
-        }
+      case 'santa': {
+        // one smooth cap: rises over the crown and drapes down the back to a pom-pom, fur brim on the brow
+        const b = -f, sway = Math.sin(time * 2.6) * 1.2 * s;
+        const tipX = x + b * hr * 1.22 + sway, tipY = top + hr * 0.28;
+        ctx.fillStyle = shade(ctx, x, top - hr * 0.9, top + hr * 0.5, '#ec4457', '#b51c31');
+        ctx.beginPath();
+        ctx.moveTo(x - b * hr * 1.04, top + hr * 0.4);
+        ctx.bezierCurveTo(x - b * hr * 1.08, top - hr * 0.45, x - b * hr * 0.35, top - hr * 0.88, x + b * hr * 0.3, top - hr * 0.78);
+        ctx.bezierCurveTo(x + b * hr * 0.85, top - hr * 0.7, x + b * hr * 1.2, top - hr * 0.3, tipX, tipY);
+        ctx.quadraticCurveTo(x + b * hr * 1.0, top + hr * 0.12, x + b * hr * 1.04, top + hr * 0.4);
+        ctx.closePath(); ctx.fill();
+        // soft highlight along the crown
+        ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = hr * 0.1;
+        ctx.beginPath(); ctx.moveTo(x - b * hr * 0.75, top - hr * 0.2); ctx.quadraticCurveTo(x - b * hr * 0.2, top - hr * 0.7, x + b * hr * 0.45, top - hr * 0.62); ctx.stroke();
+        // fur brim wrapping the brow
+        ctx.fillStyle = shade(ctx, x, top + hr * 0.22, top + hr * 0.66, '#ffffff', '#d9e0ea');
+        ctx.beginPath(); ctx.roundRect(x - hr * 1.1, top + hr * 0.24, hr * 2.2, hr * 0.42, hr * 0.21); ctx.fill();
+        fluff(ctx, tipX, tipY + hr * 0.04, hr * 0.24);
         break;
       }
       case 'beanie': {
-        ctx.fillStyle = '#e2394b';
-        ctx.beginPath(); ctx.moveTo(x - hr * 1.06, top + hr * 0.5); ctx.bezierCurveTo(x - hr * 1.1, top - hr * 0.9, x + hr * 1.1, top - hr * 0.9, x + hr * 1.06, top + hr * 0.5); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        for (const yy of [-0.25, 0.1]) ctx.fillRect(x - hr * 1.0, top + hr * yy, hr * 2, hr * 0.16);
-        ctx.fillStyle = '#f2f2f2'; ctx.beginPath(); ctx.roundRect(x - hr * 1.12, top + hr * 0.32, hr * 2.24, hr * 0.42, hr * 0.12); ctx.fill();
-        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, top - hr * 0.62, hr * 0.34, 0, TAU); ctx.fill();
+        // a smooth knitted dome, faint knit ribs, a ribbed cuff and a pom-pom
+        const dome = () => { ctx.beginPath(); ctx.moveTo(x - hr * 1.06, top + hr * 0.42); ctx.bezierCurveTo(x - hr * 1.1, top - hr * 0.78, x + hr * 1.1, top - hr * 0.78, x + hr * 1.06, top + hr * 0.42); ctx.closePath(); };
+        dome(); ctx.fillStyle = shade(ctx, x, top - hr * 0.5, top + hr * 0.5, '#ea4a5c', '#bd2236'); ctx.fill();
+        ctx.save(); dome(); ctx.clip();
+        ctx.strokeStyle = 'rgba(0,0,0,0.09)'; ctx.lineWidth = Math.max(1, hr * 0.06);
+        for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(x + k * hr * 0.3, top + hr * 0.42); ctx.quadraticCurveTo(x + k * hr * 0.22, top - hr * 0.1, x + k * hr * 0.06, top - hr * 0.5); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.ellipse(x - hr * 0.35, top - hr * 0.2, hr * 0.32, hr * 0.14, -0.4, 0, TAU); ctx.fill();
+        ctx.restore();
+        // ribbed cuff
+        ctx.fillStyle = shade(ctx, x, top + hr * 0.26, top + hr * 0.66, '#f7f7f9', '#d6dce5');
+        ctx.beginPath(); ctx.roundRect(x - hr * 1.08, top + hr * 0.28, hr * 2.16, hr * 0.38, hr * 0.17); ctx.fill();
+        ctx.strokeStyle = 'rgba(150,160,180,0.3)'; ctx.lineWidth = Math.max(1, s * 0.6);
+        for (let k = -3; k <= 3; k++) { const cx = x + k * hr * 0.28; ctx.beginPath(); ctx.moveTo(cx, top + hr * 0.35); ctx.lineTo(cx, top + hr * 0.59); ctx.stroke(); }
+        fluff(ctx, x, top - hr * 0.56, hr * 0.22);
+        break;
+      }
+      case 'elf': {
+        // a green cap that hugs the head and rises into a curled point with a bell
+        const sway = Math.sin(time * 3) * 1.4 * s;
+        const tipX = x - f * hr * 0.95 + sway, tipY = top - hr * 1.5;
+        ctx.fillStyle = shade(ctx, x, tipY, top + hr * 0.5, '#3fbf6e', '#228a49');
+        ctx.beginPath();
+        ctx.moveTo(x - hr * 1.04, top + hr * 0.4);
+        ctx.bezierCurveTo(x - hr * 1.0, top - hr * 0.35, x - f * hr * 0.2, top - hr * 0.9, tipX, tipY);
+        ctx.bezierCurveTo(x + f * hr * 0.35, top - hr * 0.8, x + hr * 1.0, top - hr * 0.35, x + hr * 1.04, top + hr * 0.4);
+        ctx.closePath(); ctx.fill();
+        // striped cuff
+        ctx.save(); ctx.beginPath(); ctx.roundRect(x - hr * 1.1, top + hr * 0.18, hr * 2.2, hr * 0.42, hr * 0.14); ctx.clip();
+        ctx.fillStyle = '#d8283b'; ctx.fillRect(x - hr * 1.1, top + hr * 0.18, hr * 2.2, hr * 0.42);
+        ctx.fillStyle = '#ffffff'; for (let k = 0; k < 7; k++) { const sx = x - hr * 1.1 + k * hr * 0.36; ctx.beginPath(); ctx.moveTo(sx, top + hr * 0.6); ctx.lineTo(sx + hr * 0.14, top + hr * 0.18); ctx.lineTo(sx + hr * 0.28, top + hr * 0.18); ctx.lineTo(sx + hr * 0.14, top + hr * 0.6); ctx.closePath(); ctx.fill(); }
+        ctx.restore();
+        const bg = ctx.createRadialGradient(tipX - hr * 0.08, tipY - hr * 0.08, 1, tipX, tipY, hr * 0.24);
+        bg.addColorStop(0, '#fff3b0'); bg.addColorStop(1, '#e0a420');
+        ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(tipX, tipY, hr * 0.22, 0, TAU); ctx.fill();
         break;
       }
       case 'antlers': {
-        ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 3.2 * s;
+        // a slim headband over the crown with two branched antlers, and a red nose
+        ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = hr * 0.2;
         for (const side of [-1, 1]) {
-          const bx = x + side * hr * 0.55, by = top + hr * 0.25;
-          ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + side * hr * 0.3, by - hr * 1.1, bx + side * hr * 0.9, by - hr * 1.6); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(bx + side * hr * 0.18, by - hr * 0.6); ctx.lineTo(bx + side * hr * 0.75, by - hr * 0.85); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(bx + side * hr * 0.5, by - hr * 1.2); ctx.lineTo(bx + side * hr * 0.35, by - hr * 1.7); ctx.stroke();
+          const bx = x + side * hr * 0.62, by = top + hr * 0.02;
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + side * hr * 0.1, by - hr * 0.9, bx + side * hr * 0.6, by - hr * 1.35); ctx.stroke();
+          ctx.lineWidth = hr * 0.16;
+          ctx.beginPath(); ctx.moveTo(bx + side * hr * 0.07, by - hr * 0.5); ctx.quadraticCurveTo(bx + side * hr * 0.45, by - hr * 0.55, bx + side * hr * 0.7, by - hr * 0.78); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(bx + side * hr * 0.3, by - hr * 1.05); ctx.quadraticCurveTo(bx + side * hr * 0.2, by - hr * 1.35, bx + side * hr * 0.25, by - hr * 1.6); ctx.stroke();
+          ctx.lineWidth = hr * 0.2;
         }
-        ctx.fillStyle = '#ff3b4e'; ctx.beginPath(); ctx.arc(x + f * hr * 1.0, y + hr * 0.1, hr * 0.26, 0, TAU); ctx.fill();   // red nose
-        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(x + f * hr * 0.95, y, hr * 0.08, 0, TAU); ctx.fill();
+        headband(ctx, x, top, hr, hr * 0.42, s * 0.6, hr * 0.16, '#6b4a2e');
+        const ng = ctx.createRadialGradient(x + f * hr * 0.92, y + hr * 0.05, 1, x + f * hr * 1.0, y + hr * 0.12, hr * 0.26);
+        ng.addColorStop(0, '#ff8a96'); ng.addColorStop(1, '#e0263c');
+        ctx.fillStyle = ng; ctx.beginPath(); ctx.arc(x + f * hr * 1.0, y + hr * 0.12, hr * 0.24, 0, TAU); ctx.fill();
         break;
       }
       case 'tophat': {
+        // the brim sits on the head; a tall crown with a red band, a dusting of snow and holly
+        const by = top + hr * 0.3;
         ctx.fillStyle = '#1d1f27';
-        ctx.beginPath(); ctx.roundRect(x - hr * 1.35, top + hr * 0.2, hr * 2.7, hr * 0.32, hr * 0.12); ctx.fill();
-        ctx.beginPath(); ctx.roundRect(x - hr * 0.8, top - hr * 1.15, hr * 1.6, hr * 1.45, [hr * 0.15, hr * 0.15, 0, 0]); ctx.fill();
-        ctx.fillStyle = '#c62f3f'; ctx.fillRect(x - hr * 0.8, top - hr * 0.05, hr * 1.6, hr * 0.26);
-        ctx.fillStyle = '#ffffff';   // snow on the brim and crown
-        ctx.beginPath(); ctx.ellipse(x - hr * 0.2, top + hr * 0.2, hr * 0.9, hr * 0.12, 0, Math.PI, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(x, top - hr * 1.15, hr * 0.78, hr * 0.13, 0, Math.PI, TAU); ctx.fill();
-        // holly sprig
-        const hx = x + f * hr * 0.45, hy = top - hr * 0.02;
+        ctx.beginPath(); ctx.ellipse(x, by, hr * 1.42, hr * 0.26, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = shade(ctx, x - hr * 0.8, 0, x + hr * 0.8, '#30333d', '#15161c');
+        ctx.fillStyle = (() => { const g = ctx.createLinearGradient(x - hr * 0.82, 0, x + hr * 0.82, 0); g.addColorStop(0, '#363944'); g.addColorStop(1, '#16171d'); return g; })();
+        ctx.beginPath(); ctx.moveTo(x - hr * 0.78, by); ctx.lineTo(x - hr * 0.84, by - hr * 1.45); ctx.quadraticCurveTo(x, by - hr * 1.56, x + hr * 0.84, by - hr * 1.45); ctx.lineTo(x + hr * 0.78, by); ctx.quadraticCurveTo(x, by + hr * 0.12, x - hr * 0.78, by); ctx.fill();
+        ctx.fillStyle = '#c62f3f';
+        ctx.beginPath(); ctx.moveTo(x - hr * 0.79, by - hr * 0.2); ctx.lineTo(x - hr * 0.8, by - hr * 0.48); ctx.quadraticCurveTo(x, by - hr * 0.42, x + hr * 0.8, by - hr * 0.48); ctx.lineTo(x + hr * 0.79, by - hr * 0.2); ctx.quadraticCurveTo(x, by - hr * 0.12, x - hr * 0.79, by - hr * 0.2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath(); ctx.ellipse(x, by - hr * 1.47, hr * 0.8, hr * 0.12, 0, Math.PI, TAU); ctx.fill();
+        const hx = x + f * hr * 0.42, hy = by - hr * 0.36;
         ctx.fillStyle = '#2e9e57';
-        for (const a of [-0.6, 0.5]) { ctx.save(); ctx.translate(hx, hy); ctx.rotate(a); ctx.beginPath(); ctx.ellipse(hr * 0.32, 0, hr * 0.36, hr * 0.15, 0, 0, TAU); ctx.fill(); ctx.restore(); }
+        for (const a of [-0.55, 0.45]) { ctx.save(); ctx.translate(hx, hy); ctx.rotate(a * f); ctx.beginPath(); ctx.ellipse(hr * 0.26 * f, 0, hr * 0.3, hr * 0.12, 0, 0, TAU); ctx.fill(); ctx.restore(); }
         ctx.fillStyle = '#ff2f45';
-        for (const [dx, dy] of [[0, 0], [hr * 0.16, -hr * 0.12], [-hr * 0.1, -hr * 0.16]]) { ctx.beginPath(); ctx.arc(hx + dx, hy + dy, hr * 0.11, 0, TAU); ctx.fill(); }
+        for (const [dx, dy] of [[0, 0], [hr * 0.15, -hr * 0.1], [-hr * 0.08, -hr * 0.14]]) { ctx.beginPath(); ctx.arc(hx + dx * f, hy + dy, hr * 0.1, 0, TAU); ctx.fill(); }
         break;
       }
       case 'party': {
-        ctx.fillStyle = '#ff5c8a';
-        ctx.beginPath(); ctx.moveTo(x - hr * 0.7, top + hr * 0.35); ctx.lineTo(x + f * hr * 0.2, top - hr * 1.6); ctx.lineTo(x + hr * 0.7, top + hr * 0.35); ctx.closePath(); ctx.fill();
-        ctx.save(); ctx.clip();
-        ctx.strokeStyle = '#ffe27a'; ctx.lineWidth = hr * 0.22;
-        for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x - hr, top - hr * 0.2 - i * hr * 0.5); ctx.lineTo(x + hr, top + hr * 0.4 - i * hr * 0.5); ctx.stroke(); }
+        // a cone perched on the crown, held by its curved base
+        const bx = x + f * hr * 0.1, by = top + hr * 0.22, tx = x + f * hr * 0.35, ty = top - hr * 1.5;
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(bx - hr * 0.72, by); ctx.lineTo(tx, ty); ctx.lineTo(bx + hr * 0.72, by); ctx.quadraticCurveTo(bx, by + hr * 0.2, bx - hr * 0.72, by); ctx.closePath();
+        ctx.fillStyle = '#ff5c8a'; ctx.fill(); ctx.clip();
+        ctx.strokeStyle = '#ffe27a'; ctx.lineWidth = hr * 0.2;
+        for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(bx - hr, by - hr * 0.1 - k * hr * 0.42); ctx.lineTo(bx + hr, by + hr * 0.35 - k * hr * 0.42); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(bx + f * hr * 0.15, ty, hr, hr * 2);
         ctx.restore();
-        ctx.fillStyle = '#7fe0ff'; ctx.beginPath(); ctx.arc(x + f * hr * 0.2, top - hr * 1.6, hr * 0.24, 0, TAU); ctx.fill();
+        fluff(ctx, tx, ty, hr * 0.2);
         break;
       }
       case 'cat': {
+        // a band that follows the head, with two ears on top
         for (const side of [-1, 1]) {
-          const bx = x + side * hr * 0.6;
+          const ax = x + side * hr * 0.66, ay = top - hr * 0.78;
           ctx.fillStyle = '#3b3f4a';
-          ctx.beginPath(); ctx.moveTo(bx - hr * 0.42, top + hr * 0.45); ctx.lineTo(bx + side * hr * 0.12, top - hr * 0.75); ctx.lineTo(bx + hr * 0.42, top + hr * 0.45); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + side * hr * 0.12, top + hr * 0.12); ctx.quadraticCurveTo(x + side * hr * 0.3, top - hr * 0.45, ax, ay); ctx.quadraticCurveTo(x + side * hr * 1.0, top - hr * 0.3, x + side * hr * 1.0, top + hr * 0.3); ctx.closePath(); ctx.fill();
           ctx.fillStyle = '#ffa8c8';
-          ctx.beginPath(); ctx.moveTo(bx - hr * 0.2, top + hr * 0.3); ctx.lineTo(bx + side * hr * 0.08, top - hr * 0.35); ctx.lineTo(bx + hr * 0.2, top + hr * 0.3); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + side * hr * 0.36, top + hr * 0.02); ctx.quadraticCurveTo(x + side * hr * 0.46, top - hr * 0.35, ax - side * hr * 0.02, ay + hr * 0.32); ctx.quadraticCurveTo(x + side * hr * 0.82, top - hr * 0.15, x + side * hr * 0.82, top + hr * 0.12); ctx.closePath(); ctx.fill();
         }
+        headband(ctx, x, top, hr, hr * 0.42, s * 0.6, hr * 0.16, '#3b3f4a');
         break;
       }
       case 'headphones': {
-        ctx.strokeStyle = '#2b2f3a'; ctx.lineWidth = 4 * s;
-        ctx.beginPath(); ctx.arc(x, y - hr * 0.1, hr * 1.12, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+        ctx.strokeStyle = '#2b2f3a'; ctx.lineWidth = hr * 0.2;
+        ctx.beginPath(); ctx.ellipse(x, y - hr * 0.05, hr * 1.12, hr * 1.12, 0, Math.PI * 1.06, Math.PI * 1.94); ctx.stroke();
         for (const side of [-1, 1]) {
-          ctx.fillStyle = '#2b2f3a'; ctx.beginPath(); ctx.roundRect(x + side * hr * 1.0 - hr * 0.3, y - hr * 0.35, hr * 0.6, hr * 0.85, hr * 0.22); ctx.fill();
-          ctx.fillStyle = '#7fe0ff'; ctx.beginPath(); ctx.roundRect(x + side * hr * 1.05 - hr * 0.14, y - hr * 0.2, hr * 0.28, hr * 0.55, hr * 0.12); ctx.fill();
+          ctx.fillStyle = '#2b2f3a'; ctx.beginPath(); ctx.roundRect(x + side * hr * 1.02 - hr * 0.28, y - hr * 0.4, hr * 0.56, hr * 0.9, hr * 0.26); ctx.fill();
+          ctx.fillStyle = '#7fe0ff'; ctx.beginPath(); ctx.roundRect(x + side * hr * 1.1 - hr * 0.12, y - hr * 0.24, hr * 0.24, hr * 0.58, hr * 0.12); ctx.fill();
         }
         break;
       }
       case 'cowboy': {
-        ctx.fillStyle = '#8a5a33';
-        ctx.beginPath(); ctx.ellipse(x, top + hr * 0.35, hr * 1.7, hr * 0.32, 0, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(x - hr * 0.85, top + hr * 0.35); ctx.bezierCurveTo(x - hr * 0.9, top - hr * 0.9, x + hr * 0.9, top - hr * 0.9, x + hr * 0.85, top + hr * 0.35); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#5c3b22'; ctx.fillRect(x - hr * 0.86, top + hr * 0.05, hr * 1.72, hr * 0.22);
-        ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.moveTo(x - hr * 0.1, top - hr * 0.55); ctx.quadraticCurveTo(x, top - hr * 0.2, x + hr * 0.1, top - hr * 0.55); ctx.fill();
+        // the brim rests on the head; a pinched crown on top
+        const by = top + hr * 0.32;
+        ctx.fillStyle = '#7a4e2c';
+        ctx.beginPath(); ctx.ellipse(x, by, hr * 1.75, hr * 0.3, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = shade(ctx, x, by - hr * 1.05, by, '#a8723f', '#8a5a33');
+        ctx.beginPath(); ctx.moveTo(x - hr * 0.88, by); ctx.bezierCurveTo(x - hr * 0.95, by - hr * 0.8, x - hr * 0.5, by - hr * 1.05, x, by - hr * 0.85); ctx.bezierCurveTo(x + hr * 0.5, by - hr * 1.05, x + hr * 0.95, by - hr * 0.8, x + hr * 0.88, by); ctx.quadraticCurveTo(x, by + hr * 0.15, x - hr * 0.88, by); ctx.fill();
+        ctx.fillStyle = '#4a2f1a';
+        ctx.beginPath(); ctx.moveTo(x - hr * 0.9, by - hr * 0.08); ctx.lineTo(x - hr * 0.92, by - hr * 0.3); ctx.quadraticCurveTo(x, by - hr * 0.24, x + hr * 0.92, by - hr * 0.3); ctx.lineTo(x + hr * 0.9, by - hr * 0.08); ctx.quadraticCurveTo(x, by, x - hr * 0.9, by - hr * 0.08); ctx.fill();
         break;
       }
       case 'viking': {
-        ctx.fillStyle = '#f2ead8';
+        // a steel cap that hugs the head, a gold rim and nose guard, and two horns
+        ctx.fillStyle = '#efe6d2';
         for (const side of [-1, 1]) {
-          ctx.beginPath(); ctx.moveTo(x + side * hr * 0.8, top + hr * 0.45); ctx.quadraticCurveTo(x + side * hr * 1.9, top + hr * 0.1, x + side * hr * 1.7, top - hr * 1.0); ctx.quadraticCurveTo(x + side * hr * 1.35, top, x + side * hr * 0.75, top + hr * 0.1); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + side * hr * 0.75, top + hr * 0.3); ctx.quadraticCurveTo(x + side * hr * 1.75, top + hr * 0.2, x + side * hr * 1.5, top - hr * 0.95);
+          ctx.quadraticCurveTo(x + side * hr * 1.3, top - hr * 0.2, x + side * hr * 0.75, top - hr * 0.1); ctx.closePath(); ctx.fill();
         }
-        ctx.fillStyle = '#8f98a6';
-        ctx.beginPath(); ctx.moveTo(x - hr * 1.08, top + hr * 0.55); ctx.bezierCurveTo(x - hr * 1.08, top - hr * 0.8, x + hr * 1.08, top - hr * 0.8, x + hr * 1.08, top + hr * 0.55); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#b8a05a'; ctx.fillRect(x - hr * 1.1, top + hr * 0.3, hr * 2.2, hr * 0.28); ctx.fillRect(x - hr * 0.12, top - hr * 0.42, hr * 0.24, hr * 0.8);
+        capPath(ctx, x, top, hr, hr * 0.5, s * 1.2, hr * 0.14);
+        ctx.fillStyle = shade(ctx, x, top - hr * 0.2, top + hr * 0.5, '#b7c0cc', '#7f8a99'); ctx.fill();
+        ctx.fillStyle = '#c9a85a';
+        ctx.beginPath(); ctx.roundRect(x - hr * 1.08, top + hr * 0.32, hr * 2.16, hr * 0.22, hr * 0.1); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(x - hr * 0.1, top - hr * 0.12, hr * 0.2, hr * 0.5, hr * 0.08); ctx.fill();
         break;
       }
       case 'wizard': {
-        ctx.fillStyle = '#5b3fc4';
-        ctx.beginPath(); ctx.ellipse(x, top + hr * 0.38, hr * 1.55, hr * 0.28, 0, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(x - hr * 0.85, top + hr * 0.38); ctx.quadraticCurveTo(x - hr * 0.2, top - hr * 1.0, x - f * hr * 0.7, top - hr * 2.0); ctx.quadraticCurveTo(x + hr * 0.3, top - hr * 0.6, x + hr * 0.85, top + hr * 0.38); ctx.closePath(); ctx.fill();
+        // a wide brim on the head and a tall cone that bends back
+        const by = top + hr * 0.3;
+        ctx.fillStyle = '#4a33a8';
+        ctx.beginPath(); ctx.ellipse(x, by, hr * 1.55, hr * 0.26, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = shade(ctx, x, by - hr * 2, by, '#7a5ce0', '#5b3fc4');
+        ctx.beginPath(); ctx.moveTo(x - hr * 0.86, by); ctx.quadraticCurveTo(x - hr * 0.3, by - hr * 1.2, x - f * hr * 0.75, by - hr * 2.05); ctx.quadraticCurveTo(x + hr * 0.25, by - hr * 0.9, x + hr * 0.86, by); ctx.quadraticCurveTo(x, by + hr * 0.12, x - hr * 0.86, by); ctx.fill();
         ctx.fillStyle = '#ffe27a';
         const star = (sx, sy, r) => { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); };
-        star(x + hr * 0.1, top - hr * 0.35, hr * 0.28); star(x - hr * 0.35, top - hr * 1.0, hr * 0.18);
+        star(x + hr * 0.08, by - hr * 0.55, hr * 0.24); star(x - f * hr * 0.3, by - hr * 1.2, hr * 0.15);
         break;
       }
       case 'crown': {
-        ctx.fillStyle = '#ffcf4a';
-        ctx.beginPath(); ctx.moveTo(x - hr * 0.95, top + hr * 0.4); ctx.lineTo(x - hr * 0.95, top - hr * 0.45); ctx.lineTo(x - hr * 0.48, top - hr * 0.05); ctx.lineTo(x, top - hr * 0.7); ctx.lineTo(x + hr * 0.48, top - hr * 0.05); ctx.lineTo(x + hr * 0.95, top - hr * 0.45); ctx.lineTo(x + hr * 0.95, top + hr * 0.4); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#e0a420'; ctx.fillRect(x - hr * 0.95, top + hr * 0.15, hr * 1.9, hr * 0.25);
-        for (const [gx, col] of [[-0.5, '#ff4f6d'], [0, '#5bd1ff'], [0.5, '#7ee081']]) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x + gx * hr, top + hr * 0.27, hr * 0.12, 0, TAU); ctx.fill(); }
+        // a gold band around the crown of the head with five points
+        const by = top + hr * 0.5, ty = top - hr * 0.25;
+        ctx.fillStyle = shade(ctx, x, ty - hr * 0.4, by, '#ffe08a', '#e6a51f');
+        ctx.beginPath(); ctx.moveTo(x - hr * 1.06, by);
+        const pts = [[-1.06, -0.05], [-0.62, 0.3], [-0.3, -0.25], [0, 0.22], [0.3, -0.25], [0.62, 0.3], [1.06, -0.05]];
+        ctx.lineTo(x - hr * 1.06, ty + hr * 0.3);
+        for (const [px, py] of pts) ctx.lineTo(x + px * hr, ty + py * hr - (py < 0 ? hr * 0.2 : 0));
+        ctx.lineTo(x + hr * 1.06, by); ctx.quadraticCurveTo(x, by + hr * 0.1, x - hr * 1.06, by); ctx.fill();
+        ctx.fillStyle = '#d4931a'; ctx.beginPath(); ctx.roundRect(x - hr * 1.07, by - hr * 0.3, hr * 2.14, hr * 0.3, hr * 0.06); ctx.fill();
+        for (const [gx, col] of [[-0.55, '#ff4f6d'], [0, '#5bd1ff'], [0.55, '#7ee081']]) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x + gx * hr, by - hr * 0.15, hr * 0.1, 0, TAU); ctx.fill(); }
+        ctx.fillStyle = '#fff3c4'; for (const px of [-0.3, 0.3]) { ctx.beginPath(); ctx.arc(x + px * hr, ty - hr * 0.45, hr * 0.08, 0, TAU); ctx.fill(); }
         break;
       }
       case 'halo': {
-        const hy = top - hr * 0.55 + Math.sin(time * 2.5) * 1.5 * s;
+        const hy = top - hr * 0.5 + Math.sin(time * 2.5) * 1.5 * s;
         ctx.globalCompositeOperation = 'lighter';
-        const g = ctx.createRadialGradient(x, hy, 0, x, hy, hr * 1.6);
-        g.addColorStop(0, 'rgba(255,230,140,0.35)'); g.addColorStop(1, 'rgba(255,230,140,0)');
-        ctx.fillStyle = g; ctx.fillRect(x - hr * 1.6, hy - hr * 1.6, hr * 3.2, hr * 3.2);
+        const g = ctx.createRadialGradient(x, hy, 0, x, hy, hr * 1.5);
+        g.addColorStop(0, 'rgba(255,230,140,0.3)'); g.addColorStop(1, 'rgba(255,230,140,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, hy, hr * 1.5, 0, TAU); ctx.fill();
         ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = '#ffe48a'; ctx.lineWidth = 3 * s;
-        ctx.beginPath(); ctx.ellipse(x, hy, hr * 0.95, hr * 0.28, 0, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = '#ffe48a'; ctx.lineWidth = hr * 0.18;
+        ctx.beginPath(); ctx.ellipse(x, hy, hr * 0.9, hr * 0.26, 0, 0, TAU); ctx.stroke();
         break;
       }
     }

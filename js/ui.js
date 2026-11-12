@@ -362,12 +362,12 @@ const UI = (() => {
       ${Object.entries(WINTER_MILESTONES).map(([i, h]) => { const got = Cosmetics.ownsHat(h); return `<div class="wf-reward ol${got ? ' got' : ''}" style="left:${(+i + 1) / WINTER_COUNT * 100}%" title="${HAT_BY_ID[h].name} · stage ${+i + 1}"><span class="pic">${hatThumb(h, 34)}</span><span class="txt"><b>${HAT_BY_ID[h].name.toUpperCase()}</b><small>${got ? 'EARNED' : 'STAGE ' + (+i + 1)}</small></span></div>`; }).join('')}</div></div>`;
     const tiles = WINTER_STAGES.map(w => {
       const open = winterOpen(w.i), st = winterStars(w.i), hat = WINTER_MILESTONES[w.i], M = WINTER_MODES[w.mode];
-      const cls = ['wf-tile', 'ol', w.mode, open ? '' : 'locked', st ? 'done' : '', w === firstOpen && !st ? 'current' : '', w.i === wfSel ? 'sel' : ''].join(' ');
+      const cls = ['wf-tile', 'ol', w.mode, open ? '' : 'locked', winterDateLocked(w.i) ? 'dated' : '', st ? 'done' : '', w === firstOpen && !st ? 'current' : '', w.i === wfSel ? 'sel' : ''].join(' ');
       return `<button type="button" class="${cls}" data-i="${w.i}" style="--c:${WF_COL[w.mode]}" title="${M.name}${w.twist !== 'none' ? ' · ' + TWISTS[w.twist].name : ''}">
         <span class="no">${open ? (w.mode === 'boss' ? ic('crown') : w.i + 1) : ic('lock')}</span>
         <span class="md">${ic(M.icon)}</span>
         <span class="st">${[1, 2, 3].map(k => `<i class="${k <= st ? 'on' : ''}"></i>`).join('')}</span>
-        ${hat ? `<span class="rw${Cosmetics.ownsHat(hat) ? ' got' : ''}" title="Reward: ${HAT_BY_ID[hat].name}">${ic('gift')}</span>` : ''}</button>`;
+        ${winterDateLocked(w.i) ? '<span class="dt">DEC 15</span>' : ''}${hat ? `<span class="rw${Cosmetics.ownsHat(hat) ? ' got' : ''}" title="Reward: ${HAT_BY_ID[hat].name}">${ic('gift')}</span>` : ''}</button>`;
     }).join('');
     grid.innerHTML = `${track}<div class="wf-main">
         <div class="wf-board card ol"><div class="wf-tiles">${tiles}</div>
@@ -378,7 +378,7 @@ const UI = (() => {
     grid.querySelectorAll('.wf-tile').forEach(b => {
       b.onclick = () => {
         const i = +b.dataset.i;
-        if (!winterOpen(i)) { Sfx.denied(); toast(`CLEAR ${winterLabel(i - 1)} FIRST`); } else Sfx.click();
+        if (!winterOpen(i)) { Sfx.denied(); toast(winterLockMsg(i)); } else Sfx.click();
         wfSel = i;
         grid.querySelectorAll('.wf-tile.sel').forEach(x => x.classList.remove('sel'));
         b.classList.add('sel');
@@ -409,7 +409,7 @@ const UI = (() => {
         <div class="wfd-row"><span class="k">BEST</span><span class="v stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span></div>
         <div class="wfd-row"><span class="k">REWARD</span><span class="v rw">${ic('gem', 'gem')}<b>${gems}</b>${hat ? `<span class="hatrw${Cosmetics.ownsHat(hat) ? ' got' : ''}">${hatThumb(hat, 22)}${HAT_BY_ID[hat].name}${Cosmetics.ownsHat(hat) ? ' · earned' : ''}</span>` : ''}</span></div>
       </div>
-      <button class="btn primary wfd-play" id="wfdPlay" ${open ? '' : 'disabled'}>${open ? ic('play') : ic('lock')}<b>${open ? (st ? 'PLAY AGAIN' : 'PLAY') : `CLEAR ${winterLabel(w.i - 1)} FIRST`}</b></button>`;
+      <button class="btn primary wfd-play" id="wfdPlay" ${open ? '' : 'disabled'}>${open ? ic('play') : ic('lock')}<b>${open ? (st ? 'PLAY AGAIN' : 'PLAY') : winterLockMsg(w.i)}</b></button>`;
     Icons.hydrate(det); drawHatThumbs(det);
     const pb = det.querySelector('#wfdPlay');
     if (pb && open) pb.onclick = () => { Sfx.click(); Platform.maybeMidgame(() => startWinter(w.i)); };

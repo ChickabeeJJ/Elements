@@ -19,7 +19,7 @@ const WINTER_REALM = {
   sky: ['#0b1636', '#1d3a6e', '#6d8fc4'], sun: '#fff8e8', sunPos: [0.8, 0.17], showSun: true,
   hills: ['#cfe3f5', '#9dbcdd', '#6d8fbd'], fog: '#e6f2ff',
   top: '#ffffff', topDark: '#d3e8f7', rock: '#5f6f8f', rockDark: '#3b4766',
-  ambient: 'snow', tint: '#7fe0ff', clouds: true, decor: 'winter',
+  ambient: 'snow', tint: '#7fe0ff', decor: 'winter',
 };
 
 const WINTER_MODES = {
@@ -47,7 +47,16 @@ const WINTER_MILESTONES = { 4: 'elf', 9: 'antlers', 14: 'tophat', 19: 'santa' };
 const winterKey = i => 'w-' + i;
 const winterLabel = i => 'W-' + (i + 1);
 function winterStars(i) { return Save.data.winter.stars[winterKey(i)] || 0; }
-function winterOpen(i) { return i === 0 || winterStars(i - 1) > 0; }
+// the second half of the chapter (W-11 to W-20) opens on 15 December (UTC)
+const WINTER_LATE_FROM = 10;
+function winterLateAt() { return Date.UTC(new Date(Date.now()).getUTCFullYear(), 11, 15); }
+function winterDateLocked(i) { return i >= WINTER_LATE_FROM && Date.now() < winterLateAt(); }
+function winterOpen(i) { return !winterDateLocked(i) && (i === 0 || winterStars(i - 1) > 0); }
+// why a stage is shut, for buttons and toasts
+function winterLockMsg(i) {
+  if (winterDateLocked(i)) return 'UNLOCKS DEC 15 · ' + Meta.fmtLeft(winterLateAt() - Date.now());
+  return `CLEAR ${winterLabel(i - 1)} FIRST`;
+}
 
 // festive foes: Kramplings in elf caps and pom beanies, mostly frost and wind
 function winterFoe(rng, i, d, type) {
