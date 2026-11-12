@@ -2141,3 +2141,99 @@ body.touch #mapEvent b { display: none; }
   .wfd-row { grid-template-columns: 52px minmax(0, 1fr); }
   .wfd-row .v { font-size: 11px; }
 }
+
+/* ------------------------------------------------ outlines on cut corners
+   .ol draws a hairline around a clip-path panel, including along the two cut
+   diagonals (an inset box-shadow alone can't follow them). --ocut matches the cut:
+   6px (--cut-s), 10px (--cut-m) or 16px (--cut-l, used by .card). */
+.ol { position: relative; --ocut: 10px; --olc: rgba(160, 200, 255, 0.16); }
+.card.ol { --ocut: 16px; }
+.wf-reward.ol, .wfh-rw.ol { --ocut: 6px; }
+.ol::before, .ol::after { content: ''; position: absolute; width: calc(var(--ocut) * 1.4142 + 1px); height: 2px; background: var(--olc); pointer-events: none; z-index: 3; }
+.ol::before { left: 0; top: calc(var(--ocut) - 1px); transform-origin: 0 50%; transform: rotate(-45deg); }
+.ol::after { right: 0; bottom: calc(var(--ocut) - 1px); transform-origin: 100% 50%; transform: rotate(-45deg); }
+/* the straight edges, kept alongside each element's own accent shadows */
+.wf-track.ol, .wf-board.ol { box-shadow: inset 0 0 0 1px var(--olc); }
+.wf-detail.ol { box-shadow: inset 0 0 0 1px var(--olc), inset 0 3px 0 var(--c); }
+.wf-reward.ol { box-shadow: inset 0 0 0 1px var(--olc); }
+.wf-reward.ol.got { --olc: color-mix(in srgb, var(--wf) 70%, transparent); }
+.wf-tile.ol { box-shadow: inset 0 0 0 1px var(--olc), inset 0 3px 0 color-mix(in srgb, var(--c) 75%, transparent); }
+.wf-tile.ol.locked { box-shadow: inset 0 0 0 1px rgba(160, 200, 255, 0.08), inset 0 3px 0 rgba(255, 255, 255, 0.06); --olc: rgba(160, 200, 255, 0.08); }
+.wf-tile.ol.current { --olc: var(--wf); box-shadow: inset 0 0 0 1.5px var(--wf), inset 0 3px 0 var(--c), 0 0 18px color-mix(in srgb, var(--wf) 25%, transparent); }
+.wf-tile.ol.sel { --olc: #ffffff; box-shadow: inset 0 0 0 2px #ffffff, inset 0 3px 0 var(--c); }
+.wf-tile.ol.sel::before, .wf-tile.ol.sel::after, .wf-tile.ol.current::before, .wf-tile.ol.current::after { height: 3px; }
+
+/* ------------------------------------------------ hub: the Winterfest tab */
+.wfh { align-items: stretch; }
+.wfh-left { display: flex; }
+.wfh-hero { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 0 0 16px; clip-path: var(--cut-l); background: var(--panel); box-shadow: inset 0 0 0 1px var(--olc); --ocut: 16px; overflow: hidden; }
+.wfh-banner { position: relative; height: 150px; flex: none; display: flex; align-items: flex-end; padding: 0 18px 14px; overflow: hidden;
+  background: radial-gradient(70% 90% at 80% 10%, rgba(143, 211, 255, 0.28), transparent 60%), linear-gradient(160deg, #0d1a3d 0%, #142a5c 55%, #1d3a6e 100%); border-bottom: 1px solid rgba(160, 200, 255, 0.16); }
+.wfh-banner .aur { position: absolute; left: -10%; right: -10%; top: 18%; height: 60px; background: linear-gradient(90deg, transparent, rgba(126, 255, 200, 0.18), rgba(143, 211, 255, 0.22), rgba(183, 166, 255, 0.16), transparent); filter: blur(14px); transform: rotate(-6deg); animation: wfhAur 9s ease-in-out infinite alternate; }
+@keyframes wfhAur { to { transform: rotate(-3deg) translateX(6%); opacity: 0.7; } }
+.wfh-banner .mark { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: rgba(191, 238, 255, 0.85); filter: drop-shadow(0 0 18px rgba(143, 211, 255, 0.45)); }
+.wfh-banner .mark .ic { width: 96px; height: 96px; }
+.wfh-banner .ttl { position: relative; }
+.wfh-banner small { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 10.5px; letter-spacing: 0.16em; color: #8fd3ff; }
+.wfh-banner small b { color: #fff; font-weight: 900; }
+.wfh-banner h3 { font-weight: 900; font-size: clamp(30px, 3.6vw, 44px); line-height: 1; letter-spacing: 0.03em; color: #fff; margin-top: 4px; }
+.wfh-tag { padding: 0 18px; font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--muted); }
+.wfh-stats { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.wfh-stats > div { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px; }
+.wfh-stats > div + div { border-left: 1px solid var(--line); }
+.wfh-stats b { display: inline-flex; align-items: center; gap: 5px; font-weight: 900; font-size: 22px; line-height: 1; }
+.wfh-stats b small { font-size: 12px; color: var(--muted); }
+.wfh-stats b.tk .ic { width: 16px; height: 16px; color: #8fd3ff; }
+.wfh-stats span { font-weight: 800; font-size: 9px; letter-spacing: 0.14em; color: var(--muted); }
+.wfh-sec { padding: 0 18px; font-weight: 800; font-size: 10px; letter-spacing: 0.16em; color: var(--muted); }
+.wfh-rws { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0 18px; }
+.wfh-rw { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 8px; clip-path: var(--cut-s); background: #161b29; box-shadow: inset 0 0 0 1px var(--olc); }
+.wfh-rw .pic { flex: none; width: 40px; height: 40px; border-radius: 4px; overflow: hidden; background: #0f131d; opacity: 0.55; }
+.wfh-rw b { display: block; font-weight: 800; font-size: 11px; letter-spacing: 0.04em; }
+.wfh-rw small { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 9.5px; letter-spacing: 0.1em; color: var(--muted); }
+.wfh-rw small .ic { width: 10px; height: 10px; }
+.wfh-rw.got { --olc: rgba(143, 211, 255, 0.6); background: color-mix(in srgb, #8fd3ff 8%, #161b29); }
+.wfh-rw.got .pic { opacity: 1; }
+.wfh-rw.got small { color: #8fd3ff; }
+.wfh-play { margin: auto 18px 0; flex-direction: row; gap: 9px; min-height: 50px; font-size: 18px; }
+.wfh .btn.primary.wfh-play { background: #8fd3ff; color: #0b1424; }
+.wfh-play .ic { width: 16px; height: 16px; }
+.wfh-panel { box-shadow: inset 0 0 0 1px var(--olc); }
+.wfh-shop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.wfh-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 6px 8px; clip-path: var(--cut-m); background: #161b29; box-shadow: inset 0 0 0 1px var(--olc); text-align: center; }
+.wfh-item .pv { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 6px; overflow: hidden; background: #0f131d; margin-bottom: 3px; }
+.wfh-item .pv .sw { width: 32px; height: 32px; }
+.wfh-item > b { font-weight: 800; font-size: 10.5px; letter-spacing: 0.04em; line-height: 1.15; }
+.wfh-item > small { font-weight: 700; font-size: 9px; letter-spacing: 0.12em; color: var(--muted); }
+.wfh-item .btn { margin-top: 4px; flex-direction: row; gap: 4px; min-height: 28px; width: 100%; }
+.wfh-item .btn .ic { width: 12px; height: 12px; }
+.wfh-item .own { margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; font-weight: 800; font-size: 10px; letter-spacing: 0.1em; color: #8fd3ff; }
+.wfh-item .own .ic { width: 11px; height: 11px; }
+.wfh-item.owned { --olc: rgba(143, 211, 255, 0.4); }
+.wfh .quest { box-shadow: inset 0 0 0 1px rgba(160, 200, 255, 0.08); }
+@media (max-height: 640px) {
+  .wfh-banner { height: 104px; } .wfh-banner .mark .ic { width: 64px; height: 64px; } .wfh-banner h3 { font-size: 30px; }
+  .wfh-hero { gap: 10px; } .wfh-tag { display: none; }
+  .wfh-stats > div { padding: 7px 4px; } .wfh-stats b { font-size: 18px; }
+  .wfh-rw { padding: 6px 8px 6px 6px; } .wfh-rw .pic { width: 34px; height: 34px; }
+  .wfh-play { min-height: 42px; font-size: 15px; }
+  .wfh-item { padding: 7px 5px 6px; } .wfh-item .pv { width: 40px; height: 40px; }
+}
+@media (max-width: 700px) { .wfh-shop { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.wf-reward.ol { position: absolute; }
+.wfh-item > b { color: var(--text); }
+.wfh-modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0 18px; }
+.wfh-modes > span { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 9px 4px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.035); box-shadow: inset 0 2px 0 color-mix(in srgb, var(--c) 70%, transparent); color: var(--c); }
+.wfh-modes .ic { width: 16px; height: 16px; }
+.wfh-modes b { font-weight: 800; font-size: 8.5px; letter-spacing: 0.08em; color: var(--muted); text-align: center; }
+@media (max-height: 700px) { .wfh-msec, .wfh-modes { display: none; } }
+@media (max-height: 430px) {
+  .wfh-banner { height: 76px; padding-bottom: 10px; } .wfh-banner h3 { font-size: 26px; } .wfh-banner .mark .ic { width: 48px; height: 48px; }
+  .wfh-hero { gap: 8px; padding-bottom: 10px; }
+  .wfh-sec { display: none; }
+  .wfh-rws { gap: 5px; } .wfh-rw { padding: 4px 6px 4px 4px; gap: 7px; } .wfh-rw .pic { width: 28px; height: 28px; } .wfh-rw b { font-size: 9.5px; }
+  .wfh-play { min-height: 38px; font-size: 14px; }
+  .wfh-item { padding: 5px 4px; gap: 1px; } .wfh-item .pv { width: 32px; height: 32px; margin-bottom: 1px; } .wfh-item .pv .sw { width: 22px; height: 22px; } .wfh-item small { display: none; }
+  .wfh-item .btn, .wfh-item .own { min-height: 24px; margin-top: 2px; }
+  .wfh .quest { padding-top: 4px; padding-bottom: 4px; }
+}

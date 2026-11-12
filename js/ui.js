@@ -311,13 +311,13 @@ const UI = (() => {
       </div>`;
     const grid = $('stageGrid');
     grid.className = 'stage-grid winter-v2';
-    const track = `<div class="wf-track card">
+    const track = `<div class="wf-track card ol">
       <span class="wf-track-l">REWARDS</span>
       <div class="wf-rail"><div class="wf-bar"><i style="width:${cleared / WINTER_COUNT * 100}%"></i></div>
-      ${Object.entries(WINTER_MILESTONES).map(([i, h]) => { const got = Cosmetics.ownsHat(h); return `<div class="wf-reward${got ? ' got' : ''}" style="left:${(+i + 1) / WINTER_COUNT * 100}%" title="${HAT_BY_ID[h].name} · stage ${+i + 1}"><span class="pic">${hatThumb(h, 34)}</span><span class="txt"><b>${HAT_BY_ID[h].name.toUpperCase()}</b><small>${got ? 'EARNED' : 'STAGE ' + (+i + 1)}</small></span></div>`; }).join('')}</div></div>`;
+      ${Object.entries(WINTER_MILESTONES).map(([i, h]) => { const got = Cosmetics.ownsHat(h); return `<div class="wf-reward ol${got ? ' got' : ''}" style="left:${(+i + 1) / WINTER_COUNT * 100}%" title="${HAT_BY_ID[h].name} · stage ${+i + 1}"><span class="pic">${hatThumb(h, 34)}</span><span class="txt"><b>${HAT_BY_ID[h].name.toUpperCase()}</b><small>${got ? 'EARNED' : 'STAGE ' + (+i + 1)}</small></span></div>`; }).join('')}</div></div>`;
     const tiles = WINTER_STAGES.map(w => {
       const open = winterOpen(w.i), st = winterStars(w.i), hat = WINTER_MILESTONES[w.i], M = WINTER_MODES[w.mode];
-      const cls = ['wf-tile', w.mode, open ? '' : 'locked', st ? 'done' : '', w === firstOpen && !st ? 'current' : '', w.i === wfSel ? 'sel' : ''].join(' ');
+      const cls = ['wf-tile', 'ol', w.mode, open ? '' : 'locked', st ? 'done' : '', w === firstOpen && !st ? 'current' : '', w.i === wfSel ? 'sel' : ''].join(' ');
       return `<button type="button" class="${cls}" data-i="${w.i}" style="--c:${WF_COL[w.mode]}" title="${M.name}${w.twist !== 'none' ? ' · ' + TWISTS[w.twist].name : ''}">
         <span class="no">${open ? (w.mode === 'boss' ? ic('crown') : w.i + 1) : ic('lock')}</span>
         <span class="md">${ic(M.icon)}</span>
@@ -325,9 +325,9 @@ const UI = (() => {
         ${hat ? `<span class="rw${Cosmetics.ownsHat(hat) ? ' got' : ''}" title="Reward: ${HAT_BY_ID[hat].name}">${ic('gift')}</span>` : ''}</button>`;
     }).join('');
     grid.innerHTML = `${track}<div class="wf-main">
-        <div class="wf-board card"><div class="wf-tiles">${tiles}</div>
+        <div class="wf-board card ol"><div class="wf-tiles">${tiles}</div>
           <div class="wf-legend">${['gifts', 'snowman', 'brawl', 'boss'].map(m => `<span style="--c:${WF_COL[m]}"><i></i>${WINTER_MODES[m].name.toUpperCase()}</span>`).join('')}<span class="rwk">${ic('gift')}HAT REWARD</span></div></div>
-        <div class="wf-detail card" id="wfDetail"></div>
+        <div class="wf-detail card ol" id="wfDetail"></div>
       </div>`;
     Icons.hydrate($('realmHead')); Icons.hydrate(grid); drawHatThumbs(grid);
     grid.querySelectorAll('.wf-tile').forEach(b => {
@@ -869,33 +869,44 @@ const UI = (() => {
 
   function winterTab(st) {
     const ev = st.ev, ch = st.chapter, doneN = st.quests.filter(q => q.claimed).length;
-    const ms = Object.entries(WINTER_MILESTONES).map(([i, h]) => `<div class="wf-ms${Cosmetics.ownsHat(h) ? ' got' : ''}">${hatThumb(h, 44)}<small>STAGE ${+i + 1}</small><b>${HAT_BY_ID[h].name.toUpperCase()}</b>${Cosmetics.ownsHat(h) ? `<span class="q-done">${ic('check')}</span>` : ''}</div>`).join('');
     const snow = n => `<span class="tok-rw">${ic('snow')}<b>${n}</b></span>`;
-    return `<div class="hub-grid event-tab wf-tab" style="--ec:${ev.color};--ed:${ev.deep}">
-      <div class="ev-hero card">
-        <div class="ev-art wf-art"><span class="wf-snow"></span><span class="wf-glow"></span><span class="wf-emblem">${ic('snowman')}</span></div>
-        <div class="ev-info">
-          <span class="kicker"><i class="live-dot"></i>LIVE EVENT · ENDS IN ${until(ev.end)}</span>
-          <h3>WINTERFEST</h3>
-          <p class="ev-tag">${ev.tagline}</p>
-          <div class="ev-el"><small>EVENT CHAPTER · ${ch.cleared}/${ch.total} CLEARED · ${ch.stars}/${ch.total * 3} STARS</small>
-            <div class="bar-track"><i style="width:${Math.round(ch.cleared / ch.total * 100)}%"></i></div>
-            <div class="wf-milestones">${ms}</div>
+    const rewards = Object.entries(WINTER_MILESTONES).map(([i, h]) => {
+      const got = Cosmetics.ownsHat(h);
+      return `<div class="wfh-rw ol${got ? ' got' : ''}"><span class="pic">${hatThumb(h, 40)}</span><div><b>${HAT_BY_ID[h].name.toUpperCase()}</b><small>${got ? `${ic('check')}EARNED` : 'CLEAR STAGE ' + (+i + 1)}</small></div></div>`;
+    }).join('');
+    const shop = st.shop.map(it => {
+      const preview = it.kind === 'hat' ? hatThumb(it.id, 52) : `<span class="sw" style="--c:${COLOUR_BY_ID[it.id].body}"></span>`;
+      return `<div class="wfh-item ol${it.owned ? ' owned' : ''}"><span class="pv">${preview}</span><b>${it.name.toUpperCase()}</b><small>${it.kind === 'hat' ? 'HAT' : 'COLOUR'}</small>
+        ${it.owned ? `<span class="own">${ic('check')}OWNED</span>` : `<button class="btn small${st.tokens >= it.cost ? ' primary' : ''}" data-wfbuy="${it.kind}:${it.id}">${ic('snow')}<b>${it.cost}</b></button>`}</div>`;
+    }).join('') + `<div class="wfh-item ol cache"><span class="pv"><span class="q-ic gemc">${ic('gem')}</span></span><b>GEM CACHE</b><small>+${st.cache.gems} GEMS</small><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('snow')}<b>${st.cache.cost}</b></button></div>`;
+    return `<div class="hub-grid event-tab wfh">
+      <div class="hub-col wfh-left">
+        <div class="wfh-hero ol">
+          <div class="wfh-banner"><span class="aur"></span><span class="mark">${ic('snow')}</span>
+            <div class="ttl"><small><i class="live-dot"></i>LIMITED EVENT · ENDS IN <b data-until="${ev.end}">${Meta.fmtLeft(ev.end - Date.now())}</b></small><h3>WINTERFEST</h3></div></div>
+          <p class="wfh-tag">${ev.tagline}</p>
+          <div class="wfh-stats">
+            <div><b>${ch.cleared}<small>/${ch.total}</small></b><span>STAGES CLEARED</span></div>
+            <div><b>${ch.stars}<small>/${ch.total * 3}</small></b><span>STARS</span></div>
+            <div data-part="evbal"><b class="tk">${ic('snow')}${fmt(st.tokens)}</b><span>SNOWFLAKES</span></div>
           </div>
-          <div class="ev-cta"><button class="btn primary" id="wfPlay">${ic('play')}<b>${ch.cleared ? 'CONTINUE' : 'PLAY'} WINTERFEST</b></button></div>
+          <div class="wfh-sec">CHAPTER REWARDS</div>
+          <div class="wfh-rws">${rewards}</div>
+          <div class="wfh-sec wfh-msec">GAME MODES</div>
+          <div class="wfh-modes">${['gifts', 'snowman', 'brawl', 'boss'].map(m => `<span style="--c:${WF_COL[m]}">${ic(WINTER_MODES[m].icon)}<b>${WINTER_MODES[m].name.toUpperCase()}</b></span>`).join('')}</div>
+          <button class="btn primary wfh-play" id="wfPlay">${ic('play')}<b>${ch.cleared ? 'CONTINUE' : 'PLAY'} WINTERFEST</b></button>
         </div>
       </div>
       <div class="hub-col">
-        <div class="card panel">
-          <div class="panel-head"><h4>${ic('scroll')}WINTERFEST QUESTS</h4><small>NEW QUESTS IN ${until(st.refresh)}</small></div>
+        <div class="card panel ol wfh-panel">
+          <div class="panel-head"><h4>${ic('scroll')}DAILY QUESTS</h4><small>NEW IN ${until(st.refresh)}</small></div>
           <div class="quest-list" data-part="evq">${st.quests.map(q => questRow(q, snow(q.tokens), `data-evq="${q.i}"`)).join('')}</div>
           <p class="fine" data-part="evqn">${doneN}/${st.quests.length} claimed today · up to ${st.quests.reduce((t, q) => t + q.tokens, 0)} Snowflakes a day</p>
         </div>
-        <div class="card panel">
-          <div class="panel-head"><h4>${ic('gift')}SNOWFLAKE SHOP</h4><span class="tok-bal" data-part="evbal">${ic('snow')}<b>${fmt(st.tokens)}</b></span></div>
-          <div class="wf-shop" data-part="shop">${st.shop.map(it => `<div class="wf-item${it.owned ? ' owned' : ''}">${it.kind === 'hat' ? hatThumb(it.id, 40) : `<span class="sw" style="--c:${COLOUR_BY_ID[it.id].body}"></span>`}<div><b>${it.name.toUpperCase()}</b><small>${it.kind === 'hat' ? 'HAT' : 'COLOUR'}</small></div>${it.owned ? `<span class="q-done">${ic('check')}</span>` : `<button class="btn small${st.tokens >= it.cost ? ' primary' : ''}" data-wfbuy="${it.kind}:${it.id}">${ic('snow')}<b>${it.cost}</b></button>`}</div>`).join('')}
-            <div class="wf-item"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} GEMS · ANY TIME</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('snow')}<b>${st.cache.cost}</b></button></div></div>
-          <p class="fine">Snowflakes come only from Winterfest quests and melt when the event ends. What you buy is yours to keep.</p>
+        <div class="card panel ol wfh-panel">
+          <div class="panel-head"><h4>${ic('gift')}SNOWFLAKE SHOP</h4><small>EXCLUSIVE · YOURS TO KEEP</small></div>
+          <div class="wfh-shop" data-part="shop">${shop}</div>
+          <p class="fine">Snowflakes come only from Winterfest quests and melt when the event ends.</p>
         </div>
       </div>
     </div>`;
