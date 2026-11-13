@@ -93,7 +93,9 @@ class Fighter {
     if (r.grounded) { r.jumps = 1; }
     else if (r.jumps < this.maxJumps) { r.jumps++; }
     else return false;
-    r.vy = -(r.grounded ? this.jumpV : this.jumpV * 0.9);
+    // dazzled (Radiance / Arcane / Joker mark): weighed down, jumps reach ~28% less high
+    const jv = this.jumpV * (this.status.dazzle > 0 ? 0.85 : 1);
+    r.vy = -(r.grounded ? jv : jv * 0.9);
     r.grounded = false; r.plat = null;
     return true;
   }
@@ -816,8 +818,29 @@ class Fighter {
       ctx.globalAlpha = fade;
     }
     if (st.dazzle > 0) {
-      ctx.globalAlpha = fade * Math.min(1, st.dazzle * 2) * 0.9; ctx.strokeStyle = '#ffe28a'; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.ellipse(hd.x, hd.y - hr * 1.6, hr * 1.1, hr * 0.35, 0, 0, TAU); ctx.stroke();
+      // dazzled: a halo that bobs down, and golden motes sinking around the body (jumps are lower)
+      const k = Math.min(1, st.dazzle * 2), bob = Math.abs(Math.sin(time * 3.2)) * 3 * s;
+      ctx.globalAlpha = fade * k * 0.9; ctx.strokeStyle = '#ffe28a'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(hd.x, hd.y - hr * 1.6 + bob, hr * 1.1, hr * 0.35, 0, 0, TAU); ctx.stroke();
+      const top = hd.y - hr * 2.4, foot = this.root.y + 4 * s, span = foot - top, seed = this.s * 97;
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 8; i++) {
+        const ph = (time * 0.85 + i / 8 + (seed % 1)) % 1;                 // each mote falls head to feet once a cycle
+        const ease = ph * ph * (3 - 2 * ph);                                // speeds up, then settles: reads as weight
+        const x = c.x + Math.sin(i * 2.39 + seed) * 26 * s + Math.sin(time * 2 + i) * 3 * s;
+        const y = top + ease * span;
+        const a = Math.sin(ph * Math.PI);                                   // fade in, then out
+        if (a <= 0.02) continue;
+        const r = (1.6 + (i % 3) * 0.7) * s;
+        ctx.globalAlpha = fade * k * a * 0.35;
+        Glow.draw(ctx, '#f2b41c', x, y, r * 5, 1);
+        // a short streak trailing above it shows the pull downward
+        ctx.globalAlpha = fade * k * a * 0.55; ctx.strokeStyle = '#ffcf4a'; ctx.lineWidth = r * 0.9; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x, y - r * (3 + ph * 5)); ctx.lineTo(x, y); ctx.stroke();
+        ctx.globalAlpha = fade * k * a; ctx.fillStyle = '#ffe9a8';
+        ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = fade;
     }
     if (st.drain > 0) {
