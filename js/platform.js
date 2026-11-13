@@ -187,11 +187,12 @@ const Platform = (() => {
     } catch (e) { finish(false); }
   }
   // UI calls this from the buttons that start or restart play; the SDK applies its own
-  // frequency limits on top. No midgame in the player's first 2 minutes after the game loads,
-  // except the break after beating a boss ({ afterBoss: true }), which always asks.
-  const MIDGAME_GRACE = 120000, loadedAt = Date.now();
+  // frequency limits on top. Buttons that enter the Arena or start a normal campaign stage pass
+  // { grace: true }: those skip the midgame during the player's first 90 s after the game loads.
+  // Every other break (bosses, Endless, Winterfest...) asks as usual.
+  const MIDGAME_GRACE = 90000, loadedAt = Date.now();
   function maybeMidgame(cb, opts) {
-    const grace = !(opts && opts.afterBoss) && Date.now() - loadedAt < MIDGAME_GRACE;
+    const grace = !!(opts && opts.grace) && Date.now() - loadedAt < MIDGAME_GRACE;
     if (!ADS_ENABLED || !sdk || grace) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
   }

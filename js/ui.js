@@ -322,7 +322,7 @@ const UI = (() => {
         ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}`;
       el.onclick = () => {
         if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }
-        Sfx.click(); const r = mapRealm; Platform.maybeMidgame(() => startStage(r, s));
+        Sfx.click(); const r = mapRealm; Platform.maybeMidgame(() => startStage(r, s), { grace: !boss });
       };
       grid.appendChild(el);
     }
@@ -1172,7 +1172,7 @@ const UI = (() => {
 `, sh => {
       sh.querySelector('#mmBack').onclick = () => { Sfx.click(); mmToken++; closeModal(); if (current === 'home') refreshHome(); };
       sh.querySelector('#mmLo').onclick = () => { Sfx.click(); openLoadout(() => openArena()); };
-      sh.querySelector('#mmFind').onclick = e => { Sfx.click(); e.currentTarget.disabled = true; Platform.maybeMidgame(() => { if (modalOpen()) enterDuel(); }); };
+      sh.querySelector('#mmFind').onclick = e => { Sfx.click(); e.currentTarget.disabled = true; Platform.maybeMidgame(() => { if (modalOpen()) enterDuel(); }, { grace: true }); };
     }, 'arena');
   }
   // straight into the fight: the bars cover the switch and lift on round 1
@@ -1457,10 +1457,10 @@ const UI = (() => {
           ? resultActions('<button class="btn" id="rMenu"><b>MENU</b></button><button class="btn" id="rRetry"><b>RETRY</b></button>', '<button class="btn primary" id="rNext"><b>NEXT</b></button>', offers)
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
-        sh.querySelector('#rMenu').onclick = boss ? () => Platform.maybeMidgame(toMenu, { afterBoss: true }) : toMenu;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), { afterBoss: boss }); };
+        sh.querySelector('#rMenu').onclick = boss ? () => Platform.maybeMidgame(toMenu) : toMenu;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), { grace: !boss }); };
         const nb = sh.querySelector('#rNext');
-        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS), { afterBoss: boss }); };
+        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS), { grace: !boss }); };
       }, 'result');
     } else {
       modal(`
@@ -1474,7 +1474,7 @@ const UI = (() => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), { grace: !boss }); };
       }, 'result');
     }
   }
@@ -1838,7 +1838,7 @@ const UI = (() => {
     applyUiScale();
     loadKeyLayout();
     if (matchMedia('(pointer: coarse)').matches || /mobile|tablet/.test(Platform.device())) document.body.classList.add('touch');
-    $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); Platform.maybeMidgame(() => startStage(r, s)); };
+    $('btnPlay').onclick = () => { Sfx.ensure(); Sfx.click(); if (!Save.data.tutorialDone) { startTutorial(); return; } const [r, s] = Save.nextStage(); Platform.maybeMidgame(() => startStage(r, s), { grace: s !== STAGES_PER_REALM - 1 }); };
     $('btnEndless').onclick = () => { Sfx.ensure(); Sfx.click(); Platform.maybeMidgame(() => startEndless()); };
     $('btnArena').onclick = () => { Sfx.ensure(); Sfx.click(); openArena(); };
     document.querySelectorAll('[data-hub]').forEach(b => b.onclick = () => { Sfx.ensure(); Sfx.click(); openHub(b.dataset.hub); });
@@ -1953,9 +1953,9 @@ const UI = (() => {
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh); drawHatThumbs(sh);
         const afterBoss = w.mode === 'boss' && !res.tutorial;
-        sh.querySelector('#rMenu').onclick = afterBoss ? () => Platform.maybeMidgame(toWinterMap, { afterBoss }) : toWinterMap;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i), { afterBoss }); };
-        const nb = sh.querySelector('#rNext'); if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i + 1), { afterBoss }); };
+        sh.querySelector('#rMenu').onclick = afterBoss ? () => Platform.maybeMidgame(toWinterMap) : toWinterMap;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i)); };
+        const nb = sh.querySelector('#rNext'); if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i + 1)); };
         const wr = sh.querySelector('#rWear'); if (wr) wr.onclick = () => { Sfx.click(); Cosmetics.equip('hat', hat.id); wr.disabled = true; wr.querySelector('b').textContent = 'WORN'; };
       }, 'result');
     } else {
