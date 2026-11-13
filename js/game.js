@@ -454,6 +454,10 @@ const Game = (() => {
   /* ----------------------------------------------------------- moves */
   function aimFrom(f) { const n = f.pts[P.NECK]; return { x: n.x, y: n.y + 8 * f.s }; }
 
+  // the two lashes are projectiles in code but play as close-range whips, so they keep their pace
+  const FOE_SHORT_REACH = new Set(['water_whip', 'vine_lash']);
+  // the most oppressive ranged foes get a bit more delay: rapid ice shards and seeking void orbs
+  const FOE_RANGED_CD = { ice_shards: 1.45, void_orb: 1.45 };
   function tryMove(f, mv, tx, ty) {
     if (!mv || !f.canAct || f.action) return false;
     if ((f.cds[mv.id] || 0) > 0) return false;
@@ -461,6 +465,9 @@ const Game = (() => {
     let cd = mv.cd;
     if (f.isPlayer && mv.slot !== 'main') cd *= pStats.cdMul;
     if (enemy) cd *= f.ai.stats.cdMul;
+    // ranged foes fire a little slower than a player would, so their shots don't feel like a hail
+    // (Arena rivals mirror a player and keep the normal rate)
+    if (enemy && !f.ai.rival && mv.slot === 'main' && mv.kind === 'projectile' && !FOE_SHORT_REACH.has(mv.id)) cd *= FOE_RANGED_CD[mv.id] || 1.3;
     f.cds[mv.id] = cd;
     const o = aimFrom(f);
     const ang = Math.atan2(ty - o.y, tx - o.x);
