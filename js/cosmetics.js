@@ -341,7 +341,7 @@ const Cosmetics = (() => {
 
   /* ---------------------------------------------------------- mannequin */
   // the hero in a relaxed stance, for the shop previews (same look as in play)
-  // the shop / profile hero: a relaxed fighting stance (feet apart, fists up), breathing gently
+  // the shop / profile hero: a fighting stance (feet apart, both arms forward), breathing gently
   function drawMannequin(ctx, cx, cy, sc, colourId, hatId, time, accent = '#bdf3e4') {
     const body = (COLOUR_BY_ID[colourId] || COLOURS[0]).body, shade = shadeOf(body);
     const br = Math.sin(time * 2.2), sway = Math.sin(time * 1.1);
@@ -361,9 +361,9 @@ const Cosmetics = (() => {
     // front leg, slightly bent
     limb([[3, -47], [12, -25], [15, -1]], 13, body);
     dot(16, -1, 6, body);
-    // rear arm crosses in front of the chest, fist tucked under the chin
-    limb([[-3, -77], [2, -60], [11, -80 + sway]], 10.5, shade, 1.3);
-    dot(11, -80 + sway, 5.6, shade, 1.3);
+    // rear arm reaches forward at chest height
+    limb([[-3, -77], [6, -66], [18, -69 + sway]], 10.5, shade, 1.3);
+    dot(18, -69 + sway, 5.6, shade, 1.3);
     // head + band and its streaming tail
     const [hx, hy] = p(2, -100), hr = 13 * sc;
     ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(hx - hr, hy - hr * 1.05, hr * 2, hr * 2.1, hr * 0.8); ctx.fill();
@@ -372,11 +372,11 @@ const Cosmetics = (() => {
     const wave = Math.sin(time * 6) * 3 * sc;
     ctx.beginPath(); ctx.moveTo(hx - hr, hy - hr * 0.45); ctx.quadraticCurveTo(hx - hr - 10 * sc, hy - hr * 0.5 + wave, hx - hr - 18 * sc, hy - hr * 0.1 + wave); ctx.stroke();
     drawHat(ctx, hatId, hx, hy, hr, 1, time, sc);
-    // front arm: elbow down, fist raised in guard, element cuff on the wrist
-    const fy = -78 - sway * 0.8;
-    limb([[4, -77], [19, -63], [26, fy]], 11, body, 1.3);
-    ctx.strokeStyle = accent; ctx.lineWidth = 11.5 * sc; ctx.beginPath(); ctx.moveTo(...p(22.8, -67, 1.3)); ctx.lineTo(...p(25, fy + 4, 1.3)); ctx.stroke();
-    dot(26, fy, 6.2, body, 1.3);
+    // front arm points straight ahead, element cuff on the wrist
+    const fy = -73 - sway * 0.8;
+    limb([[4, -77], [17, -71], [30, fy]], 11, body, 1.3);
+    ctx.strokeStyle = accent; ctx.lineWidth = 11.5 * sc; ctx.beginPath(); ctx.moveTo(...p(23, -72, 1.3)); ctx.lineTo(...p(27, fy, 1.3)); ctx.stroke();
+    dot(30, fy, 6.2, body, 1.3);
     ctx.restore();
   }
 
@@ -392,16 +392,16 @@ const Cosmetics = (() => {
     switch (id) {
       case 'tonic': {   // a round flask of red tonic with a cork
         ctx.fillStyle = 'rgba(220,235,255,0.25)'; ctx.beginPath(); ctx.arc(0, 12, 28, 0, TAU); ctx.fill();
-        ctx.fillRect(-9, -26, 18, 22);
+        ctx.fillRect(-9, -26, 18, 12);
         ctx.save(); ctx.beginPath(); ctx.arc(0, 12, 25, 0, TAU); ctx.clip();
         ctx.fillStyle = lg(0, 38, '#ff6b81', '#c42747'); ctx.fillRect(-30, 2 + Math.sin(time * 3) * 1.5, 60, 40);
         ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(-30, 2 + Math.sin(time * 3) * 1.5, 60, 3);
         ctx.restore();
         ctx.strokeStyle = 'rgba(235,245,255,0.85)'; ctx.lineWidth = 3.5;
-        ctx.beginPath(); ctx.moveTo(-9, -6); ctx.lineTo(-9, -24); ctx.moveTo(9, -24); ctx.lineTo(9, -6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-9, -14.5); ctx.lineTo(-9, -24); ctx.moveTo(9, -24); ctx.lineTo(9, -14.5); ctx.stroke();
         ctx.beginPath(); ctx.arc(0, 12, 28, -Math.PI / 2 + 0.33, -Math.PI / 2 - 0.33 + TAU); ctx.stroke();
         ctx.fillStyle = lg(-38, -22, '#d9a067', '#9c6a3c'); ctx.beginPath(); ctx.roundRect(-11, -38, 22, 14, 4); ctx.fill();
-        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(-4, 14, 8, 20, 2); ctx.roundRect(-10, 20, 20, 8, 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(-3.5, 11, 7, 19, 2); ctx.roundRect(-9.5, 17, 19, 7, 2); ctx.fill();
         shine(-13, 0, 6, 11, 0.5);
         break;
       }

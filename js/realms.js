@@ -111,8 +111,8 @@ const ARENAS = [
 // arenas a twist can't use (Tight trims every island, so it skips the ones that are already small)
 const TWIST_ARENA_SKIP = { tight: ['Islets', 'Archipelago', 'Pillars'] };
 
-/* Stage twists: every campaign stage has its own fixed twist (the same each time it's
-   played), so neighbouring stages never play alike. */
+/* Twists (special rules for a stage). Only Winterfest stages use them now: campaign
+   stages are classic fights, with their variety coming from arenas and foe mixes. */
 const TWISTS = {
   none:    { name: 'Classic', desc: 'A straight fight.', icon: 'swords' },
   swarm:   { name: 'Swarm', desc: 'More foes, each a little frailer.', icon: 'skull' },
@@ -124,12 +124,8 @@ const TWISTS = {
   night:   { name: 'Nightfall', desc: 'Darkness falls: only the area around you is lit.', icon: 'moondisc' },
   tight:   { name: 'Tight Quarters', desc: 'Every island is narrower.', icon: 'crush' },
 };
-const TWIST_ORDER = ['swarm', 'gale', 'elite', 'lowgrav', 'drift', 'frenzy', 'night', 'tight'];
-function stageTwist(r, s) {
-  if (s === STAGES_PER_REALM - 1) return 'none';                 // boss stages stay a clean duel with the boss
-  if (r === 0 && s < 2) return 'none';                            // the first two stages teach the basics
-  return TWIST_ORDER[(s * 3 + r * 5) % TWIST_ORDER.length];        // step 3 of 8: neighbours always differ
-}
+function stageTwist() { return 'none'; }   // campaign stages have no twists
+
 // apply an arena-shaping twist to a layout (returns a new layout)
 function twistArena(a, twist) {
   if (twist === 'drift') return { name: a.name, isl: a.isl.map((d, i) => i === 0 || d[3] ? d : [d[0], d[1], d[2], { ax: i % 2 ? 90 : 0, ay: i % 2 ? 0 : 50, speed: 0.55 + i * 0.08, phase: i * 1.7 }]) };
