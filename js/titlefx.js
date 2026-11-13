@@ -178,7 +178,10 @@ const TitleFx = (() => {
     const prevT = T;
     T += dt;
     if (T >= LOOP) { T -= LOOP; hit = []; }
-    if (prevT < 0 && T >= 0) title.classList.add('settled');      // the CSS slam-in only plays once
+    if (prevT < 0 && T >= 0) {
+      title.classList.add('settled');                              // the CSS slam-in only plays once
+      T = RUN + DIVE + 1; hit = [];                     // no surge straight after the intro: the first one comes a full loop later
+    }
     measureK();
 
     // ---- intro: each letter lands (CSS) with its element, then the tag with a shockwave

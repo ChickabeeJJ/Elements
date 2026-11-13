@@ -932,7 +932,7 @@ const UI = (() => {
           <p class="fine" data-part="evqn">${doneN}/${st.quests.length} claimed today · up to ${st.quests.reduce((t, q) => t + q.tokens, 0)} tokens a day</p>
         </div>
         <div class="card panel">
-          <div class="panel-head"><h4>${ic('gift')}TOKEN SHOP</h4></div>
+          <div class="panel-head"><h4>${ic('shop')}TOKEN SHOP</h4></div>
           <div class="shop-row" data-part="shop"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
           <p class="fine">Tokens come only from daily event quests. They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
         </div>
@@ -981,7 +981,7 @@ const UI = (() => {
           <p class="fine" data-part="evqn">${doneN}/${st.quests.length} claimed today · up to ${st.quests.reduce((t, q) => t + q.tokens, 0)} Snowflakes a day</p>
         </div>
         <div class="card panel ol wfh-panel">
-          <div class="panel-head"><h4>${ic('gift')}SNOWFLAKE SHOP</h4><small>EXCLUSIVE · YOURS TO KEEP</small></div>
+          <div class="panel-head"><h4>${ic('shop')}SNOWFLAKE SHOP</h4><small>EXCLUSIVE · YOURS TO KEEP</small></div>
           <div class="wfh-shop" data-part="shop">${shop}</div>
           <p class="fine">Snowflakes come only from Winterfest quests and melt when the event ends.</p>
         </div>
@@ -1912,6 +1912,7 @@ const UI = (() => {
     // a new player goes straight into the tutorial once loading has stopped (main.js calls
     // loadingStop before UI.init), and gameplayStart is sent as the tutorial starts
     if (!Save.data.tutorialDone) startTutorial();
+    document.body.classList.add('ui-ready');   // starts the title's CSS slam-in together with TitleFx
     TitleFx.init();
     checkRotate();
   }
