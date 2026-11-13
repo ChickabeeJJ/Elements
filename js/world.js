@@ -187,30 +187,19 @@ CITADEL_IMG.decoding = 'async';
 CITADEL_IMG.onload = () => { if (typeof Backdrop !== 'undefined') Backdrop.invalidate(); };
 CITADEL_IMG.src = 'assets/img/citadel.webp';
 
-// the castle, colour-graded once to sit in the Radiant Citadel's light: a touch softer and less
-// saturated, washed with the sky's pink-violet from above and lit by warm sand from below; its bottom
-// 10% fades to nothing, so no hard image edge can ever show
+// the castle, prepared once: lifted slightly to hold up under the backdrop's dimming, and its bottom
+// 10% faded to nothing, so no hard image edge can ever show
 let citadelCv = null;
 function citadelFaded(realm) {
   if (citadelCv) return citadelCv;
   const im = CITADEL_IMG, cv = document.createElement('canvas');
   cv.width = im.naturalWidth; cv.height = im.naturalHeight;
   const c = cv.getContext('2d');
-  c.filter = 'saturate(0.88) contrast(0.93) brightness(1.04)';
+  // the art is already painted in this realm's palette: just lift it a little so it holds up
+  // under the backdrop's overall dimming
+  c.filter = 'saturate(1.1) brightness(1.12)';
   c.drawImage(im, 0, 0);
   c.filter = 'none';
-  // ambient light: sky colour over the upper castle, sand bounce over the lower walls
-  c.globalCompositeOperation = 'source-atop';
-  const amb = c.createLinearGradient(0, 0, 0, cv.height);
-  amb.addColorStop(0, rgba(realm.sky[1], 0.2));
-  amb.addColorStop(0.45, rgba(mixHex(realm.sky[1], realm.sun, 0.5), 0.12));
-  amb.addColorStop(1, rgba(realm.hills[0], 0.3));
-  c.fillStyle = amb; c.fillRect(0, 0, cv.width, cv.height);
-  // a gentle warm multiply so the cream stone takes on the dunes' golden hue
-  c.globalCompositeOperation = 'multiply';
-  c.fillStyle = rgba(mixHex('#ffffff', realm.hills[0], 0.28), 1); c.fillRect(0, 0, cv.width, cv.height);
-  c.globalCompositeOperation = 'destination-in';
-  c.drawImage(im, 0, 0);   // multiply painted the transparent area too: clip back to the castle's shape
   c.globalCompositeOperation = 'destination-in';
   const m = c.createLinearGradient(0, 0, 0, cv.height);
   m.addColorStop(0, '#000'); m.addColorStop(0.9, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
