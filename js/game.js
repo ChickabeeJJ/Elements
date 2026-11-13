@@ -1379,6 +1379,7 @@ const Game = (() => {
     if (has('charm')) pStats.dmgMul *= 1.2;
     if (has('clover')) pStats.essenceMul *= 1.5;
     if (has('boots')) { pStats.speedMul *= 1.15; pStats.jumpMul *= 1.08; }
+    if (has('crystal')) pStats.cdMul *= 0.8;
     run.feather = has('feather');
   }
   // Guardian Feather: the first knock-out or fall of the run is undone

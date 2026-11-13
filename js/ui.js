@@ -618,13 +618,34 @@ const UI = (() => {
     if (def.event) return `<span class="sh-st ev">${tokIc()}${def.tokens ? def.tokens : 'EVENT'}</span>`;
     return `<span class="sh-st price${Save.data.essence >= def.price ? ' can' : ''}">${ic('gem', 'gem')}${def.price}</span>`;
   }
+  // shop item art: static on the cards and slots, gently animated in the detail panel
+  function sizeCanvas(cv) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1), w = cv.clientWidth || 40, h = cv.clientHeight || 40;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return [g, w, h];
+  }
+  function paintItems(root) {
+    root.querySelectorAll('canvas[data-item]').forEach(cv => { const [g, w, h] = sizeCanvas(cv); Cosmetics.drawItem(g, cv.dataset.item, w / 2, h / 2, Math.min(w, h) * 0.42); });
+  }
+  function liveItem(cv, id) {
+    if (!cv) return;
+    const [g, w, h] = sizeCanvas(cv), t0 = performance.now();
+    const tick = now => {
+      if (!cv.isConnected) return;
+      const t = (now - t0) / 1000;
+      g.clearRect(0, 0, w, h);
+      Cosmetics.drawItem(g, id, w / 2, h / 2 + Math.sin(t * 1.6) * h * 0.02, Math.min(w, h) * 0.4, t);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
   function renderShop() {
     const grid = $('shopGrid');
     if (shopTab === 'items') {
       const armed = Cosmetics.armed();
       grid.className = 'shop-grid items';
       grid.innerHTML = ITEMS.map(it => `<button type="button" class="sh-card item${shopSel.items === it.id ? ' on' : ''}${armed.includes(it.id) ? ' armed' : ''}" data-id="${it.id}" style="--c:${it.color}">
-        <span class="sh-item-ic">${ic(it.icon)}</span><b>${it.name.toUpperCase()}</b>
+        <span class="sh-item-ic"><canvas data-item="${it.id}"></canvas></span><b>${it.name.toUpperCase()}</b>
         <span class="sh-count">×${Cosmetics.count(it.id)}</span>${armed.includes(it.id) ? '<span class="sh-armed">ARMED</span>' : ''}
         <span class="sh-st price${Save.data.essence >= it.price ? ' can' : ''}">${ic('gem', 'gem')}${it.price}</span></button>`).join('');
     } else {
@@ -642,7 +663,7 @@ const UI = (() => {
         else Cosmetics.drawMannequin(g, w / 2 - 2, h * 0.98, 0.5, id, Cosmetics.hat(), 0);
       });
     }
-    Icons.hydrate(grid);
+    Icons.hydrate(grid); paintItems(grid);
     grid.querySelectorAll('.sh-card').forEach(b => b.onclick = () => {
       Sfx.click();
       const id = b.dataset.id || null;
@@ -659,17 +680,17 @@ const UI = (() => {
     if (shopTab === 'items') {
       const it = ITEM_BY_ID[shopSel.items], n = Cosmetics.count(it.id), armed = Cosmetics.armed();
       const isArmed = armed.includes(it.id);
-      det.innerHTML = `<div class="sd-item" style="--c:${it.color}"><span class="sh-item-ic big">${ic(it.icon)}</span></div>
+      det.innerHTML = `<div class="sd-item" style="--c:${it.color}"><span class="sh-item-ic big"><canvas id="sdItem"></canvas></span></div>
         <div class="sd-body"><small class="kicker">ONE-RUN BOOST</small><h3>${it.name.toUpperCase()}</h3><p>${it.desc}.</p>
           <div class="sd-own">YOU HAVE <b>${n}</b></div>
           <div class="sd-btns">
             <button class="btn${Save.data.essence >= it.price ? ' primary' : ''}" id="sdBuy">${ic('gem')}<b>BUY · ${it.price}</b></button>
             <button class="btn${isArmed ? ' primary' : ''}" id="sdArm" ${!n && !isArmed ? 'disabled' : ''}><b>${isArmed ? 'ARMED · TAP TO DISARM' : 'ARM FOR NEXT RUN'}</b></button>
           </div>
-          <div class="sd-slots"><small>ARMED FOR YOUR NEXT RUN (${armed.length}/${ITEM_ARM_MAX})</small><div>${[0, 1].map(k => armed[k] ? `<span class="slot" style="--c:${ITEM_BY_ID[armed[k]].color}">${ic(ITEM_BY_ID[armed[k]].icon)}${ITEM_BY_ID[armed[k]].name.toUpperCase()}</span>` : '<span class="slot empty">EMPTY</span>').join('')}</div>
+          <div class="sd-slots"><small>ARMED FOR YOUR NEXT RUN (${armed.length}/${ITEM_ARM_MAX})</small><div>${[0, 1].map(k => armed[k] ? `<span class="slot" style="--c:${ITEM_BY_ID[armed[k]].color}"><canvas data-item="${armed[k]}"></canvas>${ITEM_BY_ID[armed[k]].name.toUpperCase()}</span>` : '<span class="slot empty">EMPTY</span>').join('')}</div>
           <p class="fine">Armed items are used up when your next stage, Endless run or Winterfest stage starts. They are never used in the Arena.</p></div>
         </div>`;
-      Icons.hydrate(det);
+      Icons.hydrate(det); paintItems(det); liveItem(det.querySelector('#sdItem'), it.id);
       det.querySelector('#sdBuy').onclick = () => {
         if (Cosmetics.buyItem(it.id)) { Sfx.pickup(); toast(`${it.name.toUpperCase()} +1`); renderShop(); }
         else needGems(it.price - Save.data.essence, () => renderShop());

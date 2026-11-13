@@ -53,6 +53,7 @@ const ITEMS = [
   { id: 'clover', name: 'Lucky Clover', desc: '+50% gems from one run', price: 70, icon: 'gem', color: '#7ee081' },
   { id: 'boots', name: 'Swift Boots', desc: '+15% speed and jump for one run', price: 60, icon: 'wing', color: '#59d0ff' },
   { id: 'feather', name: 'Guardian Feather', desc: 'Once, when you would be knocked out or fall, you come back at half health', price: 120, icon: 'heal', color: '#e8dcff' },
+  { id: 'crystal', name: 'Focus Crystal', desc: 'Abilities recharge 20% faster for one run', price: 90, icon: 'prism', color: '#a98bff' },
 ];
 const ITEM_ARM_MAX = 2;
 
@@ -340,23 +341,30 @@ const Cosmetics = (() => {
 
   /* ---------------------------------------------------------- mannequin */
   // the hero in a relaxed stance, for the shop previews (same look as in play)
+  // the shop / profile hero: a relaxed fighting stance (feet apart, fists up), breathing gently
   function drawMannequin(ctx, cx, cy, sc, colourId, hatId, time, accent = '#bdf3e4') {
     const body = (COLOUR_BY_ID[colourId] || COLOURS[0]).body, shade = shadeOf(body);
-    const bob = Math.sin(time * 2.2) * 1.5;
-    const p = (x, y) => [cx + x * sc, cy + (y + bob * (y < 0 ? 1 : 0)) * sc];
-    const seg = (a, b, w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w * sc; ctx.beginPath(); ctx.moveTo(...p(...a)); ctx.lineTo(...p(...b)); ctx.stroke(); };
+    const br = Math.sin(time * 2.2), sway = Math.sin(time * 1.1);
+    // y < -44 (above the hips) rises and falls with the breath; arms bob a touch more
+    const p = (x, y, k = 1) => [cx + x * sc, cy + (y + (y < -44 ? br * 1.4 * k : 0)) * sc];
+    const limb = (pts, w, col, k) => { ctx.strokeStyle = col; ctx.lineWidth = w * sc; ctx.beginPath(); ctx.moveTo(...p(...pts[0], k)); for (let i = 1; i < pts.length; i++) ctx.lineTo(...p(...pts[i], k)); ctx.stroke(); };
+    const dot = (x, y, r, col, k) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(...p(x, y, k), r * sc, 0, TAU); ctx.fill(); };
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const glow = (COLOUR_BY_ID[colourId] || {}).glow;
-    if (glow) { const g = ctx.createRadialGradient(cx, cy - 40 * sc, 0, cx, cy - 40 * sc, 80 * sc); g.addColorStop(0, glow + '55'); g.addColorStop(1, glow + '00'); ctx.fillStyle = g; ctx.fillRect(cx - 80 * sc, cy - 120 * sc, 160 * sc, 160 * sc); }
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(cx, cy + 2 * sc, 30 * sc, 6 * sc, 0, 0, TAU); ctx.fill();
-    // back limbs
-    seg([-4, -48], [-10, -22], 13, shade); seg([-10, -22], [-12, 0], 11, shade);
-    seg([-2, -78], [-16, -60], 11, shade); seg([-16, -60], [-20, -42], 9.5, shade);
-    ctx.fillStyle = shade; ctx.beginPath(); ctx.arc(...p(-20, -42), 5.3 * sc, 0, TAU); ctx.fill();
-    // torso, front leg
-    seg([0, -80], [-2, -48], 22, body);
-    seg([-2, -48], [8, -23], 13.5, body); seg([8, -23], [12, 0], 11.5, body);
-    // head + band
+    if (glow) { const g = ctx.createRadialGradient(cx, cy - 50 * sc, 0, cx, cy - 50 * sc, 85 * sc); g.addColorStop(0, glow + '55'); g.addColorStop(1, glow + '00'); ctx.fillStyle = g; ctx.fillRect(cx - 85 * sc, cy - 135 * sc, 170 * sc, 170 * sc); }
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(cx, cy + 2 * sc, 32 * sc, 6 * sc, 0, 0, TAU); ctx.fill();
+    // back leg and back arm (in shade)
+    limb([[-3, -47], [-12, -24], [-17, -1]], 12.5, shade);
+    dot(-18, -1, 5.6, shade);
+    // torso: a tapered capsule leaning a touch forward
+    limb([[0, -80], [-1, -50]], 23, body);
+    // front leg, slightly bent
+    limb([[3, -47], [12, -25], [15, -1]], 13, body);
+    dot(16, -1, 6, body);
+    // rear arm crosses in front of the chest, fist tucked under the chin
+    limb([[-3, -77], [2, -60], [11, -80 + sway]], 10.5, shade, 1.3);
+    dot(11, -80 + sway, 5.6, shade, 1.3);
+    // head + band and its streaming tail
     const [hx, hy] = p(2, -100), hr = 13 * sc;
     ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(hx - hr, hy - hr * 1.05, hr * 2, hr * 2.1, hr * 0.8); ctx.fill();
     ctx.fillStyle = accent; ctx.fillRect(hx - hr, hy - hr * 0.55, hr * 2, 5 * sc);
@@ -364,10 +372,98 @@ const Cosmetics = (() => {
     const wave = Math.sin(time * 6) * 3 * sc;
     ctx.beginPath(); ctx.moveTo(hx - hr, hy - hr * 0.45); ctx.quadraticCurveTo(hx - hr - 10 * sc, hy - hr * 0.5 + wave, hx - hr - 18 * sc, hy - hr * 0.1 + wave); ctx.stroke();
     drawHat(ctx, hatId, hx, hy, hr, 1, time, sc);
-    // front arm with cuff
-    seg([2, -78], [16, -58], 11, body); seg([16, -58], [22, -40], 9.5, body);
-    ctx.strokeStyle = accent; ctx.lineWidth = 11.5 * sc; ctx.beginPath(); ctx.moveTo(...p(19, -50)); ctx.lineTo(...p(21.5, -43)); ctx.stroke();
-    ctx.fillStyle = body; ctx.beginPath(); ctx.arc(...p(22, -40), 5.8 * sc, 0, TAU); ctx.fill();
+    // front arm: elbow down, fist raised in guard, element cuff on the wrist
+    const fy = -78 - sway * 0.8;
+    limb([[4, -77], [19, -63], [26, fy]], 11, body, 1.3);
+    ctx.strokeStyle = accent; ctx.lineWidth = 11.5 * sc; ctx.beginPath(); ctx.moveTo(...p(22.8, -67, 1.3)); ctx.lineTo(...p(25, fy + 4, 1.3)); ctx.stroke();
+    dot(26, fy, 6.2, body, 1.3);
+    ctx.restore();
+  }
+
+  // shop item art: drawn, not icon-font, centred at (cx, cy), about 2r across
+  function drawItem(ctx, id, cx, cy, r, time = 0) {
+    const it = ITEM_BY_ID[id]; if (!it) return;
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(r / 50, r / 50); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const lg = (y0, y1, a, b) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; };
+    const shine = (x, y, w, h, rot = -0.5) => { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(x, y, w, h, rot, 0, TAU); ctx.fill(); };
+    // soft halo in the item's colour
+    const hg = ctx.createRadialGradient(0, 4, 4, 0, 4, 52); hg.addColorStop(0, it.color + '55'); hg.addColorStop(1, it.color + '00');
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0, 4, 52, 0, TAU); ctx.fill();
+    switch (id) {
+      case 'tonic': {   // a round flask of red tonic with a cork
+        ctx.fillStyle = 'rgba(220,235,255,0.25)'; ctx.beginPath(); ctx.arc(0, 12, 28, 0, TAU); ctx.fill();
+        ctx.fillRect(-9, -26, 18, 22);
+        ctx.save(); ctx.beginPath(); ctx.arc(0, 12, 25, 0, TAU); ctx.clip();
+        ctx.fillStyle = lg(0, 38, '#ff6b81', '#c42747'); ctx.fillRect(-30, 2 + Math.sin(time * 3) * 1.5, 60, 40);
+        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(-30, 2 + Math.sin(time * 3) * 1.5, 60, 3);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(235,245,255,0.85)'; ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.moveTo(-9, -6); ctx.lineTo(-9, -24); ctx.moveTo(9, -24); ctx.lineTo(9, -6); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 12, 28, -Math.PI / 2 + 0.33, -Math.PI / 2 - 0.33 + TAU); ctx.stroke();
+        ctx.fillStyle = lg(-38, -22, '#d9a067', '#9c6a3c'); ctx.beginPath(); ctx.roundRect(-11, -38, 22, 14, 4); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(-4, 14, 8, 20, 2); ctx.roundRect(-10, 20, 20, 8, 2); ctx.fill();
+        shine(-13, 0, 6, 11, 0.5);
+        break;
+      }
+      case 'charm': {   // a gold amulet holding a fiery gem, on a cord
+        ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.moveTo(-24, -40); ctx.quadraticCurveTo(-20, -16, -6, -14); ctx.moveTo(24, -40); ctx.quadraticCurveTo(20, -16, 6, -14); ctx.stroke();
+        ctx.fillStyle = lg(-20, 40, '#ffe08a', '#c98a1c');
+        ctx.beginPath(); for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8, rr = i % 2 ? 26 : 32; ctx.lineTo(Math.cos(a) * rr, 10 + Math.sin(a) * rr); } ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#a56d12'; ctx.beginPath(); ctx.arc(0, 10, 21, 0, TAU); ctx.fill();
+        ctx.fillStyle = lg(-6, 28, '#ffcf6a', '#ff6a2b');
+        ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(15, 4); ctx.lineTo(10, 24); ctx.lineTo(-10, 24); ctx.lineTo(-15, 4); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(15, 4); ctx.lineTo(0, 8); ctx.lineTo(-15, 4); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#c98a1c'; ctx.beginPath(); ctx.arc(0, -16, 5, 0, TAU); ctx.fill();
+        break;
+      }
+      case 'clover': {   // a four-leaf clover with a curling stem
+        ctx.strokeStyle = '#3c9a52'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(2, 4); ctx.bezierCurveTo(6, 22, 18, 30, 14, 42); ctx.stroke();
+        for (let k = 0; k < 4; k++) {
+          ctx.save(); ctx.rotate(k * Math.PI / 2 + Math.PI / 4);
+          ctx.fillStyle = lg(-36, 0, '#9cf0a6', '#3fb35a');
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(-24, -10, -20, -38, -4, -32); ctx.quadraticCurveTo(0, -30, 0, -26); ctx.quadraticCurveTo(0, -30, 4, -32); ctx.bezierCurveTo(20, -38, 24, -10, 0, 0); ctx.fill();
+          ctx.strokeStyle = 'rgba(30,100,50,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -2); ctx.lineTo(0, -24); ctx.stroke();
+          ctx.restore();
+        }
+        ctx.fillStyle = '#2f8a48'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fill();
+        shine(-16, -16, 5, 3);
+        break;
+      }
+      case 'boots': {   // a sleek boot with a small wing at the heel
+        ctx.fillStyle = lg(-30, 20, '#ffffff', '#bfe9ff');
+        for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(-22 - k * 3, -20 + k * 9, 16 - k * 3, 5, -0.5 + k * 0.25, 0, TAU); ctx.fill(); }
+        ctx.fillStyle = lg(-36, 34, '#7fdcff', '#2b8fd6');
+        ctx.beginPath(); ctx.moveTo(-14, -36); ctx.lineTo(10, -36); ctx.lineTo(10, 6); ctx.quadraticCurveTo(34, 8, 38, 22); ctx.lineTo(38, 30); ctx.lineTo(-16, 30); ctx.lineTo(-16, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#1d5f99'; ctx.fillRect(-17, 24, 56, 7);
+        ctx.fillStyle = '#e9f8ff'; ctx.beginPath(); ctx.roundRect(-17, -40, 30, 9, 4); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.5;
+        for (const y of [-20, -10, 0]) { ctx.beginPath(); ctx.moveTo(-2, y); ctx.lineTo(10, y + 3); ctx.stroke(); }
+        shine(-8, -20, 4, 10, 0);
+        break;
+      }
+      case 'feather': {   // a long pale feather with a gold quill
+        ctx.rotate(0.5);
+        ctx.fillStyle = lg(-44, 30, '#ffffff', '#c9b6ff');
+        ctx.beginPath(); ctx.moveTo(0, 34); ctx.bezierCurveTo(-22, 14, -22, -26, 0, -44); ctx.bezierCurveTo(20, -26, 22, 14, 0, 34); ctx.fill();
+        ctx.strokeStyle = 'rgba(120,100,190,0.35)'; ctx.lineWidth = 1.6;
+        for (let y = -30; y < 24; y += 7) { ctx.beginPath(); ctx.moveTo(0, y + 4); ctx.lineTo(-14 + Math.abs(y) * 0.15, y - 4); ctx.moveTo(0, y + 4); ctx.lineTo(14 - Math.abs(y) * 0.15, y - 4); ctx.stroke(); }
+        ctx.strokeStyle = '#e0b84a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 44); ctx.lineTo(0, -38); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(-24, -24, 2.5, 0, TAU); ctx.arc(22, -6, 2, 0, TAU); ctx.fill();
+        break;
+      }
+      case 'crystal': {   // a faceted focus crystal floating over a ring
+        const f = Math.sin(time * 2) * 2;
+        ctx.strokeStyle = 'rgba(200,180,255,0.6)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 30, 24, 6, 0, 0, TAU); ctx.stroke();
+        ctx.translate(0, f);
+        const P = [[0, -42], [18, -14], [12, 22], [0, 30], [-12, 22], [-18, -14]];
+        ctx.fillStyle = lg(-42, 30, '#e6dcff', '#6a4fd8'); ctx.beginPath(); P.forEach(q => ctx.lineTo(...q)); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.moveTo(0, -42); ctx.lineTo(-18, -14); ctx.lineTo(-4, -8); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(60,30,150,0.3)'; ctx.beginPath(); ctx.moveTo(0, -42); ctx.lineTo(18, -14); ctx.lineTo(12, 22); ctx.lineTo(4, -6); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-4, -8); ctx.lineTo(0, 30); ctx.moveTo(-4, -8); ctx.lineTo(4, -6); ctx.stroke();
+        break;
+      }
+    }
     ctx.restore();
   }
 
@@ -391,6 +487,6 @@ const Cosmetics = (() => {
   return {
     ownsColour, ownsHat, grant, buy, equip, colour, hat, shadeOf,
     count, buyItem, armed, toggleArm, consume,
-    drawHat, drawMannequin, liveMannequin,
+    drawHat, drawMannequin, liveMannequin, drawItem,
   };
 })();
