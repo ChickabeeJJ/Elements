@@ -341,7 +341,7 @@ const Cosmetics = (() => {
 
   /* ---------------------------------------------------------- mannequin */
   // the hero in a relaxed stance, for the shop previews (same look as in play)
-  // the shop / profile hero: a fighting stance (feet apart, front arm forward, rear arm back), breathing gently
+  // the shop / profile hero: a fighting stance (feet apart, both arms forward, the rear one behind the body), breathing gently
   function drawMannequin(ctx, cx, cy, sc, colourId, hatId, time, accent = '#bdf3e4') {
     const body = (COLOUR_BY_ID[colourId] || COLOURS[0]).body, shade = shadeOf(body);
     const br = Math.sin(time * 2.2), sway = Math.sin(time * 1.1);
@@ -356,9 +356,9 @@ const Cosmetics = (() => {
     // back leg and back arm (in shade)
     limb([[-3, -47], [-12, -24], [-17, -1]], 12.5, shade);
     dot(-18, -1, 5.6, shade);
-    // rear arm swings back behind the body, so there is one arm on each side
-    limb([[-3, -77], [-15, -64], [-22, -52 + sway]], 10.5, shade, 1.3);
-    dot(-22, -52 + sway, 5.6, shade, 1.3);
+    // rear arm reaches forward at chest height, drawn before the torso so it sits behind the body
+    limb([[-3, -77], [6, -64], [19, -66 + sway]], 10.5, shade, 1.3);
+    dot(19, -66 + sway, 5.6, shade, 1.3);
     // torso: a tapered capsule leaning a touch forward
     limb([[0, -80], [-1, -50]], 23, body);
     // front leg, slightly bent
