@@ -1847,7 +1847,10 @@ body.touch .sheet.result > .result-actions .act-main .btn.primary { order: -1; }
 .codex-detail { overflow-x: hidden; }
 .combo-card { min-width: 0; }
 .combo-card > div:last-child { min-width: 0; flex: 1; }
-.combo-card .pair { flex-wrap: wrap; max-width: 55%; }
+.combo-card .pair { flex-wrap: nowrap; flex: none; }
+.combo-card .alts { display: inline-flex; align-items: center; }
+.combo-card .alts.many > .hex { box-shadow: 0 0 0 2px #1a1f2c; }
+.combo-card .alts.many > .hex + .hex { margin-left: -9px; }
 
 /* Event tab: fits the game frame without a scrollbar on shorter frames */
 @media (max-height: 760px) {
@@ -2458,3 +2461,12 @@ body.touch .codex .el-grid .et b { font-size: 10px; }
   .tier-cell small, .tier-cell .rw { font-size: 8.5px; }
   .records small, .rk-stats small { font-size: 8.5px; letter-spacing: 0.02em; white-space: normal; line-height: 1.1; }
 }
+
+/* event hero on short screens: the art fills whatever height the card has spare
+   (instead of being hidden and leaving an empty card), and shrinks away when there is none */
+@media (max-width: 1100px) and (max-height: 760px) {
+  .event-tab .ev-hero { grid-template-rows: minmax(0, 1fr) auto; align-content: stretch; }
+  .event-tab .ev-art { height: auto; min-height: 70px; }
+}
+@media (max-width: 1100px) and (max-height: 520px) { .event-tab .ev-art { min-height: 52px; } }
+@media (max-width: 1100px) and (max-height: 380px) { .event-tab .ev-art { display: grid; min-height: 0; } }

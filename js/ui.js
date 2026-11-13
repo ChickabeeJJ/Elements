@@ -787,7 +787,9 @@ const UI = (() => {
         if (!mine.length) return '';
         return `<div class="combos"><h4>COMBOS · ${mine.length}</h4><div class="combo-grid">${mine.map(cb => `
           <div class="combo-card">
-            <div class="pair">${(cb.b === e.id ? cb.a.filter(id => ELEMENT_BY_ID[id]).slice(0, 3) : [e.id]).map(id => hex(id)).join('<span class="or">/</span>')}<span class="plus">+</span>${hex(cb.b)}</div>
+            ${(() => { const alts = cb.b === e.id ? cb.a.filter(id => ELEMENT_BY_ID[id]).slice(0, 3) : [e.id];
+              // alternatives overlap in one short row ("any of these + that"), so the card never wraps
+              return `<div class="pair" title="${alts.map(NAME).join(' or ')} + ${NAME(cb.b)}"><span class="alts${alts.length > 1 ? ' many' : ''}">${alts.map(id => hex(id)).join('')}</span><span class="plus">+</span>${hex(cb.b)}</div>`; })()}
             <div><b>${cb.name.toUpperCase()}</b><p>${cb.desc}</p></div>
           </div>`).join('')}</div></div>`;
       })()}`;
