@@ -456,8 +456,10 @@ const Game = (() => {
 
   // the two lashes are projectiles in code but play as close-range whips, so they keep their pace
   const FOE_SHORT_REACH = new Set(['water_whip', 'vine_lash']);
-  // the most oppressive ranged foes get a bit more delay: rapid ice shards and seeking void orbs
-  const FOE_RANGED_CD = { ice_shards: 1.45, void_orb: 1.45 };
+  // the most oppressive ranged foes get more delay: rapid ice shards, seeking void orbs, the
+  // three-pellet slowing sand blast, and the nail gun (a hold-to-spray weapon with a 0.12 s cooldown,
+  // which in a foe's hands was a near-constant stream)
+  const FOE_RANGED_CD = { ice_shards: 1.45, void_orb: 1.45, sand_blast: 2.4, nail_gun: 7 };
   function tryMove(f, mv, tx, ty) {
     if (!mv || !f.canAct || f.action) return false;
     if ((f.cds[mv.id] || 0) > 0) return false;
