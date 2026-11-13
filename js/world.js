@@ -187,25 +187,6 @@ CITADEL_IMG.decoding = 'async';
 CITADEL_IMG.onload = () => { if (typeof Backdrop !== 'undefined') Backdrop.invalidate(); };
 CITADEL_IMG.src = 'assets/img/citadel.webp';
 
-// the castle with distance applied once: a light veil of the realm's sky/fog colour over it, thickening
-// toward its foot so it dissolves into the dune haze instead of ending in a hard line
-let citadelCache = null;
-function citadelHazed(realm) {
-  if (citadelCache && citadelCache.realm === realm) return citadelCache.cv;
-  const im = CITADEL_IMG, cv = document.createElement('canvas');
-  cv.width = im.naturalWidth; cv.height = im.naturalHeight;
-  const c = cv.getContext('2d');
-  c.drawImage(im, 0, 0);
-  c.globalCompositeOperation = 'source-atop';
-  const veil = c.createLinearGradient(0, 0, 0, cv.height);
-  veil.addColorStop(0, rgba(realm.sky[1], 0.16));
-  veil.addColorStop(0.6, rgba(realm.fog, 0.22));
-  veil.addColorStop(1, rgba(realm.fog, 0.6));
-  c.fillStyle = veil; c.fillRect(0, 0, cv.width, cv.height);
-  citadelCache = { realm, cv };
-  return cv;
-}
-
 const DECOR = {
   winter: {
     sky(g, realm, x0, x1, y0, y1) {
@@ -319,27 +300,25 @@ const DECOR = {
         g.fillStyle = lg; g.fillRect(ix - 2, iy + t * 3, 4, t * 4);
       }
     },
-    // the painted castle, set BEHIND the farthest dune: its foot sits just below that ridge's
-    // lowest point across the castle, so every dune layer overlaps it, and it is tinted toward
-    // the sky's haze so it reads as far off
-    back(g, realm, x0, x1, y0, y1, ridgeY) {
-      if (!(CITADEL_IMG.complete && CITADEL_IMG.naturalWidth)) return;
-      const cx = W * realm.sunPos[0];
-      const w = 600, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
-      let foot = 0;
-      for (let x = cx - w * 0.42; x <= cx + w * 0.42; x += 10) foot = Math.max(foot, ridgeY(0, x));
-      foot += 26;
-      // a warm glow behind it, from the sun above
-      const gl = g.createRadialGradient(cx, foot - h * 0.55, 0, cx, foot - h * 0.55, 480);
-      gl.addColorStop(0, 'rgba(255,230,170,0.42)'); gl.addColorStop(1, 'rgba(255,230,170,0)');
-      g.fillStyle = gl; g.fillRect(cx - 480, foot - h - 140, 960, h + 260);
-      g.drawImage(citadelHazed(realm), cx - w / 2, foot - h, w, h);
-    },
     // the citadel itself, rising from the farthest ridge under the sun: the painted castle
     // (assets/img/citadel.webp), with the drawn one below as a stand-in until it has loaded
-    far(g, realm, x0, x1, y0, y1) {
+    far(g, realm, x0, x1, y0, y1, ridgeY) {
       const cx = W * realm.sunPos[0], base = H * 0.6;
-      if (CITADEL_IMG.complete && CITADEL_IMG.naturalWidth) return;   // the painted castle is drawn in back(), behind the dunes
+      if (CITADEL_IMG.complete && CITADEL_IMG.naturalWidth) {
+        // the painted castle sits BETWEEN the sand layers, dead centre: drawn after the farthest
+        // (lightest) dune and before the next one, its foot sunk into that nearer layer
+        const w = 600, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
+        let foot = 0;
+        for (let x = cx - w * 0.36; x <= cx + w * 0.36; x += 10) foot = Math.max(foot, ridgeY(1, x));
+        foot += 14;
+        const gl = g.createRadialGradient(cx, foot - h * 0.55, 0, cx, foot - h * 0.55, 480);
+        gl.addColorStop(0, 'rgba(255,230,170,0.38)'); gl.addColorStop(1, 'rgba(255,230,170,0)');
+        g.fillStyle = gl; g.fillRect(cx - 480, foot - h - 140, 960, h + 260);
+        g.globalAlpha = 0.9;
+        g.drawImage(CITADEL_IMG, cx - w / 2, foot - h, w, h);
+        g.globalAlpha = 1;
+        return;
+      }
       const stone = '#f4e2c2', shadow = '#d9bd92', gold = '#ffd36e', win = '#fff3c8';
       const tower = (x, w, h, roof, domeH) => {
         // body with a lit left and shaded right face
