@@ -195,7 +195,7 @@ const UI = (() => {
     const hist = (a.history || []).slice(-3).reverse();
     modal(`<div class="pf-head" style="--tc:${now.color}">
         <span class="pf-ava">${user.profilePictureUrl ? `<img src="${esc(user.profilePictureUrl)}" alt="">` : `<b>${esc(name.slice(0, 1).toUpperCase())}</b>`}</span>
-        <div class="pf-id"><small>CRAZYGAMES PLAYER</small><h2>${esc(name.toUpperCase().slice(0, 18))}</h2><div class="pf-tags">${tierBadge(now, 'sm')}<b>${now.label}</b>${seasonChip()}</div></div>
+        <div class="pf-id"><h2>${esc(name.toUpperCase().slice(0, 18))}</h2><div class="pf-tags">${tierBadge(now, 'sm')}<b>${now.label}</b>${seasonChip()}</div></div>
         <button class="round pf-x" id="pfClose" aria-label="Close">${ic('back')}</button>
       </div>
       <div class="pf-body">
@@ -1135,7 +1135,7 @@ const UI = (() => {
   let mmToken = 0;
   function seasonChip() {
     const S = Meta.seasonOf();
-    return `<span class="season-chip">${ic('trophy')}SEASON ${S.n}<i></i>ENDS IN <b data-until="${S.end}">${Meta.fmtLeft(S.end - Date.now())}</b></span>`;
+    return `<span class="season-chip ol">${ic('trophy')}SEASON ${S.n}<i></i>ENDS IN <b data-until="${S.end}">${Meta.fmtLeft(S.end - Date.now())}</b></span>`;
   }
   // a season ended since the last visit: a short summary with the reward
   function maybeSeasonSummary(then) {
