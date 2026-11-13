@@ -316,13 +316,11 @@ const UI = (() => {
       const el = document.createElement('button');
       if (boss) el.title = realm.boss.name;
       el.className = 'stage-card' + (boss ? ' boss' : '') + (!open ? ' locked' : cur ? ' current' : '');
-      if (stageTwist(mapRealm, s) !== 'none') el.classList.add('has-twist');
       el.style.setProperty('--c', realm.tint);
       el.innerHTML = `<span class="n">${open ? (boss ? '<span class="ic" data-icon="crown"></span>' : s + 1) : '<span class="ic" data-icon="lock"></span>'}</span>
         <span class="stars">${[1, 2, 3].map(k => `<span class="ic${k <= st ? ' on' : ''}" data-icon="star"></span>`).join('')}</span>
         <small>${boss ? 'BOSS' : '<span class="st-word">STAGE </span>' + stageLabel(mapRealm, s)}</small>
-        ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}
-        ${twistBadge(stageTwist(mapRealm, s))}`;
+        ${unlock && !st ? `<span class="reward" title="Unlocks ${unlock.name}">${hex(unlock.id)}</span>` : ''}`;
       el.onclick = () => {
         if (!open) { Sfx.denied(); toast('CLEAR THE PREVIOUS STAGE FIRST'); return; }
         Sfx.click(); const r = mapRealm; Platform.maybeMidgame(() => startStage(r, s));
@@ -1522,19 +1520,8 @@ const UI = (() => {
     const realm = REALMS[r];
     setChip(realm.element, `${realm.name.toUpperCase()} ${stageLabel(r, s)}`);
     banner(s === STAGES_PER_REALM - 1 ? 'BOSS STAGE' : `STAGE ${stageLabel(r, s)}`, s === STAGES_PER_REALM - 1 ? 'boss' : '');
-    announceTwist(stageTwist(r, s));
   }
   // stage twists: a badge on the stage card, and a heads-up when the stage starts
-  function twistBadge(id) {
-    const t = TWISTS[id];
-    if (!t || id === 'none') return '';
-    return `<span class="twist-badge" title="${t.name}: ${t.desc}">${ic(t.icon)}<b>${t.name.toUpperCase()}</b></span>`;
-  }
-  function announceTwist(id) {
-    const t = TWISTS[id];
-    if (!t || id === 'none') return;
-    setTimeout(() => { if (Game.state === 'play') toast(`${t.name.toUpperCase()} · ${t.desc}`); }, 1300);
-  }
   function startEndless() {
     lastStart = { mode: 'endless' };
     closeModal(); show(null);

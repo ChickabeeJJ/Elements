@@ -1988,17 +1988,6 @@ body:not(.ui-ready) .title .t1 i, body:not(.ui-ready) .title .t2 { animation: no
 #titleFx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .title .t1 i, .title .t2 { animation: none; } #titleFx { display: none; } }
 
-/* stage twist badge on the stage cards */
-.stage-card .twist-badge { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); max-width: calc(100% - 8px); overflow: hidden; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px 2px 5px; border-radius: 999px;
-  background: #1b2030; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); color: var(--c); white-space: nowrap; pointer-events: none; z-index: 2; }
-.stage-card .twist-badge .ic { width: 11px; height: 11px; }
-.stage-card .twist-badge b { font-weight: 900; font-size: 8.5px; letter-spacing: 0.08em; color: var(--text); }
-.stage-card.locked .twist-badge { opacity: 0.55; }
-body.touch .stage-card .twist-badge b { display: none; }
-body.touch .stage-card .twist-badge { padding: 2px 4px; }
-.stage-card.has-twist { padding-bottom: 26px; }
-body.touch .stage-card.has-twist { padding-bottom: 20px; }
-
 /* ---------------------------------------------------------------- the Shop */
 #codex .bar { flex-wrap: nowrap; }
 #codex .bar h2 { flex: none; }
