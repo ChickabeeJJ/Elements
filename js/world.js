@@ -302,7 +302,7 @@ const DECOR = {
         }
       }
       // distant floating sky-islands: stepped rock like the arena's, a golden rim, a little shrine
-      for (const [fx, fy, fw, shrine] of [[0.12, 0.3, 150, true], [0.86, 0.24, 110, true], [0.7, 0.42, 70, false]]) {
+      for (const [fx, fy, fw, shrine] of [[0.12, 0.3, 150, true], [0.86, 0.24, 110, true]]) {
         const ix = W * fx, iy = H * fy, t = fw / 5;
         const rows = [[0, 5], [0.6, 4.4], [1.3, 3.7], [2, 3]];
         rows.forEach(([a, bb], r) => {
@@ -328,7 +328,7 @@ const DECOR = {
       if (CITADEL_IMG.complete && CITADEL_IMG.naturalWidth) {
         // the painted castle sits BETWEEN the sand layers, dead centre: drawn after the farthest
         // (lightest) dune and before the next one, its foot sunk into that nearer layer
-        const w = 740, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
+        const w = 703, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
         // the foot goes below the nearer dune's LOWEST point across the castle's full width (plus a
         // margin), so the image's bottom edge is always under sand; its last strip also fades out
         let foot = 0;
