@@ -139,7 +139,6 @@ const UI = (() => {
 
   // opt-in rewarded "+gems" when you are short, a few times a day
   const GEM_AD = 60, GEM_AD_CAP = 5;
-  const REVIVE_GAP = 4 * 60 * 1000;   // a revive-for-an-ad is offered at most once per 4 minutes
   function gemAdsLeft() {
     const a = Save.data.ads, d = Math.floor(Date.now() / 86400000);
     if (a.day !== d) { a.day = d; a.n = 0; }
@@ -1399,10 +1398,10 @@ const UI = (() => {
   function renderResult(res) {
     const tiles = `<div class="stat-tiles"><div><b>${res.kills}</b><small>DEFEATED</small></div><div><b>${res.ringouts}</b><small>RING OUTS</small></div><div><b>${res.bestCombo}</b><small>BEST COMBO</small></div></div>`;
     const reward = `<div class="payout"><span class="ic" data-icon="gem"></span><span id="payoutNum">+${res.essence}</span>${res.bonus ? `<small>INCL. ${res.bonus} CLEAR BONUS</small>` : ''}</div>`;
-    const hasRewardOpportunity = (!res.won && res.canRevive && res.mode !== 'endless') || res.essence > 0;
-    // a revive is a special offer: at most one every REVIVE_GAP, not on every death
-    const offerRevive = Platform.rewardedAvailable && !res.won && res.canRevive && res.mode !== 'endless' && Date.now() - (Save.data.ads.reviveAt || 0) > REVIVE_GAP;
-    if (offerRevive) { Save.data.ads.reviveAt = Date.now(); Save.save(); }
+    const hasRewardOpportunity = (!res.won && res.canRevive) || res.essence > 0;
+    // dying offers one revive per run (the game allows one revive a run, and Retry starts a new
+    // run, so it comes back); a win offers double gems
+    const offerRevive = Platform.rewardedAvailable && !res.won && res.canRevive;
     res.revOffered = offerRevive;
     // one ad offer per screen at most: a revive replaces double-gems on that defeat
     const offers = offerRevive ? adBtn('rRevive', 'REVIVE') : Platform.rewardedAvailable && res.essence > 0 ? adBtn('rDouble', 'DOUBLE GEMS') : '';

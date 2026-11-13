@@ -3182,6 +3182,7 @@ const Game = (() => {
     if (!run || run.revived || state !== 'done' || !player) return false;
     run.revived = true;
     run.falls++;
+    run.essence = 0; run.essenceRemainder = 0;   // the gems so far were paid out when the player died: don't pay them twice
     const f = player, sp = spawnPoint();
     f.gone = false;
     teleport(f, sp.x, sp.y - 300);
