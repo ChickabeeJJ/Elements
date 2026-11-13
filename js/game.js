@@ -4229,7 +4229,10 @@ const Game = (() => {
       const zp = 1 + (cam.z - 1) * 0.4;
       const sw = bg.width / zp, sh = bg.height / zp;
       const fx = (cam.x * view.scale + view.ox) / view.cw, fy = (cam.y * view.scale + view.oy) / view.ch;
-      const sx = clamp(fx * bg.width - sw / 2, 0, bg.width - sw), sy = clamp(fy * bg.height - sh / 2, 0, bg.height - sh);
+      // a backdrop built around a centrepiece (the Radiant Citadel's castle) never pans sideways,
+      // so the centrepiece stays dead centre on screen
+      const lockX = realm.decor === 'citadel';
+      const sx = lockX ? (bg.width - sw) / 2 : clamp(fx * bg.width - sw / 2, 0, bg.width - sw), sy = clamp(fy * bg.height - sh / 2, 0, bg.height - sh);
       c.drawImage(bg, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
     } else c.drawImage(bg, 0, 0, canvas.width, canvas.height);
     const sk = shake > 0 && Save.data.settings.shake ? shake * 0.6 : 0;

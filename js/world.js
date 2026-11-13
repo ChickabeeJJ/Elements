@@ -187,6 +187,22 @@ CITADEL_IMG.decoding = 'async';
 CITADEL_IMG.onload = () => { if (typeof Backdrop !== 'undefined') Backdrop.invalidate(); };
 CITADEL_IMG.src = 'assets/img/citadel.webp';
 
+// the castle with its bottom 10% faded to nothing, so no hard image edge can ever show
+let citadelCv = null;
+function citadelFaded() {
+  if (citadelCv) return citadelCv;
+  const im = CITADEL_IMG, cv = document.createElement('canvas');
+  cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+  const c = cv.getContext('2d');
+  c.drawImage(im, 0, 0);
+  c.globalCompositeOperation = 'destination-in';
+  const m = c.createLinearGradient(0, 0, 0, cv.height);
+  m.addColorStop(0, '#000'); m.addColorStop(0.9, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = m; c.fillRect(0, 0, cv.width, cv.height);
+  citadelCv = cv;
+  return cv;
+}
+
 const DECOR = {
   winter: {
     sky(g, realm, x0, x1, y0, y1) {
@@ -307,15 +323,17 @@ const DECOR = {
       if (CITADEL_IMG.complete && CITADEL_IMG.naturalWidth) {
         // the painted castle sits BETWEEN the sand layers, dead centre: drawn after the farthest
         // (lightest) dune and before the next one, its foot sunk into that nearer layer
-        const w = 600, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
+        const w = 740, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
+        // the foot goes below the nearer dune's LOWEST point across the castle's full width (plus a
+        // margin), so the image's bottom edge is always under sand; its last strip also fades out
         let foot = 0;
-        for (let x = cx - w * 0.36; x <= cx + w * 0.36; x += 10) foot = Math.max(foot, ridgeY(1, x));
-        foot += 14;
+        for (let x = cx - w / 2 - 20; x <= cx + w / 2 + 20; x += 6) foot = Math.max(foot, ridgeY(1, x));
+        foot += 34;
         const gl = g.createRadialGradient(cx, foot - h * 0.55, 0, cx, foot - h * 0.55, 480);
         gl.addColorStop(0, 'rgba(255,230,170,0.38)'); gl.addColorStop(1, 'rgba(255,230,170,0)');
         g.fillStyle = gl; g.fillRect(cx - 480, foot - h - 140, 960, h + 260);
-        g.globalAlpha = 0.9;
-        g.drawImage(CITADEL_IMG, cx - w / 2, foot - h, w, h);
+        g.globalAlpha = 0.95;
+        g.drawImage(citadelFaded(), cx - w / 2, foot - h, w, h);
         g.globalAlpha = 1;
         return;
       }
