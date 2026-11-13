@@ -426,7 +426,7 @@ const Cosmetics = (() => {
         shine(-16, -16, 5, 3);
         break;
       }
-      case 'boots': {   // a sleek running boot with a swept wing at the ankle
+      case 'boots': {   // a sleek boot with a swept wing at the ankle
         // wing first, so its root tucks behind the boot
         for (const [rot, len, w, c0, c1] of [[0.95, 46, 9, '#ffffff', '#d6f1ff'], [0.6, 42, 8.5, '#f4fbff', '#bfe8ff'], [0.28, 34, 8, '#e8f7ff', '#a6ddff']]) {
           ctx.save(); ctx.translate(-15, -12); ctx.rotate(Math.PI + rot);
@@ -441,11 +441,8 @@ const Cosmetics = (() => {
         ctx.fillStyle = 'rgba(0,30,80,0.18)'; ctx.fillRect(-22, -32, 9, 60);                  // shaded heel side
         ctx.fillStyle = '#f2f8ff'; ctx.fillRect(-22, 24, 64, 9);                               // sole
         ctx.fillStyle = '#c9dcef'; ctx.fillRect(-22, 30, 64, 3);
-        ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.beginPath(); ctx.ellipse(28, 14, 10, 6, 0.4, 0, TAU); ctx.fill();   // toe cap
         ctx.restore();
         ctx.fillStyle = lg(-38, -28, '#ffffff', '#d6ecff'); ctx.beginPath(); ctx.roundRect(-20, -38, 32, 10, 4); ctx.fill();   // cuff
-        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.4;                                   // laces
-        for (const y of [-21, -12, -3]) { ctx.beginPath(); ctx.moveTo(3, y); ctx.lineTo(11, y + 4); ctx.moveTo(3, y + 4); ctx.lineTo(11, y); ctx.stroke(); }
         ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2;                        // speed stripe
         ctx.beginPath(); ctx.moveTo(-14, 16); ctx.quadraticCurveTo(6, 10, 22, 18); ctx.stroke();
         break;
