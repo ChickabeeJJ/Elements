@@ -1721,7 +1721,7 @@ body:not(.touch) .lo-slot .x { right: 10px; }
 .vs-side > .hex { display: grid; place-items: center; }
 /* slower bars, no coloured edge */
 #bars i::after { display: none; }
-#bars i { box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05); }
+#bars i { box-shadow: none; margin-right: -1px; }   /* no edge lines between bars, and no hairline gaps */
 #bars.in i { animation-duration: 0.7s; animation-delay: calc(var(--i) * 70ms); }
 #bars.out i { animation-duration: 0.75s; animation-delay: calc(var(--i) * 70ms); }
 

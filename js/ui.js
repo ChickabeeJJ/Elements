@@ -1331,7 +1331,9 @@ const UI = (() => {
 
   function openPause() {
     if (Game.state !== 'play') return;
-    Game.paused = true; Platform.gameplayStop();
+    // the Arena never pauses: its menu opens over the running match (like a real online match)
+    if (Game.mode !== 'duel') { Game.paused = true; Platform.gameplayStop(); }
+    else { Game.setKey('left', false); Game.setKey('right', false); Game.release('attack'); }   // let go of held controls
     const label = Game.mode === 'stage' ? `${REALMS[lastStart.r].name.toUpperCase()} · ${stageLabel(lastStart.r, lastStart.s)}` : Game.mode === 'tutorial' ? 'TRAINING' : Game.mode === 'test' ? 'TESTING' : Game.mode === 'duel' ? `ARENA${lastStart && lastStart.rival ? ' · VS ' + esc(lastStart.rival.name.toUpperCase()) : ''}` : 'ENDLESS';
     if (Game.mode === 'duel') {
       // an Arena match cannot be restarted or re-equipped mid-fight; leaving it is a forfeit
@@ -1343,7 +1345,7 @@ const UI = (() => {
           <button class="btn" id="pSettings"><b>SETTINGS</b></button>
           <button class="btn danger" id="pQuit"><b>FORFEIT MATCH</b></button>
         </div>
-        <p class="fine center">Forfeiting counts as a loss.</p>`, s => {
+        <p class="fine center">The match keeps going while this menu is open. Forfeiting counts as a loss.</p>`, s => {
         s.querySelector('#pResume').onclick = resume;
         s.querySelector('#pSettings').onclick = () => openSettings(true);
         s.querySelector('#pQuit').onclick = () => { Sfx.click(); closeModal(); forfeitDuel(); Game.quit(); Game.idleScene(0); show('home'); };

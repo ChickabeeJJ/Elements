@@ -99,9 +99,11 @@ const Game = (() => {
   const idleRealm = () => (realm && realm.id === 'winterfest' ? WINTER_REALM : realmIdx);
 
   // variant reseeds island shapes so each stage looks a little different
+  const ISLAND_MIN_W = 200;
   function buildArena(a, variant = 0) {
     arena = a;
-    islands = a.isl.map(([x, y, w, motion], i) => new Island(x, y, w, { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion }));
+    // no island narrower than 200: smaller ones were too hard to stand and fight on
+    islands = a.isl.map(([x, y, w, motion], i) => new Island(x, y, Math.max(ISLAND_MIN_W, w), { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion }));
   }
 
   const arenaNamed = n => ARENAS.find(a => a.name === n) || ARENAS[0];
@@ -226,14 +228,15 @@ const Game = (() => {
     const sp = islands[0];
     const x = clamp(sp.x + 240, sp.left + 70, sp.right - 70);
     const u = rv.stats;
-    const f = spawnEnemyAt({ type: 'rival', element: rv.loadout[0], d: rv.d, scale: 1.05, weight: 1, hp: u.hp, rival: true, boss: { name: rv.name, title: rv.tier.label } }, x, sp.top, true);
+    const f = spawnEnemyAt({ type: 'rival', element: rv.loadout[0], d: rv.d, scale: 1.05, weight: 1, hp: u.hp, rival: true, hat: rv.hat || null, boss: { name: rv.name, title: rv.tier.label } }, x, sp.top, true);
     f.body = rv.body; f.shade = mixHex(rv.body, '#10131b', 0.16);
-    f.speed = 380 * u.speedMul; f.jumpV = 1060 * u.jumpMul;
+    f.speed = 400 * u.speedMul; f.jumpV = 1060 * u.jumpMul;
     f.facing = -1;
     const ai = f.ai;
     ai.rv = u; ai.loadout = rv.loadout; ai.elIdx = 0; ai.swapT = rand(3, 5);
     ai.net = !!rv.live && !rv.dropped;   // a live opponent drives this fighter over the network
-    ai.stats.cdMul = u.cdMul;
+    ai.stats.cdMul = u.cdMul * 0.85;          // attacks come a little quicker than a player's base rate
+    ai.stats.think *= 0.7;                    // reads and reacts faster
     ai.thinkT = 1.4;   // a beat to get ready before the first exchange
     setRivalElement(f, rv.loadout[0], true);
     return f;
@@ -475,7 +478,7 @@ const Game = (() => {
     const ang = Math.atan2(ty - o.y, tx - o.x);
     f.aim = ang;
     f.facing = Math.cos(ang) >= 0 ? 1 : -1;
-    const m = !enemy ? mv : f.ai.rival ? Object.assign({}, mv, { windup: mv.windup * lerp(1.7, 1.05, Math.min(f.ai.d, 1.2)) + 0.03 })
+    const m = !enemy ? mv : f.ai.rival ? Object.assign({}, mv, { windup: mv.windup * lerp(1.45, 0.95, Math.min(f.ai.d, 1.2)) + 0.02 })
       : Object.assign({}, mv, { windup: mv.windup * f.ai.stats.windupMul + 0.08 });
     const lockKinds = { dive: 1, dragon: 1, nova: 1, beam: 1, strike: 1, zone: 1, heal: 1, shield: 1, slam: 1, pillars: 1, pull: 1, crush: 1, resonance: 1, wall: 1 };
     let comboStep = 0;
@@ -1255,6 +1258,7 @@ const Game = (() => {
     let dmg = o.dmg;
     if (att) dmg *= att.isPlayer ? pStats.dmgMul : att.ai && att.ai.rv ? att.ai.rv.dmgMul : att.ai ? att.ai.stats.dmgMul * (att.kind === 'boss' ? 0.5 : 0.66) : 1;   // enemy hit scaling (bosses much gentler)
     if (att && att.pact > 0) dmg *= att.pactMul;
+    if (o.el === 'tempo') dmg *= 1.25;   // Tempo hits 25% harder across its whole kit (incl. the rhythm finale)
     if (o.crit) dmg *= 2;
     if (t.bouncy > 0) {
       // Rubber's Bounce Back: half damage, and the attacker is flung away
@@ -3292,7 +3296,7 @@ const Game = (() => {
 
     if (kit.melee && ready(kit.melee) && dd < (kit.melee.reach + 34) * e.s && Math.abs(dy) < 110) { tryMove(e, kit.melee, pc.x, pc.y); return; }
     for (const pw of kit.powers) {
-      if (!ready(pw) || Math.random() > (ai.rival ? 0.35 + 0.45 * Math.min(ai.d, 1) : e.kind === 'boss' ? 0.45 : 0.8)) continue;
+      if (!ready(pw) || Math.random() > (ai.rival ? 0.5 + 0.4 * Math.min(ai.d, 1) : e.kind === 'boss' ? 0.45 : 0.8)) continue;
       const k = pw.kind;
       const ok = (k === 'nova' || k === 'updraft') ? dd < (pw.radius || 140) * 0.9
         : k === 'heal' ? e.hp < e.maxHp * 0.5
@@ -3326,10 +3330,15 @@ const Game = (() => {
     const myIsl = me.grounded ? me.plat : null;
     let goal = (player.root.grounded && player.root.plat) || platformBelow(pr.x, pr.y - 5, 900) || nearestIsland(pr.x);
     let dir = 0;
-    if ((e.kind === 'boss' || ai.rival) && myIsl && goal && goal !== myIsl && goal.right - goal.left < 320) goal = myIsl;   // wait for the hero on solid ground
+    // bosses wait for the hero on solid ground; rivals only hold back from really small islands,
+    // and good ones chase onto anything they can stand on
+    const holdBelow = ai.rival ? (ai.d > 0.8 ? 0 : 220) : 320;
+    if ((e.kind === 'boss' || ai.rival) && myIsl && goal && goal !== myIsl && goal.right - goal.left < holdBelow) goal = myIsl;
     if ((e.kind === 'boss' || ai.rival) && myIsl && goal === myIsl) {
       const margin = Math.min(150, (myIsl.right - myIsl.left) * 0.3);
-      const want = clamp(pr.x - Math.sign(dx || 1) * (kit.melee ? 40 : 260), myIsl.left + margin, myIsl.right - margin);
+      // rivals take the side nearer the island's middle, so the drop is behind the hero
+      const side = ai.rival && Math.abs(pr.x - myIsl.x) > 60 ? Math.sign(pr.x - myIsl.x) : Math.sign(dx || 1);
+      const want = clamp(pr.x - side * (kit.melee ? 40 : 260), myIsl.left + margin, myIsl.right - margin);
       dir = Math.abs(want - me.x) > 24 ? Math.sign(want - me.x) : 0;
       // keep the void behind the hero, not behind the boss: step around to the open side
       const toEdge = Math.min(me.x - myIsl.left, myIsl.right - me.x);
@@ -4430,7 +4439,7 @@ const Game = (() => {
       c.strokeStyle = rgba('#b9a6ff', 0.85); c.lineWidth = 3; c.setLineDash([8, 6]);
       c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(p.x, p.y); c.stroke(); c.setLineDash([]);
     }
-    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble', 'soundwave', 'coin', 'card', 'needle', 'glitch'].includes(st)) {
+    if (tr.length >= 4 && !['cyclone', 'halo', 'sonic', 'hook', 'fly', 'dragonfire', 'bubble', 'soundwave', 'coin', 'card', 'needle', 'glitch', 'grit'].includes(st)) {
       c.globalCompositeOperation = 'lighter';
       c.strokeStyle = rgba(el.deep, st === 'bolt' ? 0.9 : 0.4); c.lineWidth = st === 'bolt' ? 5 : p.r * 0.9; c.lineCap = 'round';
       c.beginPath(); c.moveTo(tr[0], tr[1]);
@@ -4617,6 +4626,28 @@ const Game = (() => {
         c.globalCompositeOperation = 'lighter'; Glow.draw(c, '#7a4ae0', 0, 0, p.r * 3.6, 0.9); c.globalCompositeOperation = 'source-over';
         c.fillStyle = '#0b0614'; c.beginPath(); c.arc(0, 0, p.r * 0.75, 0, TAU); c.fill();
         c.strokeStyle = '#c08bff'; c.lineWidth = 2.5; c.beginPath(); c.arc(0, 0, p.r, time * 6, time * 6 + 4); c.stroke(); break;
+      case 'grit': {
+        // a loose clump of sand grains, tumbling, with a few stragglers sprinkled along its path
+        const GR = ['#f2d28b', '#a8701f', '#e0b562', '#7a4e16', '#fff0c4'];
+        const seed = p.rot * 1000;
+        c.rotate(time * 9 + p.rot);
+        for (let i = 0; i < 9; i++) {
+          const a = i * 2.4 + seed, rr = (i % 3 + 1) * p.r * 0.32;
+          const gs = 2.8 + ((i * 7 + seed) % 2.4);
+          c.fillStyle = GR[i % GR.length];
+          c.fillRect(Math.cos(a) * rr - gs / 2, Math.sin(a) * rr - gs / 2, gs, gs);
+        }
+        c.restore(); c.save();
+        // stragglers along the trail, smaller and fading
+        for (let i = 2; i < tr.length - 2; i += 4) {
+          const k = i / tr.length, gs = 2 + k * 1.6;
+          c.globalAlpha = 0.25 + k * 0.6;
+          c.fillStyle = GR[(i >> 2) % GR.length];
+          c.fillRect(tr[i] - gs / 2 + Math.sin(i * 3.1 + seed) * 4, tr[i + 1] - gs / 2 + Math.cos(i * 2.3 + seed) * 4, gs, gs);
+        }
+        c.globalAlpha = 1;
+        break;
+      }
       default:
         c.globalCompositeOperation = 'lighter'; Glow.draw(c, el.deep, 0, 0, p.r * 3, 0.9); c.globalCompositeOperation = 'source-over';
         c.fillStyle = el.color; c.beginPath(); c.arc(0, 0, p.r, 0, TAU); c.fill();

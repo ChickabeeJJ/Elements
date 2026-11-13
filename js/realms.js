@@ -103,7 +103,7 @@ const ARENAS = [
   { name: 'Islets', isl: [[800, 700, 480], [300, 640, 320], [1300, 640, 320], [540, 470, 200], [1060, 470, 200]] },
   { name: 'Drift', isl: [[800, 705, 640], [270, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 0 }], [1330, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 3 }], [800, 440, 240, { ax: 120, ay: 0, speed: 0.6, phase: 1 }]] },
   { name: 'Pillars', isl: [[800, 690, 440], [330, 610, 200], [1270, 610, 200], [800, 470, 160]] },
-  { name: 'Causeway', isl: [[800, 700, 920], [250, 560, 160], [1350, 560, 160], [800, 470, 200]] },   // side islands sit just past the main island's ends
+  { name: 'Causeway', isl: [[800, 700, 920], [230, 560, 160], [1370, 560, 160], [800, 470, 200]] },   // side islands sit just past the main island's ends
   { name: 'Terraces', isl: [[580, 720, 560], [1080, 640, 360], [1380, 520, 200], [300, 560, 200]] },
   { name: 'Spire', isl: [[800, 700, 640], [800, 540, 240], [800, 380, 120], [330, 600, 160], [1270, 600, 160]] },
   { name: 'Archipelago', isl: [[700, 700, 440], [1200, 700, 280], [290, 620, 200], [1010, 530, 200], [520, 480, 160]] },
@@ -129,7 +129,7 @@ function stageTwist() { return 'none'; }   // campaign stages have no twists
 // apply an arena-shaping twist to a layout (returns a new layout)
 function twistArena(a, twist) {
   if (twist === 'drift') return { name: a.name, isl: a.isl.map((d, i) => i === 0 || d[3] ? d : [d[0], d[1], d[2], { ax: i % 2 ? 90 : 0, ay: i % 2 ? 0 : 50, speed: 0.55 + i * 0.08, phase: i * 1.7 }]) };
-  if (twist === 'tight') return { name: a.name, isl: a.isl.map(d => [d[0], d[1], Math.max(120, Math.round(d[2] * 0.72 / 40) * 40), d[3]]) };
+  if (twist === 'tight') return { name: a.name, isl: a.isl.map(d => [d[0], d[1], Math.max(200, Math.round(d[2] * 0.72 / 40) * 40), d[3]]) };
   return a;
 }
 const BOSS_ARENA = { name: 'Throne', isl: [[800, 705, 960], [270, 520, 240], [1330, 520, 240]] };
@@ -204,6 +204,10 @@ function capRoles(wave, realm) {
 const STAGE_EASE = {
   '6-5': { d: 0.88, noBrutes: true },   // Void Rift 7-6
 };
+// whole chapters that played far harder than intended: lower difficulty, softer and fewer foes, a lighter boss
+const CHAPTER_EASE = {
+  9: { d: -0.14, hp: 0.78, dmg: 0.78, foes: -1, boss: 0.8 },   // Radiant Citadel (chapter 10)
+};
 
 /* Campaign stage: deterministic arena + list of waves. */
 function buildStage(r, s) {
@@ -212,13 +216,14 @@ function buildStage(r, s) {
   const ease = STAGE_EASE[r + '-' + s];
   // from Crystal Caverns on, each chapter starts and ends a little harder than the last
   const late = Math.max(0, r - 7) * 0.06;
-  const d = ease && ease.d != null ? ease.d : r < 7 ? g / (CLASSIC_STAGES - 1) : lerp(0.72 + late, 0.92 + late * 0.7, s / (STAGES_PER_REALM - 1));
+  const ce = CHAPTER_EASE[r] || null;
+  const d = ease && ease.d != null ? ease.d : (r < 7 ? g / (CLASSIC_STAGES - 1) : lerp(0.72 + late, 0.92 + late * 0.7, s / (STAGES_PER_REALM - 1))) + (ce ? ce.d : 0);
   const rng = mulberry32(9137 + g * 7919);
   const mix = r === 6 ? 0.3 : 0;   // the Void Rift mixes in other elements
   const waves = [];
   if (s === STAGES_PER_REALM - 1) {
     waves.push([0, 1].map(() => ({ type: 'grunt', element: rollElement(rng, realm, mix), d })));
-    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * 1.05 * (r >= 4 && r <= 7 ? 0.9 : 1) }]);   // all bosses +5%; Stormspire..Crystal Caverns bosses -10%
+    waves.push([{ type: 'boss', element: realm.element, d, boss: realm.boss, hpMul: (6 + Math.min(r, 5) * 1.1) * 0.95 * 1.05 * (r >= 4 && r <= 7 ? 0.9 : 1) * (ce ? ce.boss : 1) }]);   // all bosses +5%; Stormspire..Crystal Caverns bosses -10%
     return { realm: r, stage: s, arena: BOSS_ARENA, waves, d, boss: true, twist: 'none' };
   }
   const twist = stageTwist(r, s);
@@ -227,7 +232,7 @@ function buildStage(r, s) {
   const arena = twistArena(ARENAS[ai], twist);
   // at most three waves; early stages are short and gentle
   // at most three waves of at most three foes; individual foes carry the difficulty
-  const total = Math.min(TOUGH_REALMS[realm.element] ? 8 : 9, 2 + Math.floor(s * 0.7) + Math.floor(Math.min(r, 5) * 0.8));
+  const total = Math.max(2, Math.min(TOUGH_REALMS[realm.element] ? 8 : 9, 2 + Math.floor(s * 0.7) + Math.floor(Math.min(r, 5) * 0.8)) + (ce ? ce.foes : 0));
   const nW = Math.min(3, Math.ceil(total / 3));
   for (let w = 0; w < nW; w++) {
     const n = Math.floor(total / nW) + (w < total % nW ? 1 : 0);
@@ -235,7 +240,7 @@ function buildStage(r, s) {
     // from Toxic Mire on, foes get sturdier and hit harder chapter by chapter
     const tier = Math.max(0, r - 4);
     const extra = twist === 'swarm' ? 1 + (w < 2 ? 1 : 0) : 0;      // Swarm: one or two more per wave, each frailer
-    for (let i = 0; i < n + extra; i++) wave.push({ type: ease && ease.noBrutes ? rollType(rng, r, s).replace('brute', 'grunt') : rollType(rng, r, s), element: rollElement(rng, realm, mix), d, hpMul: (1 + tier * 0.08) * (twist === 'swarm' ? 0.62 : 1), dmgBoost: 1 + tier * 0.07 });
+    for (let i = 0; i < n + extra; i++) wave.push({ type: ease && ease.noBrutes ? rollType(rng, r, s).replace('brute', 'grunt') : rollType(rng, r, s), element: rollElement(rng, realm, mix), d, hpMul: (1 + tier * 0.08) * (twist === 'swarm' ? 0.62 : 1) * (ce ? ce.hp : 1), dmgBoost: (1 + tier * 0.07) * (ce ? ce.dmg : 1) });
     if (twist === 'frenzy') for (const sp of wave) { sp.speedMul = 1.28; sp.cdMul = 0.78; }
     waves.push(capRoles(capElements(wave), realm));
   }

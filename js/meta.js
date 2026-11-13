@@ -59,8 +59,18 @@ const Meta = (() => {
   const DUEL_ARENAS = ['Mainland', 'Summit', 'Crossing', 'Islets', 'Drift', 'Twin Peaks'];
   function statsFrom(up) {
     return {
-      hp: 120 + up.vitality * 20, dmgMul: 1 + up.might * 0.1, armor: 1 - up.ward * 0.06, cdMul: 1 - up.focus * 0.06,
+      hp: Math.round((120 + up.vitality * 20) * 1.2), dmgMul: 1 + up.might * 0.1, armor: 1 - up.ward * 0.06, cdMul: 1 - up.focus * 0.06,
       speedMul: 1 + up.swift * 0.06, jumpMul: 1 + up.swift * 0.03, knockMul: 1 - up.anchor * 0.08,
+    };
+  }
+  // how a fallback opponent looks: usually the classic pale body, but often a shop colour
+  // and sometimes a hat, like real players dress up (event exclusives only while that event runs)
+  function rivalLook() {
+    const live = c => !c.event || Meta.winterLive();
+    const cols = COLOURS.filter(c => c.id !== 'snow' && live(c)), hats = HATS.filter(live);
+    return {
+      body: Math.random() < 0.45 && cols.length ? pick(cols).body : pick(BODIES),
+      hat: Math.random() < 0.4 && hats.length ? pick(hats).id : null,
     };
   }
   function makeRival() {
@@ -81,7 +91,7 @@ const Meta = (() => {
     const tier = tierOf(tr);
     return {
       bot: true, name: playerName(), trophies: tr, tier, title: tier.label, loadout, element: loadout[0],
-      d, upgrades: up, stats: statsFrom(up), body: pick(BODIES),
+      d, upgrades: up, stats: statsFrom(up), ...rivalLook(),
       realm: randi(0, REALMS.length - 1), arena: pick(DUEL_ARENAS), seed: randi(1, 999),
     };
   }

@@ -256,7 +256,7 @@ const ELEMENTS = [
     moves: [
       { slot: 'main', id: 'sand_blast', name: 'Sand Blast', type: 'ranged', icon: 'grit', kind: 'projectile', pose: 'cast',
         desc: 'Fling a spray of grit that slows what it hits.', cd: 0.5, windup: 0.07, active: 0.05, recover: 0.15,
-        speed: 900, grav: 300, radius: 9, dmg: 5, count: 3, spread: 0.1, knock: 220, lift: 0.2, sink: 1.2, life: 0.9 },
+        speed: 900, grav: 300, radius: 9, dmg: 5, count: 3, spread: 0.1, knock: 220, lift: 0.2, sink: 1.2, life: 0.9, style: 'grit' },
       { slot: 'p1', id: 'burrow', name: 'Burrow', type: 'power', icon: 'dune', kind: 'burrow', pose: 'dash',
         desc: 'Dive into the sand and tunnel along the island, untouchable, then burst up under your aim and launch foes.', cd: 6, windup: 0.08, active: 0.1, recover: 0.15,
         range: 520, speed: 900, radius: 130, dmg: 16, knock: 480, lift: 1.6 },

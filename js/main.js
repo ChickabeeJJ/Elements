@@ -67,7 +67,7 @@
   window.addEventListener('resize', () => { Game.resize(); UI.checkRotate(); UI.applyUiScale(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-      if (UI.screen === null && Game.state === 'play' && !Game.paused) UI.openPause();
+      if (UI.screen === null && Game.state === 'play' && !Game.paused && Game.mode !== 'duel') UI.openPause();   // the Arena never pauses
       Sfx.suspend(true);
     } else Sfx.suspend(false);
   });
