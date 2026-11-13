@@ -399,7 +399,6 @@ const Cosmetics = (() => {
         ctx.beginPath(); ctx.arc(0, 12, 28, -Math.PI / 2 + 0.33, -Math.PI / 2 - 0.33 + TAU); ctx.stroke();
         ctx.fillStyle = lg(-38, -22, '#d9a067', '#9c6a3c'); ctx.beginPath(); ctx.roundRect(-11, -38, 22, 14, 4); ctx.fill();
         ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(-3.5, 11, 7, 19, 2); ctx.roundRect(-9.5, 17, 19, 7, 2); ctx.fill();
-        shine(-13, 0, 6, 11, 0.5);
         break;
       }
       case 'charm': {   // a gold amulet holding a fiery gem, on a cord
@@ -427,16 +426,28 @@ const Cosmetics = (() => {
         shine(-16, -16, 5, 3);
         break;
       }
-      case 'boots': {   // a sleek boot with a small wing at the heel
-        ctx.fillStyle = lg(-30, 20, '#ffffff', '#bfe9ff');
-        for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(-22 - k * 3, -20 + k * 9, 16 - k * 3, 5, -0.5 + k * 0.25, 0, TAU); ctx.fill(); }
-        ctx.fillStyle = lg(-36, 34, '#7fdcff', '#2b8fd6');
-        ctx.beginPath(); ctx.moveTo(-14, -36); ctx.lineTo(10, -36); ctx.lineTo(10, 6); ctx.quadraticCurveTo(34, 8, 38, 22); ctx.lineTo(38, 30); ctx.lineTo(-16, 30); ctx.lineTo(-16, 0); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#1d5f99'; ctx.fillRect(-17, 24, 56, 7);
-        ctx.fillStyle = '#e9f8ff'; ctx.beginPath(); ctx.roundRect(-17, -40, 30, 9, 4); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.5;
-        for (const y of [-20, -10, 0]) { ctx.beginPath(); ctx.moveTo(-2, y); ctx.lineTo(10, y + 3); ctx.stroke(); }
-        shine(-8, -20, 4, 10, 0);
+      case 'boots': {   // a sleek running boot with a swept wing at the ankle
+        // wing first, so its root tucks behind the boot
+        for (const [rot, len, w, c0, c1] of [[0.95, 46, 9, '#ffffff', '#d6f1ff'], [0.6, 42, 8.5, '#f4fbff', '#bfe8ff'], [0.28, 34, 8, '#e8f7ff', '#a6ddff']]) {
+          ctx.save(); ctx.translate(-15, -12); ctx.rotate(Math.PI + rot);
+          ctx.fillStyle = lg(-w, w, c0, c1);
+          ctx.beginPath(); ctx.moveTo(0, -w * 0.4); ctx.quadraticCurveTo(len * 0.5, w * 1.4, len, w * 0.3); ctx.quadraticCurveTo(len * 0.55, -w * 0.9, 0, -w * 0.4); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = 'rgba(80,140,200,0.35)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(2, 0); ctx.quadraticCurveTo(len * 0.5, w * 0.35, len * 0.88, w * 0.25); ctx.stroke();
+          ctx.restore();
+        }
+        const boot = () => { ctx.beginPath(); ctx.moveTo(-17, -30); ctx.lineTo(9, -30); ctx.lineTo(11, -1); ctx.bezierCurveTo(24, 1, 38, 8, 39, 21); ctx.lineTo(39, 27); ctx.quadraticCurveTo(39, 32, 34, 32); ctx.lineTo(-16, 32); ctx.quadraticCurveTo(-21, 32, -21, 27); ctx.lineTo(-21, -4); ctx.quadraticCurveTo(-21, -20, -17, -30); ctx.closePath(); };
+        boot(); ctx.fillStyle = lg(-30, 32, '#6fd6ff', '#2a86d1'); ctx.fill();
+        ctx.save(); boot(); ctx.clip();
+        ctx.fillStyle = 'rgba(0,30,80,0.18)'; ctx.fillRect(-22, -32, 9, 60);                  // shaded heel side
+        ctx.fillStyle = '#f2f8ff'; ctx.fillRect(-22, 24, 64, 9);                               // sole
+        ctx.fillStyle = '#c9dcef'; ctx.fillRect(-22, 30, 64, 3);
+        ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.beginPath(); ctx.ellipse(28, 14, 10, 6, 0.4, 0, TAU); ctx.fill();   // toe cap
+        ctx.restore();
+        ctx.fillStyle = lg(-38, -28, '#ffffff', '#d6ecff'); ctx.beginPath(); ctx.roundRect(-20, -38, 32, 10, 4); ctx.fill();   // cuff
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.4;                                   // laces
+        for (const y of [-21, -12, -3]) { ctx.beginPath(); ctx.moveTo(3, y); ctx.lineTo(11, y + 4); ctx.moveTo(3, y + 4); ctx.lineTo(11, y); ctx.stroke(); }
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2;                        // speed stripe
+        ctx.beginPath(); ctx.moveTo(-14, 16); ctx.quadraticCurveTo(6, 10, 22, 18); ctx.stroke();
         break;
       }
       case 'feather': {   // a long pale feather with a gold quill
