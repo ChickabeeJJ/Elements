@@ -934,10 +934,6 @@ const UI = (() => {
           <div class="shop-row" data-part="shop"><span class="q-ic gemc">${ic('gem')}</span><div><b>GEM CACHE</b><small>+${st.cache.gems} gems · buy as often as you like</small></div><button class="btn small${st.tokens >= st.cache.cost ? ' primary' : ''}" id="evCache">${ic('token')}<b>${st.cache.cost}</b></button></div>
           <p class="fine">Tokens come only from daily event quests. They expire when the event ends. Unlock the element before then: it's only available during this event, and it's yours to keep.</p>
         </div>
-        ${st.upcoming.length ? `<div class="card panel">
-          <div class="panel-head"><h4>${ic('clock')}COMING UP</h4></div>
-          <div class="upcoming">${st.upcoming.map(u => `<div class="up-ev" style="--c:${u.color}">${hex(u.element)}<div><b>${u.name.toUpperCase()}</b><small>${NAME(u.element)} · STARTS IN ${until(u.start)}</small></div></div>`).join('')}</div>
-        </div>` : ''}
       </div>
     </div>`;
   }
