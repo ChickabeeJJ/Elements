@@ -386,9 +386,6 @@ const Cosmetics = (() => {
     ctx.save(); ctx.translate(cx, cy); ctx.scale(r / 50, r / 50); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     const lg = (y0, y1, a, b) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; };
     const shine = (x, y, w, h, rot = -0.5) => { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(x, y, w, h, rot, 0, TAU); ctx.fill(); };
-    // soft halo in the item's colour
-    const hg = ctx.createRadialGradient(0, 4, 4, 0, 4, 52); hg.addColorStop(0, it.color + '55'); hg.addColorStop(1, it.color + '00');
-    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0, 4, 52, 0, TAU); ctx.fill();
     switch (id) {
       case 'tonic': {   // a round flask of red tonic with a cork
         ctx.fillStyle = 'rgba(220,235,255,0.25)'; ctx.beginPath(); ctx.arc(0, 12, 28, 0, TAU); ctx.fill();

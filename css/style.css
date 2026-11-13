@@ -1927,9 +1927,9 @@ body.touch .stage-card.has-twist { padding-bottom: 20px; }
 .sh-st.owned { color: var(--muted); letter-spacing: 0.06em; font-size: 10px; }
 .sh-st.worn { color: var(--green, #7ee081); letter-spacing: 0.06em; font-size: 10px; }
 .sh-st.ev { color: #7fe0ff; }
-.sh-item-ic { display: block; width: 58px; height: 58px; border-radius: 12px; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%), rgba(255, 255, 255, 0.03); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.sh-item-ic { display: block; width: 58px; height: 58px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); }
 .sh-item-ic canvas { display: block; width: 100%; height: 100%; }
-.sh-item-ic.big { width: 170px; height: 170px; border-radius: 24px; border: 0; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c) 18%, transparent), transparent 70%); }
+.sh-item-ic.big { width: 170px; height: 170px; border-radius: 24px; border: 0; background: none; }
 .sd-slots .slot canvas { width: 18px; height: 18px; flex: none; }
 .sh-count { position: absolute; top: 6px; right: 8px; font-weight: 900; font-size: 12px; }
 .sh-armed { position: absolute; top: 6px; left: 6px; font-weight: 900; font-size: 9px; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 4px; background: var(--acc); color: #10131c; }
@@ -1937,7 +1937,7 @@ body.touch .stage-card.has-twist { padding-bottom: 20px; }
 .shop-detail { display: flex; flex-direction: column; gap: 12px; padding: 16px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .sd-preview { flex: 1 1 200px; min-height: 160px; border-radius: 10px; background: radial-gradient(60% 70% at 50% 75%, color-mix(in srgb, var(--acc) 18%, transparent), transparent), linear-gradient(180deg, #171c2c, #0e1119); display: flex; }
 .sd-preview canvas { width: 100%; height: 100%; min-height: 160px; }
-.sd-item { flex: 1 1 180px; min-height: 150px; display: grid; place-items: center; border-radius: 10px; background: radial-gradient(60% 60% at 50% 50%, color-mix(in srgb, var(--c) 22%, transparent), transparent), linear-gradient(180deg, #171c2c, #0e1119); }
+.sd-item { flex: 1 1 180px; min-height: 150px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(180deg, #171c2c, #0e1119); }
 .sd-body { display: flex; flex-direction: column; gap: 8px; }
 .sd-body .kicker { display: inline-flex; align-items: center; gap: 5px; font-weight: 800; font-size: 10px; letter-spacing: 0.14em; color: var(--muted); }
 .sd-body .kicker .ic { width: 12px; height: 12px; color: #7fe0ff; }
