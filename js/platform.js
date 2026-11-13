@@ -19,6 +19,7 @@ const Platform = (() => {
   let adInFlight = false;
   let adWaitOverlay = null;
   let adBlock = false;
+  let accountsOk = false;   // sdk.user.isUserAccountAvailable, read once at init (CrazyGames asked for a single check)
   let user = null;
   let bannerOn = false, bannerId = null, bannerTimer = null;
   const BANNER_REFRESH = 30 * 1000;
@@ -72,7 +73,8 @@ const Platform = (() => {
       lastProgress = null;
       authListeners.forEach(cb => safe(() => cb(user)));
     }));
-    if (safe(() => sdk.user.isUserAccountAvailable, false)) {
+    accountsOk = !!safe(() => sdk.user.isUserAccountAvailable, false);
+    if (accountsOk) {
       try { user = await sdk.user.getUser(); } catch (e) { user = null; }
     }
     if (ADS_ENABLED) { try { adBlock = !!(await sdk.ad.hasAdblock()); } catch (e) { adBlock = false; } }
@@ -228,7 +230,7 @@ const Platform = (() => {
 
   /* -------------------------------------------------------------- user */
   async function login() {
-    if (!sdk || !safe(() => sdk.user.isUserAccountAvailable, false)) return null;
+    if (!sdk || !accountsOk) return null;
     try { user = await sdk.user.showAuthPrompt(); } catch (e) { /* cancelled */ }
     return user;
   }
@@ -287,6 +289,6 @@ const Platform = (() => {
     get adBlock() { return adBlock; }, get adsEnabled() { return ADS_ENABLED && !!sdk; },
     get rewardedAvailable() { return ADS_ENABLED && !!sdk && !adBlock; },
     get bannerActive() { return bannerOn; }, get bannersEnabled() { return BANNERS_ENABLED && ADS_ENABLED && !!sdk; }, get user() { return user; },
-    get accountsAvailable() { return !!sdk && safe(() => sdk.user.isUserAccountAvailable, false); },
+    get accountsAvailable() { return !!sdk && accountsOk; },
   };
 })();
