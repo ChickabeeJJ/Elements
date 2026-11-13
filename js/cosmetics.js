@@ -341,7 +341,7 @@ const Cosmetics = (() => {
 
   /* ---------------------------------------------------------- mannequin */
   // the hero in a relaxed stance, for the shop previews (same look as in play)
-  // the shop / profile hero: a fighting stance (feet apart, both arms forward), breathing gently
+  // the shop / profile hero: a fighting stance (feet apart, front arm forward, rear arm back), breathing gently
   function drawMannequin(ctx, cx, cy, sc, colourId, hatId, time, accent = '#bdf3e4') {
     const body = (COLOUR_BY_ID[colourId] || COLOURS[0]).body, shade = shadeOf(body);
     const br = Math.sin(time * 2.2), sway = Math.sin(time * 1.1);
@@ -356,14 +356,14 @@ const Cosmetics = (() => {
     // back leg and back arm (in shade)
     limb([[-3, -47], [-12, -24], [-17, -1]], 12.5, shade);
     dot(-18, -1, 5.6, shade);
+    // rear arm swings back behind the body, so there is one arm on each side
+    limb([[-3, -77], [-15, -64], [-22, -52 + sway]], 10.5, shade, 1.3);
+    dot(-22, -52 + sway, 5.6, shade, 1.3);
     // torso: a tapered capsule leaning a touch forward
     limb([[0, -80], [-1, -50]], 23, body);
     // front leg, slightly bent
     limb([[3, -47], [12, -25], [15, -1]], 13, body);
     dot(16, -1, 6, body);
-    // rear arm reaches forward at chest height
-    limb([[-3, -77], [6, -66], [18, -69 + sway]], 10.5, shade, 1.3);
-    dot(18, -69 + sway, 5.6, shade, 1.3);
     // head + band and its streaming tail
     const [hx, hy] = p(2, -100), hr = 13 * sc;
     ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(hx - hr, hy - hr * 1.05, hr * 2, hr * 2.1, hr * 0.8); ctx.fill();
