@@ -1458,10 +1458,10 @@ const UI = (() => {
           ? resultActions('<button class="btn" id="rMenu"><b>MENU</b></button><button class="btn" id="rRetry"><b>RETRY</b></button>', '<button class="btn primary" id="rNext"><b>NEXT</b></button>', offers)
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
-        sh.querySelector('#rMenu').onclick = toMenu;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s)); };
+        sh.querySelector('#rMenu').onclick = boss ? () => Platform.maybeMidgame(toMenu, { afterBoss: true }) : toMenu;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), { afterBoss: boss }); };
         const nb = sh.querySelector('#rNext');
-        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS)); };
+        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS), { afterBoss: boss }); };
       }, 'result');
     } else {
       modal(`
@@ -1953,9 +1953,10 @@ const UI = (() => {
           ? resultActions('<button class="btn" id="rMenu"><b>MENU</b></button><button class="btn" id="rRetry"><b>RETRY</b></button>', '<button class="btn primary" id="rNext"><b>NEXT</b></button>', offers)
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh); drawHatThumbs(sh);
-        sh.querySelector('#rMenu').onclick = toWinterMap;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i)); };
-        const nb = sh.querySelector('#rNext'); if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i + 1)); };
+        const afterBoss = w.mode === 'boss' && !res.tutorial;
+        sh.querySelector('#rMenu').onclick = afterBoss ? () => Platform.maybeMidgame(toWinterMap, { afterBoss }) : toWinterMap;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i), { afterBoss }); };
+        const nb = sh.querySelector('#rNext'); if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i + 1), { afterBoss }); };
         const wr = sh.querySelector('#rWear'); if (wr) wr.onclick = () => { Sfx.click(); Cosmetics.equip('hat', hat.id); wr.disabled = true; wr.querySelector('b').textContent = 'WORN'; };
       }, 'result');
     } else {

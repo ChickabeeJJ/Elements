@@ -144,40 +144,55 @@ const Platform = (() => {
   }
 
   // cb(success:boolean). Without the SDK (other hosts, local testing) no ad runs and no reward is given.
+  // A safety timer keeps the game from hanging if the ad network goes quiet:
+  //  - midgame: no start within 8 s, carry on without it
+  //  - rewarded: wait up to 30 s for it to start (rewarded ads often take longer to load), and
+  //    even after that the player is never told "no ad" while one could still play: the result
+  //    is reported only once the SDK says the ad finished or failed
+  //  - once an ad has started, up to 75 s for it to finish
   function requestAd(kind, cb) {
     if (!ADS_ENABLED || !sdk) { cb && cb(false); return; }
     if (adInFlight) { cb && cb(false); return; }
     adInFlight = true;
     setAdWaitOverlay(true);
-    let done = false, watchdog = 0;
+    let done = false, started = false, watchdog = 0;
     const wasPlaying = inGameplay;
     const finish = ok => {
       if (done) return; done = true; adInFlight = false;
-      clearTimeout(watchdog);
+      clearTimeout(watchdog); clearTimeout(unblock);
       setAdWaitOverlay(false);
       Sfx.setAdMuted(false);
       if (wasPlaying) gameplayStart();
       cb && cb(ok);
     };
-    // never leave the player stuck behind the tap blocker: if the ad network goes quiet
-    // (no start within 8 s, or no end within 75 s of starting), carry on without the ad
-    watchdog = setTimeout(() => finish(false), 8000);
+    const START_WAIT = kind === 'rewarded' ? 30000 : 8000;
+    watchdog = setTimeout(() => finish(false), START_WAIT);
+    // the tap blocker never stays up longer than 8 s: a slow rewarded ad keeps loading behind it
+    const unblock = setTimeout(() => { if (!done && !started) setAdWaitOverlay(false); }, 8000);
     gameplayStop();
     try {
       const p = sdk.ad.requestAd(kind, {
-        adStarted: () => { clearTimeout(watchdog); watchdog = setTimeout(() => finish(false), 75000); setAdWaitOverlay(false); Sfx.setAdMuted(true); },
-        adFinished: () => finish(true),
-        adError: () => finish(false),   // e.g. "No ad available": the game just continues
+        adStarted: () => {
+          if (done) { Sfx.setAdMuted(true); return; }   // a midgame that turned up late: just keep it quiet
+          started = true;
+          clearTimeout(watchdog); watchdog = setTimeout(() => finish(false), 75000);
+          setAdWaitOverlay(false); Sfx.setAdMuted(true);
+        },
+        adFinished: () => { if (done) { Sfx.setAdMuted(false); return; } finish(true); },
+        adError: () => { if (done) { Sfx.setAdMuted(false); return; } finish(false); },   // e.g. "No ad available": the game just continues
       });
-      if (p && p.catch) p.catch(() => finish(false));
+      // the v3 SDK resolves when the ad flow ends; only a rejection that comes before the ad has
+      // started means it failed (some SDK builds resolve/reject alongside the callbacks)
+      if (p && p.catch) p.catch(() => { if (!started) finish(false); });
     } catch (e) { finish(false); }
   }
   // UI calls this from the buttons that start or restart play; the SDK applies its own
-  // frequency limits on top.
-  // no midgame ads in the player's first 2 minutes after the game loads
+  // frequency limits on top. No midgame in the player's first 2 minutes after the game loads,
+  // except the break after beating a boss ({ afterBoss: true }), which always asks.
   const MIDGAME_GRACE = 120000, loadedAt = Date.now();
-  function maybeMidgame(cb) {
-    if (!ADS_ENABLED || !sdk || Date.now() - loadedAt < MIDGAME_GRACE) { cb && cb(); return; }
+  function maybeMidgame(cb, opts) {
+    const grace = !(opts && opts.afterBoss) && Date.now() - loadedAt < MIDGAME_GRACE;
+    if (!ADS_ENABLED || !sdk || grace) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
   }
   function rewarded(cb) { requestAd('rewarded', cb); }
