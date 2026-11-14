@@ -9,8 +9,17 @@ const Sfx = (() => {
   let sfxOn = true, musicOn = true, musicPaused = false, adMuted = false, platMuted = false;
   let musicTimer = null, musicRealm = 0, step = 0, soundtrack = null, soundtrackFailed = false;
 
+  // called on every user gesture: browsers (Edge, Chrome, Safari) only allow audio to start from one,
+  // so this also retries the soundtrack if an earlier play() was refused
   function ensure() {
-    if (ac) { if (ac.state === 'suspended') ac.resume(); return true; }
+    if (ac) {
+      if (ac.state === 'suspended') ac.resume();
+      if (soundtrack && !soundtrackFailed && soundtrack.paused && musicOn && !musicPaused && !adMuted && !platMuted) {
+        const playback = soundtrack.play();
+        if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+      }
+      return true;
+    }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     ac = new AC();
@@ -213,7 +222,13 @@ const Sfx = (() => {
   function setSfx(on) { sfxOn = on; applyGains(); }
   function setMusic(on) { musicOn = on; applyGains(); }
   function setMusicPaused(paused) { musicPaused = !!paused; applyGains(); }
-  function setAdMuted(m) { adMuted = m; applyGains(); }
+  // muted while an ad plays; never left muted for good, even if an ad network forgets to report back
+  let adMuteTimer = 0;
+  function setAdMuted(m) {
+    adMuted = m; applyGains();
+    clearTimeout(adMuteTimer);
+    if (m) adMuteTimer = setTimeout(() => { adMuted = false; applyGains(); }, 90000);
+  }
   function setPlatformMute(m) { platMuted = m; applyGains(); }
   function suspend(s) {
     if (ac) s ? ac.suspend() : ac.resume();
@@ -234,5 +249,6 @@ const Sfx = (() => {
     beat, note, chord, ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
     telegraph, portal, ringout, swap, thud, zap, boom, hurt, kill, jump, pickup, beam, thunder, click,
     win, lose, unlock, denied, setRealm, setSfx, setMusic, setMusicPaused, setAdMuted, setPlatformMute, suspend,
+    get state() { return { ctx: ac ? ac.state : 'none', music: !!(soundtrack && !soundtrack.paused), failed: soundtrackFailed, musicOn, sfxOn, musicPaused, adMuted, platMuted }; },
   };
 })();

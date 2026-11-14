@@ -15,6 +15,9 @@
   Platform.loadingStop();
   UI.init();
 
+  // audio may only start from a user gesture: any tap, click or key anywhere wakes it (not just a few buttons)
+  for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, () => Sfx.ensure(), { capture: true, passive: true });
+
   const inFight = () => UI.screen === null && !UI.modalOpen() && Game.state === 'play';
 
   /* ------------------------------------------------------------ mouse */

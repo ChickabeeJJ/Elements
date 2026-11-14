@@ -62,8 +62,9 @@ const UI = (() => {
     for (const id of ['home', 'map', 'codex', 'forge', 'hub']) $(id).classList.toggle('hidden', id !== name);
     $('hud').classList.toggle('hidden', name !== null);
     document.body.classList.toggle('playing', name === null);
-    if (name === 'home') { Sfx.setMusicPaused(true); refreshHome(); }
-    else if (name === null) Sfx.setMusicPaused(false);
+    // the soundtrack plays on the menus and in play alike (it only stops on a defeat screen)
+    if (name === 'home') refreshHome();
+    Sfx.setMusicPaused(false);
     homeShift();
     syncBanner();
     if (name) Platform.gameplayStop();   // no-op unless gameplay was on
