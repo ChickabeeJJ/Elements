@@ -462,6 +462,7 @@ const Game = (() => {
   // the most oppressive ranged foes get more delay: rapid ice shards, seeking void orbs, the
   // three-pellet slowing sand blast, and the nail gun (a hold-to-spray weapon with a 0.12 s cooldown,
   // which in a foe's hands was a near-constant stream)
+  const FOE_MELEE_MIN_CD = 0.7;
   const FOE_RANGED_CD = { ice_shards: 1.45, void_orb: 1.45, sand_blast: 2.4, nail_gun: 7 };
   function tryMove(f, mv, tx, ty) {
     if (!mv || !f.canAct || f.action) return false;
@@ -473,6 +474,8 @@ const Game = (() => {
     // ranged foes fire a little slower than a player would, so their shots don't feel like a hail
     // (Arena rivals mirror a player and keep the normal rate)
     if (enemy && !f.ai.rival && mv.slot === 'main' && mv.kind === 'projectile' && !FOE_SHORT_REACH.has(mv.id)) cd *= FOE_RANGED_CD[mv.id] || 1.3;
+    // ...and never swing faster than a beat apart, so a fast blade combo can't chain into a stun-lock
+    if (enemy && !f.ai.rival && mv.kind === 'melee') cd = Math.max(cd, FOE_MELEE_MIN_CD);
     f.cds[mv.id] = cd;
     const o = aimFrom(f);
     const ang = Math.atan2(ty - o.y, tx - o.x);
@@ -1101,6 +1104,7 @@ const Game = (() => {
     const r = mv.radius * f.s;
     let mul = 1, kmul = 1;
     if (mv.combo && act.comboStep === mv.combo.n - 1) { mul = mv.combo.dmg; kmul = mv.combo.knock; }
+    if (f.ai && !f.ai.rival) { mul = Math.min(mul, 1.4); kmul = Math.min(kmul, 1.4); }   // foes' finishers stay a jab, not a launcher
     for (const t of opponents(f)) {
       if (act.hitSet.has(t) || blocked(t)) continue;
       const hit = t.hitCapsule(n.x, n.y, tx, ty, r);
@@ -1353,6 +1357,11 @@ const Game = (() => {
     let tumbleFor = 0;
     if (st.freeze <= 0 && (K > 620 || mv.stun || dead)) tumbleFor = mv.stun || clamp(K / 1150, 0.35, 1.1);
     if (t.kind === 'boss' && !dead) tumbleFor *= 0.55;   // bosses get back on their feet fast
+    // the hero can't be knocked down again right after getting up (no stun-locks); hits still land
+    if (t.isPlayer && !dead && att && att !== t) {
+      if (time < (t.tumbleGuard || 0)) tumbleFor = 0;
+      else if (tumbleFor > 0) t.tumbleGuard = time + tumbleFor + 0.9;
+    }
     t.knock(kx, ky, o.idx, tumbleFor);
 
     if (!o.quiet || Math.random() < 0.3) {
