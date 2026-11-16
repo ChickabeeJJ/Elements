@@ -4867,8 +4867,12 @@ const Game = (() => {
     c.beginPath();
     c.moveTo(cX - d * thick * 0.6, cY + thick * 0.15);
     c.quadraticCurveTo(cX + d * thick * 0.2, cY - H * 0.1, cX + d * thick * 0.5, cY - H * 0.06);   // over the top of the crest
-    c.quadraticCurveTo(ctrlX + d * thick * 0.4, ctrlY, tipX + d * 2, tipY);                        // outer edge out to the tip
-    c.quadraticCurveTo(ctrlX - d * thick * 0.3, ctrlY + thick * 1.1, cX + d * thick * 0.1, cY + thick);   // inner edge back under
+    const oX = ctrlX + d * thick * 0.4, oY = ctrlY;
+    c.quadraticCurveTo(oX, oY, tipX, tipY);                                                         // outer edge out to the tip
+    // the inner edge leaves the tip almost parallel to the outer one, so the lip ends in a sharp point
+    let ux = tipX - oX, uy = tipY - oY; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
+    let nx = -uy, ny = ux; if (ny < 0) { nx = -nx; ny = -ny; }                                       // toward the hollow
+    c.quadraticCurveTo(tipX - ux * thick * 1.6 + nx * thick * 0.45, tipY - uy * thick * 1.6 + ny * thick * 0.45, cX + d * thick * 0.1, cY + thick);   // inner edge back under
     c.closePath(); c.fill();
     // 4. light through the thin lip, and a soft foam band on its crest (a gradient, never dots or lines)
     c.globalCompositeOperation = 'lighter';

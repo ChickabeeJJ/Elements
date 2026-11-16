@@ -209,7 +209,7 @@ function citadelFaded(realm) {
 }
 
 // where the castle's bottom edge sits: just below the nearer dune's lowest point across its width
-const CITADEL_W = 703;
+const CITADEL_W = 648;
 function citadelFoot(realm, rawRidge) {
   const cx = W * realm.sunPos[0];
   let foot = 0;
@@ -348,7 +348,7 @@ const DECOR = {
       if (CITADEL_IMG.complete && CITADEL_IMG.naturalWidth) {
         // the painted castle sits BETWEEN the sand layers, dead centre: drawn after the farthest
         // (lightest) dune and before the next one, its foot sunk into that nearer layer
-        const w = 703, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
+        const w = CITADEL_W, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
         // the foot goes below the nearer dune's LOWEST point across the castle's full width (plus a
         // margin), so the image's bottom edge is always under sand; its last strip also fades out
         const foot = citadelFoot(realm, ridgeY);
