@@ -4275,7 +4275,8 @@ const Game = (() => {
       const lockX = realm.decor === 'citadel';
       const sx = lockX ? (bg.width - sw) / 2 : clamp(fx * bg.width - sw / 2, 0, bg.width - sw), sy = clamp(fy * bg.height - sh / 2, 0, bg.height - sh);
       c.drawImage(bg, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-    } else c.drawImage(bg, 0, 0, canvas.width, canvas.height);
+      drawLiveSand(c, bg, pxScale, sx, sy, sw, sh);
+    } else { c.drawImage(bg, 0, 0, canvas.width, canvas.height); drawLiveSand(c, bg, pxScale, 0, 0, bg.width, bg.height); }
     const sk = shake > 0 && Save.data.settings.shake ? shake * 0.6 : 0;
     const k = cam.k * dpr;
     const shakeX = rand(-sk, sk), shakeY = rand(-sk, sk);
@@ -4374,6 +4375,18 @@ const Game = (() => {
       default:
         if (Math.random() < 0.4) fx.add({ x, y, vx: ux * rand(40, 140), vy: uy * rand(40, 140) - 30, color: E.color, size: rand(3, 5), life: rand(0.2, 0.35), drag: 4 });
     }
+  }
+
+  // the backdrop's living sand, drawn in world units through the same crop/scale as the backdrop
+  let sandT = 0;
+  function drawLiveSand(c, bg, pxScale, sx, sy, sw, sh) {
+    if (realm.decor !== 'citadel') return;
+    const dt = sandT ? Math.max(0, Math.min(0.05, time - sandT)) : 0; sandT = time;
+    const kx = canvas.width / sw, ky = canvas.height / sh;
+    c.save();
+    c.setTransform(pxScale * kx, 0, 0, pxScale * ky, (-view.x0 * pxScale - sx) * kx, (-view.y0 * pxScale - sy) * ky);
+    Backdrop.drawSand(c, dt);
+    c.restore();
   }
 
   // melee slash: a tapered ribbon swept through the recent tip positions, bright at the leading

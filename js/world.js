@@ -210,6 +210,7 @@ function citadelFaded(realm) {
 
 // where the castle's bottom edge sits: just below the nearer dune's lowest point across its width
 const CITADEL_W = 648;
+const SAND_RESERVE = 6;   // px of the front dune that is live, drifting sand instead of baked into the backdrop
 function citadelFoot(realm, rawRidge) {
   const cx = W * realm.sunPos[0];
   let foot = 0;
@@ -291,7 +292,12 @@ const DECOR = {
       const cx = W * realm.sunPos[0], half = CITADEL_W / 2 + 10, ease = 150;
       const dx = Math.abs(x - cx), t = clamp((half + ease - dx) / ease, 0, 1), wgt = t * t * (3 - 2 * t);
       const lip = cache.foot - 9 - (Math.sin(x * 0.011) * 0.5 + 0.5) * 3;   // a gentle sandy roll, always above the cut
-      return lerp(yy, Math.max(yy, lip), wgt);
+      // polynomial soft max: rounds the corner where the dip meets the dune, overshooting at most k/4 = 2.5 px
+      const k = 10, q = Math.max(k - Math.abs(yy - lip), 0) / k, smax = Math.max(yy, lip) + q * q * k / 4;
+      const shaped = lerp(yy, smax, wgt);
+      // the live sand (Backdrop.drawSand) sits on top of this baked layer: a thinner reserve in front of the
+      // castle (so the cut stays covered with the sand at its lowest), easing to the full reserve elsewhere
+      return shaped + lerp(SAND_RESERVE, 2.5, wgt);
     },
     sky(g, realm, x0, x1, y0, y1) {
       const sx = W * realm.sunPos[0], sy = H * realm.sunPos[1];
@@ -452,9 +458,11 @@ const Backdrop = (() => {
       sun.addColorStop(0.12, rgba(realm.sun, 0.55));
       sun.addColorStop(0.4, rgba(realm.sun, 0.12));
       sun.addColorStop(1, rgba(realm.sun, 0));
+      g.globalAlpha = realm.sunAlpha || 1;
       g.fillStyle = sun; g.fillRect(x0, y0, view.w, view.h);
       g.fillStyle = realm.sun;
       g.beginPath(); g.arc(sx, sy, 46, 0, TAU); g.fill();
+      g.globalAlpha = 1;
     }
 
     if (realm.decor && DECOR[realm.decor]) DECOR[realm.decor].sky(g, realm, x0, x1, y0, y1);
@@ -479,7 +487,9 @@ const Backdrop = (() => {
       g.fillStyle = layers[li];
       g.beginPath();
       g.moveTo(x0, y1);
-      for (let x = x0; x <= x1 + 20; x += 12) g.lineTo(x, drawRidge(li, x));
+      { let px = x0, py = drawRidge(li, x0); g.lineTo(px, py);
+        for (let x = x0 + 12; x <= x1 + 24; x += 12) { const y = drawRidge(li, x); g.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2); px = x; py = y; }
+        g.lineTo(px, py); }
       g.lineTo(x1, y1);
       g.closePath(); g.fill();
       // haze between layers
@@ -496,9 +506,99 @@ const Backdrop = (() => {
     g.fillStyle = abyss; g.fillRect(x0, H * 0.75, view.w, y1 - H * 0.75);
     // overall dim so fighters and islands pop against the sky
     g.fillStyle = 'rgba(10, 12, 26, 0.22)'; g.fillRect(x0, y0, view.w, view.h);
+    buildSand(realm, view, ridgeY, D, rcache, canvas, pxScale, x0, y0);
     return canvas;
   }
-  return { render, invalidate() { key = ''; } };
+  /* ---------------------------------------------------------- living sand
+     The citadel's front dune keeps SAND_RESERVE px of loose sand on top of its baked shape. It is a
+     1D height field: the wind carries it downwind (so ripples creep slowly along), slopes steeper
+     than the angle of repose slump, and it relaxes back toward its resting depth. Grains lift off the
+     ripple crests and drift on the wind before settling. Drawn every frame over the cached backdrop. */
+  let sand = null;
+  function buildSand(realm, view, ridge, D, rcache, cv, pxScale, x0, y0) {
+    sand = null;
+    if (!D || !D.shapeRidge) return;
+    const step = 6, xs = [], s1 = [], r2 = [], col = [];
+    let img = null;
+    try { img = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height); } catch (e) { return; }
+    const foot = rcache.foot;
+    for (let x = view.x0 - step; x <= view.x0 + view.w + step; x += step) {
+      const a = D.shapeRidge(realm, 1, x, ridge, rcache), b = ridge(2, x);
+      xs.push(x); s1.push(a); r2.push(b);
+      // the dune's own colour just below its baked surface, so the live sand matches exactly
+      const px = clamp(Math.round((x - x0) * pxScale), 0, cv.width - 1), py = clamp(Math.round((a + 4 - y0) * pxScale), 0, cv.height - 1);
+      const i = (py * cv.width + px) * 4;
+      col.push([img.data[i], img.data[i + 1], img.data[i + 2]]);
+    }
+    const cx = W * realm.sunPos[0], half = CITADEL_W / 2 + 10;
+    const h = xs.map(x => SAND_RESERVE + Math.sin(x * 0.045) * 1.6 + Math.sin(x * 0.11 + 1.3) * 0.9);
+    // inside the castle zone the surface must stay at least 6 px above the image's bottom edge
+    const minH = xs.map((x, i) => Math.abs(x - cx) < half + 20 && foot != null ? Math.max(0, s1[i] - (foot - 6)) : 0);
+    sand = { step, xs, s1, r2, col, h, minH, grains: [], t: 0 };
+  }
+  function stepSand(dt) {
+    const S = sand, n = S.h.length, h = S.h;
+    S.t += dt;
+    const wind = 0.65 + 0.35 * Math.sin(S.t * 0.11) + 0.15 * Math.sin(S.t * 0.37);   // slow gusts, always blowing right
+    const speed = 7 * wind;                                                            // ripples creep ~5-10 px/s
+    const adv = speed * dt / S.step, nh = h.slice();
+    for (let i = 0; i < n; i++) {
+      const l = h[(i - 1 + n) % n];
+      nh[i] = h[i] - adv * (h[i] - l);                                                  // carried downwind
+    }
+    for (let i = 0; i < n; i++) {                                                       // angle of repose: steep faces slump
+      const j = (i + 1) % n, slope = (nh[i] - nh[j]) / S.step;
+      if (Math.abs(slope) > 0.32) { const m = (Math.abs(slope) - 0.32) * S.step * 0.25 * Math.sign(slope); nh[i] -= m; nh[j] += m; }
+    }
+    for (let i = 0; i < n; i++) {
+      nh[i] += (SAND_RESERVE - nh[i]) * 0.02 * dt + Math.sin(S.xs[i] * 0.07 - S.t * 0.6) * 0.25 * dt;   // rest depth + ripple growth
+      h[i] = Math.max(S.minH[i], Math.max(0, nh[i]));
+    }
+    // grains lifted off ripple crests on the stronger gusts
+    if (S.grains.length < 70 && Math.random() < dt * 22 * wind * wind) {
+      const i = 1 + Math.floor(Math.random() * (n - 2));
+      if (h[i] >= h[i - 1] && h[i] >= h[i + 1] && S.s1[i] - h[i] < S.r2[i] - 2) {
+        S.grains.push({ x: S.xs[i], y: S.s1[i] - h[i], vx: 18 + 30 * wind, vy: -(4 + Math.random() * 10), life: 1.6 + Math.random() * 1.6, max: 0, c: S.col[i] });
+        S.grains[S.grains.length - 1].max = S.grains[S.grains.length - 1].life;
+      }
+    }
+    for (const g of S.grains) { g.life -= dt; g.vy += 14 * dt; g.vx += (18 + 30 * wind - g.vx) * dt; g.x += g.vx * dt; g.y += g.vy * dt; }
+    S.grains = S.grains.filter(g => g.life > 0);
+  }
+  function drawSand(c, dt) {
+    if (!sand) return;
+    stepSand(Math.min(dt, 0.05));
+    const S = sand, n = S.xs.length;
+    // the live sand: between its moving surface and the baked layer, never over the nearer dune
+    for (let i = 0; i < n - 1; i++) {
+      const xa = S.xs[i], xb = S.xs[i + 1];
+      const ta = S.s1[i] - S.h[i], tb = S.s1[i + 1] - S.h[i + 1];
+      const ba = Math.min(S.s1[i], S.r2[i]) + 0.6, bb = Math.min(S.s1[i + 1], S.r2[i + 1]) + 0.6;
+      if (ta >= ba && tb >= bb) continue;
+      const [r, g, b] = S.col[i];
+      c.fillStyle = `rgb(${r},${g},${b})`;
+      c.beginPath(); c.moveTo(xa, Math.min(ta, ba)); c.lineTo(xb + 0.5, Math.min(tb, bb)); c.lineTo(xb + 0.5, bb); c.lineTo(xa, ba); c.closePath(); c.fill();
+    }
+    // a faint lit rim on the windward faces of the ripples
+    c.lineWidth = 1.2; c.lineCap = 'round';
+    for (let i = 1; i < n; i++) {
+      const rise = S.h[i] - S.h[i - 1];
+      if (rise <= 0.05) continue;
+      const y0 = S.s1[i - 1] - S.h[i - 1], y1 = S.s1[i] - S.h[i];
+      if (y1 > S.r2[i] - 1) continue;
+      const [r, g, b] = S.col[i];
+      c.strokeStyle = `rgba(${Math.min(255, r + 40)},${Math.min(255, g + 34)},${Math.min(255, b + 24)},${Math.min(0.5, rise * 0.6)})`;
+      c.beginPath(); c.moveTo(S.xs[i - 1], y0); c.lineTo(S.xs[i], y1); c.stroke();
+    }
+    for (const g of S.grains) {
+      const a = Math.sin(Math.PI * (1 - g.life / g.max)) * 0.8;
+      const [r, gg, b] = g.c;
+      c.fillStyle = `rgba(${Math.min(255, r + 50)},${Math.min(255, gg + 44)},${Math.min(255, b + 30)},${a})`;
+      c.fillRect(g.x - 0.8, g.y - 0.8, 1.6, 1.6);
+    }
+  }
+
+  return { render, drawSand, get sand() { return sand; }, invalidate() { key = ''; } };
 })();
 
 /* --------------------------------------------------------------- ambience */

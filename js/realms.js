@@ -79,7 +79,7 @@ const REALMS = [
   },
   {
     id: 'citadel', name: 'Radiant Citadel', element: 'light',
-    sky: ['#3b2a6e', '#b36fa8', '#ffd59a'], sun: '#fff6d6', sunPos: [0.5, 0.24], showSun: true,
+    sky: ['#3b2a6e', '#b36fa8', '#ffd59a'], sun: '#fff6d6', sunPos: [0.5, 0.24], showSun: true, sunAlpha: 0.72,
     hills: ['#e7c58c', '#c39a62', '#8d6a45'], fog: '#ffe8b8',
     top: '#fff0c2', topDark: '#e8c477', rock: '#c9a46a', rockDark: '#94723f',
     ambient: 'glimmer', tint: '#fff3b0', glowTop: true, decor: 'citadel',
