@@ -508,6 +508,11 @@ const Game = (() => {
       const o = aimFrom(f);
       f.aim = Math.atan2(a.y - o.y, a.x - o.x);
       f.facing = Math.cos(f.aim) >= 0 ? 1 : -1;
+    } else if (f.ai && !f.ai.rival && mv.kind === 'beam' && act.t >= mv.windup) {
+      // foes sweep the beam through an arc that starts off-target, so it can be read and dodged
+      if (!act.sweep) { const dir = Math.random() < 0.5 ? -1 : 1; act.sweep = { a0: f.aim - dir * 0.55, dir }; }
+      const u = clamp((act.t - mv.windup) / mv.active, 0, 1);
+      f.aim = act.sweep.a0 + act.sweep.dir * 1.1 * u;
     }
     if (!act.fired && act.t >= mv.windup) { act.fired = true; fireMove(f, act); }
     const inActive = act.t >= mv.windup && act.t < mv.windup + mv.active;
@@ -1153,8 +1158,9 @@ const Game = (() => {
       if (!t.alive || blocked(t)) continue;
       const hit = t.hitCapsule(h.x, h.y, ex, ey, mv.width);
       if (!hit) continue;
-      if (t.mode === 'active') { t.root.vx += ax * mv.push * dt * 2 / t.weight; t.root.vy += ay * mv.push * dt / t.weight - 400 * dt; }
-      if (tick) applyHit(f, t, { mv, el: act.el, dmg: mv.dps * 0.12, knock: 160, lift: 0.2, dirX: ax, dirY: ay, idx: hit.idx, px: hit.px, py: hit.py, quiet: true });
+      const pushK = f.ai && !f.ai.rival ? 0.22 : 1;   // a foe's beam stings but doesn't hurl the hero off the island
+      if (t.mode === 'active') { t.root.vx += ax * mv.push * pushK * dt * 2 / t.weight; t.root.vy += ay * mv.push * pushK * dt / t.weight - 400 * pushK * dt; }
+      if (tick) applyHit(f, t, { mv, el: act.el, dmg: mv.dps * 0.12, knock: 160 * (pushK < 1 ? 0.5 : 1), lift: pushK < 1 ? 0.05 : 0.2, dirX: ax, dirY: ay, idx: hit.idx, px: hit.px, py: hit.py, quiet: true });
     }
     if (Math.random() < 0.6) fx.add({ x: lerp(h.x, ex, Math.random()), y: lerp(h.y, ey, Math.random()), vx: rand(-40, 40), vy: rand(-40, 40), color: act.el === 'light' ? '#fff3b0' : (ELEMENT_BY_ID[act.el] || NEUTRAL).color, size: rand(4, 9), life: 0.3 });
   }
@@ -1712,7 +1718,10 @@ const Game = (() => {
           applyHit(w.owner, t, { mv: w.mv, el: w.el, dmg: w.mv.dmg, knock: w.mv.knock, lift: w.mv.lift, dirX: w.dir, dirY: 0, idx: P.PELVIS, px: c.x, py: c.y });
         }
       }
-      if (w.el === 'water' && Math.random() < 0.9) fx.add({ kind: 'drop', x: w.x + rand(-20, 20), y: w.y - rand(0, w.h), vx: w.dir * rand(50, 250), vy: -rand(100, 350), g: 1400, color: pick(['#7cc8ff', '#d6efff', '#2f7fe0']), size: rand(2, 5), life: 0.6, add: false });
+      if (w.el === 'water') {
+        if (Math.random() < 0.7) fx.add({ kind: 'drop', x: w.x + w.dir * w.h * 0.3, y: w.y - w.h * rand(0.6, 0.95), vx: w.dir * rand(120, 320), vy: -rand(80, 260), g: 1400, color: pick(['#d6efff', '#9fd8ff', '#ffffff']), size: rand(1.5, 3.5), life: 0.55, add: false });
+        if (Math.random() < 0.25) fx.add({ kind: 'smoke', x: w.x + w.dir * w.h * 0.3, y: w.y - w.h * 0.85, vx: w.dir * rand(40, 120), vy: -rand(30, 80), color: '#e6f6ff', size: rand(6, 10), life: rand(0.25, 0.45), grow: 20, add: false });
+      }
       if (w.el !== 'water' && Math.random() < 0.6) fx.add({ kind: 'chunk', x: w.x, y: w.y, vx: rand(-60, 60), vy: -rand(200, 450), g: 1600, color: pick(['#9b7653', '#c4a07a']), size: rand(3, 7), life: 0.6, vr: rand(-10, 10), add: false });
     }
     waves = waves.filter(w => w.life > 0);
@@ -4331,7 +4340,7 @@ const Game = (() => {
   // accent emitted along the edge while the swing is live (see swingAccent)
   const SWING_LOOK = {
     light:   { body: '#f2b41c', edge: '#fffbe5', w: 0.5, hold: 1.0, accent: 'glint', echo: 2 },
-    crimson: { body: '#8e0f2a', edge: '#ff5a72', w: 0.55, hold: 1.2, accent: 'blood', echo: 0 },
+    crimson: { body: '#6e0c22', edge: '#ff5a72', w: 0.35, hold: 0.7, accent: 'blood', echo: 0 },
     moon:    { body: '#6f7fc4', edge: '#eef2ff', w: 0.38, hold: 1.4, accent: 'mote', echo: 1 },
     shadow:  { body: '#2a1840', edge: '#b48cff', w: 0.62, hold: 1.1, accent: 'ink', echo: 0, dark: true },
     time:    { body: '#b88a2e', edge: '#fff1c4', w: 0.32, hold: 1.0, accent: 'tick', echo: 3 },
@@ -4398,11 +4407,46 @@ const Game = (() => {
         c.beginPath(); c.moveTo(tr[i - 1].x, tr[i - 1].y); c.lineTo(tr[i].x, tr[i].y); c.stroke();
       }
     }
+    if (act.el === 'crimson' && u <= 1.25) drawBloodWhip(c, f, act, u);
     // a soft bloom at the blade's head while it is cutting
-    if (u <= 1) {
+    if (u <= 1 && act.el !== 'crimson') {
       const h = tr[n - 1];
       c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fade;
       Glow.draw(c, L.edge, h.x, h.y, (finisher ? 34 : 24) * f.s, 1);
+    }
+    c.restore();
+  }
+
+  // Crimson Lash: a whip of blood from the hand to the tip of the swing, thick at the grip and
+  // tapering to a thread, a ripple running down it, a wet highlight, and a crack at full reach
+  function drawBloodWhip(c, f, act, u) {
+    const tr = act.trail, n = tr.length, h = f.hand(), tip = tr[n - 1], mid = tr[Math.max(0, n - 4)];
+    const fade = clamp((1.25 - u) / 0.35, 0, 1);
+    // control point lags behind the tip, so the whip bows like a real lash
+    const cx = lerp(h.x, mid.x, 0.8) + (h.y - tip.y) * 0.18, cy = lerp(h.y, mid.y, 0.8) - (h.x - tip.x) * 0.06;
+    const N = 22, pts = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, a = (1 - t) * (1 - t), b = 2 * (1 - t) * t, q = t * t;
+      let x = a * h.x + b * cx + q * tip.x, y = a * h.y + b * cy + q * tip.y;
+      const ripple = Math.sin(t * 9 - u * 14) * 6 * t * f.s;                  // a wave running out to the tip
+      const nx = -(tip.y - h.y), ny = tip.x - h.x, nl = Math.hypot(nx, ny) || 1;
+      pts.push([x + nx / nl * ripple, y + ny / nl * ripple]);
+    }
+    c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.globalCompositeOperation = 'source-over';
+    for (let i = 1; i <= N; i++) {
+      const t = i / N, w = lerp(10, 2, t) * f.s;
+      c.globalAlpha = fade; c.strokeStyle = t < 0.5 ? '#5e0a1c' : '#7d0f26'; c.lineWidth = w;
+      c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.stroke();
+    }
+    // wet highlight along the upper side of the lash
+    c.globalCompositeOperation = 'lighter';
+    c.globalAlpha = fade * 0.4; c.strokeStyle = '#ff4f6d'; c.lineWidth = 1.4 * f.s;
+    c.beginPath(); for (let i = 2; i <= N - 3; i++) (i === 2 ? c.moveTo : c.lineTo).call(c, pts[i][0], pts[i][1] - 1.8 * f.s); c.stroke();
+    // the crack at full reach
+    if (u > 0.7 && u < 1.05) {
+      const k = 1 - Math.abs(u - 0.88) / 0.18;
+      c.globalAlpha = clamp(k, 0, 1) * 0.9; Glow.draw(c, '#ff3d5e', tip.x, tip.y, 26 * f.s, 1);
+      c.globalAlpha = clamp(k, 0, 1); Glow.draw(c, '#ffd0d8', tip.x, tip.y, 9 * f.s, 1);
     }
     c.restore();
   }
@@ -4762,9 +4806,64 @@ const Game = (() => {
     c.restore();
   }
 
+  // Tide: a curling breaker. A long swell rises from behind to a crest, the lip curls forward over
+  // a steep face; the lip is lit through (lighter, translucent), foam rides the crest and whitewash
+  // churns at its foot
+  function drawWaterWave(c, w, h, k) {
+    const d = w.dir, X = w.x, Y = w.y, tail = 230 * (h / 95), seed = w.seed || (w.seed = Math.random() * 10);
+    const surf = u => Math.sin(u * 9 + time * 7 + seed) * 2.5 + Math.sin(u * 23 - time * 11) * 1.2;   // ripples
+    // top surface: from the tail (u=0) to the crest (u=1)
+    const top = [];
+    for (let i = 0; i <= 18; i++) {
+      const u = i / 18, rise = Math.pow(u, 2.2);
+      top.push([X - d * tail * (1 - u), Y - h * rise + surf(u) * u]);
+    }
+    const lipX = X + d * h * 0.42, lipY = Y - h * 0.62, faceX = X + d * h * 0.18;
+    c.save();
+    // body
+    const g = c.createLinearGradient(0, Y - h, 0, Y);
+    g.addColorStop(0, rgba('#8fd3f0', 0.88 * k)); g.addColorStop(0.45, rgba('#2f8fd0', 0.86 * k)); g.addColorStop(1, rgba('#123f7a', 0.92 * k));
+    c.fillStyle = g;
+    c.beginPath(); c.moveTo(X - d * tail, Y);
+    for (const [x, y] of top) c.lineTo(x, y);
+    c.bezierCurveTo(X + d * h * 0.25, Y - h * 1.04, lipX + d * 6, Y - h * 0.9, lipX, lipY);        // over the crest into the lip
+    c.quadraticCurveTo(X + d * h * 0.28, Y - h * 0.5, faceX + d * 4, Y - h * 0.62);                 // lip curls back under
+    c.quadraticCurveTo(faceX - d * 10, Y - h * 0.3, faceX + d * 14, Y);                             // steep face down to the ground
+    c.closePath(); c.fill();
+    // light through the lip
+    c.globalCompositeOperation = 'lighter';
+    const lg = c.createRadialGradient(X + d * h * 0.18, Y - h * 0.82, 2, X + d * h * 0.18, Y - h * 0.82, h * 0.5);
+    lg.addColorStop(0, rgba('#bff0ff', 0.5 * k)); lg.addColorStop(1, rgba('#bff0ff', 0));
+    c.fillStyle = lg; c.fillRect(X - d * h * 0.4 - h * 0.6, Y - h * 1.4, h * 2, h * 1.2);
+    // streaks of moving water down the swell
+    c.strokeStyle = rgba('#d6f3ff', 0.25 * k); c.lineWidth = 1.5; c.lineCap = 'round';
+    for (let j = 0; j < 4; j++) {
+      const u0 = ((time * 0.9 + j * 0.27) % 1) * 0.8 + 0.15, [x0, y0] = top[Math.round(u0 * 18)];
+      c.beginPath(); c.moveTo(x0, y0 + 8); c.lineTo(x0 - d * 26, y0 + 8 + h * 0.18); c.stroke();
+    }
+    // foam riding the crest and lip: soft, broken, never an outline
+    c.globalCompositeOperation = 'source-over';
+    for (let i = 10; i <= 18; i++) {
+      const [x, y] = top[i], r = (3 + (i - 10) * 0.7) * (0.8 + 0.4 * Math.sin(i * 3.1 + time * 9));
+      c.globalAlpha = 0.75 * k; c.fillStyle = '#f2fbff'; c.beginPath(); c.arc(x, y + 1, r, 0, TAU); c.fill();
+    }
+    for (let i = 0; i < 6; i++) {
+      const t = i / 5, x = lerp(top[18][0], lipX, t) + Math.sin(time * 13 + i) * 1.5, y = lerp(top[18][1], lipY, t) - Math.sin(t * Math.PI) * h * 0.12;
+      c.globalAlpha = 0.85 * k; c.beginPath(); c.arc(x, y, 4.5 - t * 1.5, 0, TAU); c.fill();
+    }
+    // whitewash churning at the foot
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const x = faceX + d * (8 + Math.sin(time * 10 + i * 1.7) * 10 + i * 6), y = Y - 6 - Math.abs(Math.sin(time * 8 + i)) * 10;
+      c.globalAlpha = 0.45 * k; Glow.draw(c, '#e8f8ff', x, y, 16 + i * 2, 1);
+    }
+    c.restore();
+  }
+
   function drawWave(c, w) {
     const k = clamp(w.life / w.max * 1.6, 0, 1);
     const h = w.h * (0.4 + k * 0.6);
+    if (w.el === 'water') { drawWaterWave(c, w, h, k); return; }
     if (w.el !== 'earth') {
       const WE = ELEMENT_BY_ID[w.el] || NEUTRAL;
       const g = c.createLinearGradient(0, w.y - h, 0, w.y);

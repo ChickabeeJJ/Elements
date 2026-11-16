@@ -197,7 +197,7 @@ function citadelFaded(realm) {
   const c = cv.getContext('2d');
   // the art is already painted in this realm's palette: just lift it a little so it holds up
   // under the backdrop's overall dimming
-  c.filter = 'saturate(1.1) brightness(1.12)';
+  c.filter = 'saturate(1.28) brightness(1.22) contrast(1.04)';
   c.drawImage(im, 0, 0);
   c.filter = 'none';
   c.globalCompositeOperation = 'destination-in';
@@ -335,7 +335,7 @@ const DECOR = {
         for (let x = cx - w / 2 - 20; x <= cx + w / 2 + 20; x += 6) foot = Math.max(foot, ridgeY(1, x));
         foot += 34;
         const gl = g.createRadialGradient(cx, foot - h * 0.55, 0, cx, foot - h * 0.55, 480);
-        gl.addColorStop(0, 'rgba(255,230,170,0.38)'); gl.addColorStop(1, 'rgba(255,230,170,0)');
+        gl.addColorStop(0, 'rgba(255,232,175,0.48)'); gl.addColorStop(1, 'rgba(255,230,170,0)');
         g.fillStyle = gl; g.fillRect(cx - 480, foot - h - 140, 960, h + 260);
         g.globalAlpha = 0.95;
         g.drawImage(citadelFaded(realm), cx - w / 2, foot - h, w, h);

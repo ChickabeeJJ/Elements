@@ -623,7 +623,8 @@ class Fighter {
 
     const fl = this.flash;
     const stopped = this.stopT > 0;   // Chrono's Time Stop: drained of all colour
-    const baseBody = stopped ? '#a3a3ab' : this.body, baseShade = stopped ? '#86868e' : this.shade;
+    const gold = st.gilded > 0 && st.freeze > 0;   // Midas: turned to solid gold
+    const baseBody = stopped ? '#a3a3ab' : gold ? '#e2b13c' : this.body, baseShade = stopped ? '#86868e' : gold ? '#a8741c' : this.shade;
     const body = fl > 0 ? mixHex(baseBody, '#ffffff', fl) : baseBody;
     const shade = fl > 0 ? mixHex(baseShade, '#ffffff', fl) : baseShade;
     const seg = (a, b, w, col) => {
@@ -648,7 +649,7 @@ class Fighter {
       ctx.lineTo(x2, y2);
       ctx.stroke();
     };
-    const bandColor = this.stopT > 0 ? '#b8b8c0' : this.el === 'none' ? '#aeb8c8' : (this.stopT > 0 ? '#b8b8c0' : this.accent);
+    const bandColor = gold ? '#f6d77a' : this.stopT > 0 ? '#b8b8c0' : this.el === 'none' ? '#aeb8c8' : (this.stopT > 0 ? '#b8b8c0' : this.accent);
     cuff(P.BELB, P.BHAND, bandColor);
     // Small rounded hand endpoints clarify where the rear arms finish.
     ctx.fillStyle = shade;
@@ -714,7 +715,20 @@ class Fighter {
       }
     }
     // freeze: faceted ice shell around the whole body
-    if (st.freeze > 0 && !(this.stopT > 0)) {
+    if (st.gilded > 0 && st.freeze > 0) {
+      // solid gold: a polished sheen sliding head to toe, and a glint catching the light
+      const a = fade * clamp(st.freeze * 2, 0, 1), y0 = pts[P.HEAD].y - 20 * s, y1 = Math.max(pts[P.FFOOT].y, pts[P.BFOOT].y), band = (time * 0.7) % 1.6 - 0.3;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+      for (const [A, B, w] of [[1, 2, 22], [2, 7, 13.5], [7, 8, 11.5], [1, 3, 11], [3, 4, 9.5], [2, 9, 13], [9, 10, 11], [1, 5, 11], [5, 6, 9.5]]) {
+        const my = (pts[A].y + pts[B].y) / 2, u = (my - y0) / Math.max(1, y1 - y0), k = Math.max(0, 1 - Math.abs(u - band) * 5);
+        if (k <= 0) continue;
+        ctx.globalAlpha = a * k * 0.75; ctx.strokeStyle = '#fff3c4'; ctx.lineWidth = w * s * 0.45;
+        ctx.beginPath(); ctx.moveTo(pts[A].x - 2 * s, pts[A].y); ctx.lineTo(pts[B].x - 2 * s, pts[B].y); ctx.stroke();
+      }
+      ctx.globalAlpha = a * (0.5 + 0.5 * Math.sin(time * 5)); Glow.draw(ctx, '#fff6d6', pts[P.HEAD].x - 5 * s, pts[P.HEAD].y - 6 * s, 9 * s, 1);
+      ctx.restore(); ctx.globalAlpha = fade;
+    }
+    if (st.freeze > 0 && !(this.stopT > 0) && !(st.gilded > 0)) {
       const a = fade * clamp(st.freeze * 2, 0, 1);
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       for (const q of pts) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
