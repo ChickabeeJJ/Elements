@@ -883,10 +883,21 @@ class Fighter {
         g.addColorStop(0, 'rgba(124,200,255,0)'); g.addColorStop(0.8, 'rgba(124,200,255,0.18)'); g.addColorStop(1, 'rgba(170,225,255,0.45)');
         ctx.globalAlpha = fade; ctx.fillStyle = g;
         ctx.beginPath(); ctx.ellipse(c.x, cy, R + wob, R - wob, 0, 0, TAU); ctx.fill();
-        ctx.strokeStyle = 'rgba(220,242,255,0.9)'; ctx.lineWidth = 2.2; ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.arc(c.x, cy, R * 0.8, Math.PI * 1.1, Math.PI * 1.35); ctx.stroke();
-        ctx.beginPath(); ctx.arc(c.x - R * 0.42, cy - R * 0.5, 3 * s, 0, TAU); ctx.fillStyle = '#ffffff'; ctx.fill();
+        // a thin water film: the rim brightens and fades as light slides round it (no solid outline)
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 24; i++) {
+          const a0 = i / 24 * TAU, lit = 0.5 + 0.5 * Math.sin(a0 * 2 - time * 2.2);
+          ctx.globalAlpha = fade * (0.12 + 0.55 * lit * lit);
+          ctx.strokeStyle = lit > 0.8 ? '#ffffff' : '#bfe6ff'; ctx.lineWidth = (1 + lit * 1.6) * s;
+          ctx.beginPath(); ctx.ellipse(c.x, cy, R + wob, R - wob, 0, a0, a0 + TAU / 24 * 0.9); ctx.stroke();
+        }
+        // caustic glints drifting over the surface
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 3; i++) {
+          const a = time * (0.6 + i * 0.25) + i * 2.1;
+          ctx.globalAlpha = fade * 0.5; Glow.draw(ctx, '#dff4ff', c.x + Math.cos(a) * R * 0.6, cy + Math.sin(a * 1.3) * R * 0.55, 10 * s, 1);
+        }
+        ctx.globalCompositeOperation = 'source-over';
       }
       ctx.globalAlpha = fade;
     }

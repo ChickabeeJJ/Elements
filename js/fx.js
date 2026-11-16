@@ -80,7 +80,12 @@ class FX {
       const a = clamp(p.life / p.max, 0, 1);
       ctx.globalAlpha = p.kind === 'smoke' ? a * 0.35 : Math.min(1, a * 2);
       ctx.fillStyle = p.color;
-      if (p.kind === 'chunk') {
+      if (p.kind === 'drop') {
+        // a falling droplet, stretched along its motion
+        const sp = Math.hypot(p.vx, p.vy) || 1, L = Math.min(p.size * 3, p.size + sp * 0.012);
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.size; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx / sp * L, p.y - p.vy / sp * L); ctx.stroke();
+      } else if (p.kind === 'chunk') {
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
         ctx.beginPath(); ctx.moveTo(-p.size, -p.size * 0.6); ctx.lineTo(p.size * 0.8, -p.size * 0.8); ctx.lineTo(p.size, p.size * 0.5); ctx.lineTo(-p.size * 0.4, p.size); ctx.closePath(); ctx.fill();
         ctx.restore();
@@ -102,8 +107,14 @@ class FX {
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0);
         ctx.fillRect(-r / 2, -r / 2, r, r);
         ctx.restore();
+      } else if (p.kind === 'smoke') {
+        // soft-edged puff: no hard rim, so smoke and ink read as vapour rather than discs
+        const r = p.size * (1 + (1 - a)) * 1.4;
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+        g.addColorStop(0, rgba(p.color, 1)); g.addColorStop(0.55, rgba(p.color, 0.55)); g.addColorStop(1, rgba(p.color, 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
       } else {
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.kind === 'smoke' ? 1 + (1 - a) : 1), 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
       }
     }
     ctx.globalAlpha = 1;
@@ -112,15 +123,22 @@ class FX {
       if (!p.add) continue;
       const a = clamp(p.life / p.max, 0, 1);
       if (p.kind === 'ring') {
-        // shockwave: soft filled disc, a wide haze band and a crisp leading edge
+        // shockwave: a soft pressure band with a broken, uneven leading edge (no hard outline)
         const r = p.size * (1 - a * a) + 4;
-        const g = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r);
-        g.addColorStop(0, rgba(p.color, 0)); g.addColorStop(0.75, rgba(p.color, 0.1 * a)); g.addColorStop(1, rgba(p.color, 0.32 * a));
+        const seed = p.seed || (p.seed = Math.random() * 100);
+        const g = ctx.createRadialGradient(p.x, p.y, r * 0.45, p.x, p.y, r);
+        g.addColorStop(0, rgba(p.color, 0)); g.addColorStop(0.8, rgba(p.color, 0.12 * a)); g.addColorStop(1, rgba(p.color, 0.26 * a));
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
-        ctx.globalAlpha = a * 0.35; ctx.strokeStyle = p.color; ctx.lineWidth = p.width * 2.4 * a + 2;
-        ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0, r - p.width * 0.6), 0, TAU); ctx.stroke();
-        ctx.globalAlpha = a; ctx.lineWidth = p.width * 0.7 * a + 1.5; ctx.strokeStyle = mixHex(p.color, '#ffffff', 0.45);
-        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
+        const edge = mixHex(p.color, '#ffffff', 0.3), N = 28, big = clamp((p.size - 120) / 360, 0, 1);   // wide waves read as pressure, not lines
+        ctx.strokeStyle = edge; ctx.lineCap = 'round';
+        for (let i = 0; i < N; i++) {
+          const n = Math.sin(seed + i * 1.7) * 0.5 + Math.sin(seed * 2.3 + i * 0.63) * 0.5;   // -1..1, stable per ring
+          if (n < big * 0.6 - 0.55) continue;                                                // gaps in the front (more on big waves)
+          const a0 = (i / N) * TAU, a1 = a0 + TAU / N * 0.85, rr = r * (1 + n * 0.025);
+          ctx.globalAlpha = a * (0.35 + 0.35 * (n + 1) / 2) * (1 - big * 0.55);
+          ctx.lineWidth = (p.width * 0.55 * a + 0.8) * (0.6 + 0.6 * (n + 1) / 2);
+          ctx.beginPath(); ctx.arc(p.x, p.y, rr, a0, a1); ctx.stroke();
+        }
         ctx.globalAlpha = 1;
       } else if (p.kind === 'flame' || p.kind === 'shard') {
         // oriented along velocity: flame tongues and ice shards
@@ -153,13 +171,14 @@ class FX {
         ctx.closePath(); ctx.fill();
         ctx.restore(); ctx.globalAlpha = 1;
       } else if (p.kind === 'crescent') {
-        // wind gust: a curved air blade sweeping outward along p.ang
-        const r = p.size * (1.2 - a * 0.6);
-        ctx.globalAlpha = a * 0.9; ctx.strokeStyle = p.color; ctx.lineCap = 'round';
-        ctx.lineWidth = 2 + a * 7;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r, p.ang - 0.75, p.ang + 0.75); ctx.stroke();
-        ctx.globalAlpha = a * 0.5; ctx.lineWidth = 1.5 + a * 3;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.72, p.ang - 0.55, p.ang + 0.55); ctx.stroke();
+        // wind gust: a tapered blade of air, thick in the middle and vanishing at both tips
+        const r = p.size * (1.2 - a * 0.6), span = 0.8, N = 14;
+        ctx.strokeStyle = p.color; ctx.lineCap = 'round';
+        for (let i = 0; i < N; i++) {
+          const t0 = i / N, t1 = (i + 1) / N, mid = Math.sin(((t0 + t1) / 2) * Math.PI);
+          ctx.globalAlpha = a * 0.75 * mid; ctx.lineWidth = 0.6 + a * 5 * mid;
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, p.ang - span + t0 * span * 2, p.ang - span + t1 * span * 2); ctx.stroke();
+        }
         ctx.globalAlpha = 1;
       } else if (p.kind === 'beam') {
         const w = p.size * (0.4 + a * 0.6);

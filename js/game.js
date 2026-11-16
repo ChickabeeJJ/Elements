@@ -914,7 +914,13 @@ const Game = (() => {
           t.stopT = mv.dur * (t.kind === 'boss' ? 0.6 : 1); t.stored = 0; t.stopBonus = mv.bonus; t.stopOwner = f;
           t.status.freeze = t.stopT; t.action = null; n++;
         }
-        for (let i = 0; i < 4; i++) blasts.push({ x: c.x, y: c.y, t: -i * 0.07, done: false, col: '#ffe9a8' });
+        // time stops: one soft pressure wave, and a dial of clock ticks flung outward that slow to a halt
+        fx.ring(c.x, c.y, '#ffe9a8', mv.radius, 0.7, 8);
+        for (let i = 0; i < 36; i++) {
+          const a = i / 36 * TAU, v = rand(520, 760) * (i % 3 ? 1 : 1.25);
+          fx.add({ kind: 'spark', x: c.x + Math.cos(a) * 30, y: c.y + Math.sin(a) * 30, vx: Math.cos(a) * v, vy: Math.sin(a) * v, color: i % 3 ? '#ffe9a8' : '#ffffff', size: i % 3 ? 3 : 5, life: 0.6, drag: 4.5 });
+        }
+        fx.add({ x: c.x, y: c.y, color: "#fff6d6", size: 90, life: 0.35, grow: 220 });
         realmFlash = Math.max(realmFlash, 0.25); shake = Math.max(shake, 8);
         Sfx.freeze(); Sfx.charge();
         break;
@@ -1101,6 +1107,7 @@ const Game = (() => {
     }
     act.trail.push({ x: tx, y: ty, ix: lerp(n.x, tx, 0.45), iy: lerp(n.y, ty, 0.45) });
     if (act.trail.length > 10) act.trail.shift();
+    if (!mv.stretch) swingAccent(f, act, tx, ty, ux, uy);
     const r = mv.radius * f.s;
     let mul = 1, kmul = 1;
     if (mv.combo && act.comboStep === mv.combo.n - 1) { mul = mv.combo.dmg; kmul = mv.combo.knock; }
@@ -1154,8 +1161,14 @@ const Game = (() => {
 
   function nova(f, x, y, mv, el) {
     const col = ELEMENT_BY_ID[el] ? ELEMENT_BY_ID[el].color : '#ffffff';
-    fx.ring(x, y, col, mv.radius, 0.45, 12);
+    fx.ring(x, y, col, mv.radius, 0.45, 8);
     fx.burst(x, y, col, 16, mv.radius * 2.2);
+    // each nova leaves its own vapour rolling outward: frost mist, nightmare ink, wind spray
+    const VAP = { frost: ['#e6f8ff', '#bfeaff', true], shadow: ['#1b1029', '#3a2160', false], wind: ['#e6fff7', '#bff5e4', true], void: ['#1b1029', '#5b3fa0', false] }[el];
+    if (VAP) for (let i = 0; i < 14; i++) {
+      const a = i / 14 * TAU + rand(-0.2, 0.2), v = mv.radius * rand(1.6, 2.4);
+      fx.add({ kind: 'smoke', x: x + Math.cos(a) * 20, y: y + Math.sin(a) * 20, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7 - 20, color: pick([VAP[0], VAP[1]]), size: rand(12, 20), life: rand(0.5, 0.8), drag: 4, grow: 30, add: false });
+    }
     novaShapes(x, y, mv.radius, el, col);
     if (el === 'fire') { for (let i = 0; i < 10; i++) fx.add({ kind: 'smoke', x: x + rand(-50, 50), y: y + rand(-30, 30), vy: -rand(30, 80), color: '#3a2a2a', size: rand(16, 28), life: rand(0.7, 1.2), add: false }); Sfx.boom(0.8); }
     else if (el === 'frost') Sfx.freeze();
@@ -4314,41 +4327,123 @@ const Game = (() => {
     }
   }
 
-  // melee slash: a tapered crescent ribbon swept through the recent tip positions
+  // Melee looks, one per element: body/edge colours, ribbon width, how long it lingers and an
+  // accent emitted along the edge while the swing is live (see swingAccent)
+  const SWING_LOOK = {
+    light:   { body: '#f2b41c', edge: '#fffbe5', w: 0.5, hold: 1.0, accent: 'glint', echo: 2 },
+    crimson: { body: '#8e0f2a', edge: '#ff5a72', w: 0.55, hold: 1.2, accent: 'blood', echo: 0 },
+    moon:    { body: '#6f7fc4', edge: '#eef2ff', w: 0.38, hold: 1.4, accent: 'mote', echo: 1 },
+    shadow:  { body: '#2a1840', edge: '#b48cff', w: 0.62, hold: 1.1, accent: 'ink', echo: 0, dark: true },
+    time:    { body: '#b88a2e', edge: '#fff1c4', w: 0.32, hold: 1.0, accent: 'tick', echo: 3 },
+    steel:   { body: '#7f8ea3', edge: '#ffffff', w: 0.3, hold: 0.8, accent: 'spark', echo: 0 },
+    arcane:  { body: '#7a3fd0', edge: '#f4e7ff', w: 0.48, hold: 1.1, accent: 'glint', echo: 1 },
+  };
+  const swingLook = el => SWING_LOOK[el] || { body: (ELEMENT_BY_ID[el] || NEUTRAL).deep, edge: mixHex((ELEMENT_BY_ID[el] || NEUTRAL).color, '#ffffff', 0.5), w: 0.45, hold: 1.0, accent: null, echo: 0 };
+
+  // particles thrown off the edge of a live swing or the head of a live punch
+  function swingAccent(f, act, x, y, ux, uy) {
+    const el = act.el, L = swingLook(el), E = ELEMENT_BY_ID[el] || NEUTRAL;
+    switch (L.accent) {
+      case 'glint': if (Math.random() < 0.7) fx.add({ kind: 'spark', x, y, vx: ux * rand(80, 220) + rand(-60, 60), vy: uy * rand(80, 220) + rand(-90, 20), color: L.edge, size: rand(3, 5), life: rand(0.18, 0.32), drag: 5 }); break;
+      case 'blood': if (Math.random() < 0.55) fx.add({ kind: 'drop', x, y, vx: ux * rand(120, 320) + rand(-50, 50), vy: uy * rand(60, 200) - rand(40, 160), g: 1400, color: pick(['#8e0f2a', '#b3163a', '#5e0a1c']), size: rand(2.5, 4), life: rand(0.35, 0.55), add: false }); break;
+      case 'mote': if (Math.random() < 0.6) fx.add({ x, y, vx: rand(-30, 30), vy: rand(-50, -10), color: '#dfe6ff', size: rand(2.5, 4), life: rand(0.5, 0.9), drag: 1.5 }); break;
+      case 'ink': fx.add({ kind: 'smoke', x: x + rand(-6, 6), y: y + rand(-6, 6), vx: ux * 40 + rand(-25, 25), vy: rand(-60, -20), color: pick(['#1b1029', '#2a1840']), size: rand(5, 9), life: rand(0.45, 0.7), grow: 14, add: false }); break;
+      case 'tick': if (Math.random() < 0.5) fx.add({ kind: 'spark', x, y, vx: -uy * rand(120, 200), vy: ux * rand(120, 200), color: '#ffe7a8', size: rand(2.5, 3.5), life: 0.16, drag: 8 }); break;
+      case 'spark': if (Math.random() < 0.55) fx.add({ kind: 'spark', x, y, vx: ux * rand(250, 520) + rand(-120, 120), vy: uy * rand(250, 520) - rand(0, 200), g: 900, color: pick(['#ffffff', '#ffe9b0', '#cfd8e6']), size: rand(2.5, 4), life: rand(0.15, 0.3), drag: 2 }); break;
+      default:
+        if (Math.random() < 0.4) fx.add({ x, y, vx: ux * rand(40, 140), vy: uy * rand(40, 140) - 30, color: E.color, size: rand(3, 5), life: rand(0.2, 0.35), drag: 4 });
+    }
+  }
+
+  // melee slash: a tapered ribbon swept through the recent tip positions, bright at the leading
+  // edge and dissolving toward the tail, with faint after-images for the faster blades
   function drawSwipe(c, f) {
     const act = f.action;
     if (!act || act.move.kind !== 'melee' || act.move.stretch || !act.trail || act.trail.length < 2) return;
     const mv = act.move;
     const u = (act.t - mv.windup) / mv.active;
-    if (u < 0 || u > 1.8) return;
-    const el = ELEMENT_BY_ID[act.el] || NEUTRAL;
-    const tr = act.trail;
-    const fade = clamp(1.8 - u, 0, 1);
+    const L = swingLook(act.el);
+    if (u < 0 || u > 1 + L.hold) return;
+    if (mv.pose === 'punch' || mv.pose === 'heavy') { drawThrust(c, f, act, u, L); return; }
+    const tr = act.trail, n = tr.length;
+    const fade = clamp((1 + L.hold - u) / L.hold, 0, 1);
+    const finisher = mv.combo && act.comboStep === mv.combo.n - 1;
+    const inner = (i, k) => {
+      const w = L.w * (finisher ? 1.35 : 1) * Math.pow(k, 0.7);
+      return [lerp(tr[i].x, tr[i].ix, w), lerp(tr[i].y, tr[i].iy, w)];
+    };
     c.save();
-    c.globalAlpha = 0.85 * fade;
-    c.fillStyle = el.color;
-    c.beginPath();
-    c.moveTo(tr[0].x, tr[0].y);
-    for (let i = 1; i < tr.length; i++) c.lineTo(tr[i].x, tr[i].y);
-    for (let i = tr.length - 1; i >= 0; i--) {
-      const k = i / (tr.length - 1);
-      c.lineTo(lerp(tr[i].x, tr[i].ix, 0.25 + k * 0.55), lerp(tr[i].y, tr[i].iy, 0.25 + k * 0.55));
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    // after-images: the same arc a beat behind, thinner and fainter
+    for (let e = L.echo; e >= 0; e--) {
+      const off = e * 1;
+      if (n - off < 2) continue;
+      const ea = e ? 0.22 / e : 1;
+      c.globalCompositeOperation = L.dark ? 'source-over' : 'lighter';
+      // body: one quad per trail step, alpha rising toward the head of the swing
+      for (let i = 1; i < n - off; i++) {
+        const k = i / (n - 1), k0 = (i - 1) / (n - 1);
+        const [ax, ay] = inner(i - 1, k0), [bx, by] = inner(i, k);
+        c.globalAlpha = fade * ea * Math.pow(k, 1.6) * (L.dark ? 0.75 : 0.55);
+        c.fillStyle = L.body;
+        c.beginPath(); c.moveTo(tr[i - 1].x, tr[i - 1].y); c.lineTo(tr[i].x, tr[i].y); c.lineTo(bx, by); c.lineTo(ax, ay); c.closePath(); c.fill();
+      }
+      // the edge: a hairline that thickens toward the head, white-hot at the tip
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 1; i < n - off; i++) {
+        const k = i / (n - 1);
+        c.globalAlpha = fade * ea * Math.pow(k, 1.2);
+        c.strokeStyle = k > 0.8 ? '#ffffff' : L.edge;
+        c.lineWidth = (0.6 + k * (finisher ? 4.2 : 3)) * f.s;
+        c.beginPath(); c.moveTo(tr[i - 1].x, tr[i - 1].y); c.lineTo(tr[i].x, tr[i].y); c.stroke();
+      }
     }
-    c.closePath(); c.fill();
-    c.globalAlpha = fade;
-    c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round';
-    c.beginPath(); c.moveTo(tr[0].x, tr[0].y);
-    for (let i = 1; i < tr.length; i++) c.lineTo(tr[i].x, tr[i].y);
-    c.stroke();
+    // a soft bloom at the blade's head while it is cutting
+    if (u <= 1) {
+      const h = tr[n - 1];
+      c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fade;
+      Glow.draw(c, L.edge, h.x, h.y, (finisher ? 34 : 24) * f.s, 1);
+    }
     c.restore();
-    if (act.el === 'water' || act.el === 'nature') {
-      c.strokeStyle = act.el === 'water' ? '#7cc8ff' : '#5fae4c';
-      c.lineWidth = 6 * f.s; c.lineCap = 'round';
-      const h = f.hand(), t = tr[tr.length - 1];
-      c.beginPath(); c.moveTo(h.x, h.y);
-      c.quadraticCurveTo((h.x + t.x) / 2, (h.y + t.y) / 2 + 12, t.x, t.y);
-      c.stroke();
+  }
+
+  // punches: a short spear of displaced air along the strike, a pressure cone at the fist and
+  // speed lines peeling back, instead of a slash arc
+  function drawThrust(c, f, act, u, L) {
+    const h = f.hand(), sh = f.pts[P.FELB];
+    let dx = h.x - sh.x, dy = h.y - sh.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+    const heavy = act.move.pose === 'heavy';
+    const fade = clamp((1 + L.hold * 0.6 - u) / (L.hold * 0.6 + 0.4), 0, 1);
+    const len = (heavy ? 120 : 90) * f.s * clamp(u * 1.8, 0.2, 1), wid = (heavy ? 16 : 10) * f.s;
+    const nx = -dy, ny = dx;
+    const tipX = h.x + dx * 18 * f.s, tipY = h.y + dy * 18 * f.s;
+    c.save();
+    c.globalCompositeOperation = L.dark ? 'source-over' : 'lighter';
+    // the spear: widest just behind the fist, tapering to nothing behind the shoulder
+    const g = c.createLinearGradient(tipX - dx * len, tipY - dy * len, tipX, tipY);
+    g.addColorStop(0, rgba(L.body, 0)); g.addColorStop(0.7, rgba(L.body, 0.45 * fade)); g.addColorStop(1, rgba(L.edge, 0.8 * fade));
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(tipX - dx * len, tipY - dy * len);
+    c.quadraticCurveTo(tipX - dx * len * 0.3 + nx * wid, tipY - dy * len * 0.3 + ny * wid, tipX, tipY);
+    c.quadraticCurveTo(tipX - dx * len * 0.3 - nx * wid, tipY - dy * len * 0.3 - ny * wid, tipX - dx * len, tipY - dy * len);
+    c.fill();
+    // pressure cone in front of the fist: two thin curved fronts that expand and thin out
+    c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+    for (let i = 0; i < (heavy ? 3 : 2); i++) {
+      const r = (14 + i * 11 + u * 26) * f.s, a = Math.atan2(dy, dx);
+      c.globalAlpha = fade * (0.7 - i * 0.2); c.strokeStyle = L.edge; c.lineWidth = (2.2 - i * 0.5) * f.s * fade;
+      c.beginPath(); c.arc(tipX - dx * 10 * f.s, tipY - dy * 10 * f.s, r, a - 0.6 + i * 0.1, a + 0.6 - i * 0.1); c.stroke();
     }
+    // speed lines peeling back from the strike
+    c.globalAlpha = fade * 0.6; c.strokeStyle = L.edge; c.lineWidth = 1.2 * f.s;
+    for (let i = -2; i <= 2; i++) {
+      const o = i * 7 * f.s, l = (40 - Math.abs(i) * 8) * f.s;
+      const x0 = tipX - dx * (20 * f.s) + nx * o, y0 = tipY - dy * (20 * f.s) + ny * o;
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 - dx * l, y0 - dy * l); c.stroke();
+    }
+    c.globalAlpha = fade * 0.6; Glow.draw(c, L.edge, tipX, tipY, (heavy ? 30 : 20) * f.s, 1);
+    c.restore();
   }
 
   // Visible weapon silhouettes for sword-style melee; their angle follows the live forearm.
