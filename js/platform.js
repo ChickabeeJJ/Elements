@@ -188,14 +188,29 @@ const Platform = (() => {
       if (p && p.catch) p.catch(() => { if (!started) finish(false); });
     } catch (e) { finish(false); }
   }
-  // UI calls this from the buttons that start or restart play; the SDK applies its own
-  // frequency limits on top. Buttons that enter the Arena or start a normal campaign stage pass
-  // { grace: true }: those skip the midgame during the player's first 90 s after the game loads.
-  // Every other break (bosses, Endless, Winterfest...) asks as usual.
+  // Midgame breaks (the SDK applies its own frequency limits on top):
+  //  - { kind: 'boss' }  the break after beating a boss: always asks
+  //  - { kind: 'retry' } Retry / Again: starts at a 5% chance, +18% per retry without an ad (up to
+  //    100%); after an ad the very next retry never shows one, then the chance climbs from 5% again
+  //  - otherwise (entering gameplay): a 35% chance
+  // { grace: true } (entering the Arena or a normal stage) also skips any ad in the first 90 s.
   const MIDGAME_GRACE = 90000, loadedAt = Date.now();
+  const ENTRY_CHANCE = 0.35, RETRY_START = 0.05, RETRY_STEP = 0.18;
+  let retryChance = RETRY_START, retrySkip = false;
+  function wantsMidgame(kind) {
+    if (kind === 'boss') return true;
+    if (kind === 'retry') {
+      if (retrySkip) { retrySkip = false; retryChance = RETRY_START; return false; }
+      if (Math.random() < retryChance) { retrySkip = true; retryChance = RETRY_START; return true; }
+      retryChance = Math.min(1, retryChance + RETRY_STEP);
+      return false;
+    }
+    return Math.random() < ENTRY_CHANCE;
+  }
   function maybeMidgame(cb, opts) {
-    const grace = !!(opts && opts.grace) && Date.now() - loadedAt < MIDGAME_GRACE;
-    if (!ADS_ENABLED || !sdk || grace) { cb && cb(); return; }
+    const o = opts || {};
+    const grace = !!o.grace && Date.now() - loadedAt < MIDGAME_GRACE;
+    if (!ADS_ENABLED || !sdk || grace || !wantsMidgame(o.kind)) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
   }
   function rewarded(cb) { requestAd('rewarded', cb); }

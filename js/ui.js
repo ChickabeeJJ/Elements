@@ -1434,7 +1434,7 @@ const UI = (() => {
         ${resultActions('<button class="btn" id="rMenu"><b>HOME</b></button>', '<button class="btn primary" id="rAgain"><b>AGAIN</b></button>', offers)}`, s => {
         bindAds(s);
         s.querySelector('#rMenu').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(0); show('home'); };
-        s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless()); };
+        s.querySelector('#rAgain').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startEndless(), { kind: 'retry' }); };
       }, 'result');
       return;
     }
@@ -1460,10 +1460,10 @@ const UI = (() => {
           ? resultActions('<button class="btn" id="rMenu"><b>MENU</b></button><button class="btn" id="rRetry"><b>RETRY</b></button>', '<button class="btn primary" id="rNext"><b>NEXT</b></button>', offers)
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
-        sh.querySelector('#rMenu').onclick = boss ? () => Platform.maybeMidgame(toMenu) : toMenu;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), { grace: !boss }); };
+        sh.querySelector('#rMenu').onclick = boss ? () => Platform.maybeMidgame(toMenu, { kind: 'boss' }) : toMenu;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), boss ? { kind: 'boss' } : { kind: 'retry' }); };
         const nb = sh.querySelector('#rNext');
-        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS), { grace: !boss }); };
+        if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(nextR, nextS), boss ? { kind: 'boss' } : { grace: true }); };
       }, 'result');
     } else {
       modal(`
@@ -1477,7 +1477,7 @@ const UI = (() => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toMenu;
         sh.querySelector('#rForge').onclick = () => { Sfx.click(); closeModal(); Game.idleScene(r); returnTo = 'map'; openForge(); };
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), { grace: !boss }); };
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startStage(r, s), { kind: 'retry' }); };
       }, 'result');
     }
   }
@@ -1956,9 +1956,9 @@ const UI = (() => {
           : resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh); drawHatThumbs(sh);
         const afterBoss = w.mode === 'boss' && !res.tutorial;
-        sh.querySelector('#rMenu').onclick = afterBoss ? () => Platform.maybeMidgame(toWinterMap) : toWinterMap;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i)); };
-        const nb = sh.querySelector('#rNext'); if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i + 1)); };
+        sh.querySelector('#rMenu').onclick = afterBoss ? () => Platform.maybeMidgame(toWinterMap, { kind: 'boss' }) : toWinterMap;
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i), { kind: afterBoss ? 'boss' : 'retry' }); };
+        const nb = sh.querySelector('#rNext'); if (nb) nb.onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i + 1), afterBoss ? { kind: 'boss' } : undefined); };
         const wr = sh.querySelector('#rWear'); if (wr) wr.onclick = () => { Sfx.click(); Cosmetics.equip('hat', hat.id); wr.disabled = true; wr.querySelector('b').textContent = 'WORN'; };
       }, 'result');
     } else {
@@ -1972,7 +1972,7 @@ const UI = (() => {
         ${resultActions('<button class="btn" id="rMenu"><b>MENU</b></button>', '<button class="btn primary" id="rRetry"><b>RETRY</b></button>', offers)}`, sh => {
         bindAds(sh);
         sh.querySelector('#rMenu').onclick = toWinterMap;
-        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i)); };
+        sh.querySelector('#rRetry').onclick = () => { Sfx.click(); closeModal(); Platform.maybeMidgame(() => startWinter(i), { kind: 'retry' }); };
       }, 'result');
     }
   }

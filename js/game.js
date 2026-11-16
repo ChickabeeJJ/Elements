@@ -1350,7 +1350,15 @@ const Game = (() => {
     if (mv.freeze) { st.freeze = Math.max(st.freeze, mv.freeze * bossy); t.action = null; }
     if (mv.shock) st.shock = Math.max(st.shock, mv.shock * bossy);
     if (mv.corrupt) corrupt(att, t, mv.corrupt);
-    if (mv.leech && att) heal(att, dmg * mv.leech);
+    if (mv.leech && att) {
+      heal(att, dmg * mv.leech);
+      // life drawn out of the target, streaming back into the attacker
+      const ac = att.chest();
+      for (let i = 0; i < 7; i++) {
+        const tt = rand(0.28, 0.42), sx = o.px + rand(-10, 10), sy = o.py + rand(-10, 10);
+        fx.add({ x: sx, y: sy, vx: (ac.x - sx) / tt + rand(-80, 80), vy: (ac.y - sy) / tt - rand(60, 160), g: 500, color: pick(['#ff2e4d', '#c8143a']), size: rand(2.5, 4), life: tt, drag: 0.2 });
+      }
+    }
     if (o.zoneRoot) st.root = Math.max(st.root, o.zoneRoot * bossy);
 
     // knockback: foes fly further the more hurt they are
@@ -1719,8 +1727,10 @@ const Game = (() => {
         }
       }
       if (w.el === 'water') {
-        if (Math.random() < 0.7) fx.add({ kind: 'drop', x: w.x + w.dir * w.h * 0.3, y: w.y - w.h * rand(0.6, 0.95), vx: w.dir * rand(120, 320), vy: -rand(80, 260), g: 1400, color: pick(['#d6efff', '#9fd8ff', '#ffffff']), size: rand(1.5, 3.5), life: 0.55, add: false });
-        if (Math.random() < 0.25) fx.add({ kind: 'smoke', x: w.x + w.dir * w.h * 0.3, y: w.y - w.h * 0.85, vx: w.dir * rand(40, 120), vy: -rand(30, 80), color: '#e6f6ff', size: rand(6, 10), life: rand(0.25, 0.45), grow: 20, add: false });
+        waveSim(w, dt);
+        const ph = 1 - w.life / w.max;
+        // spray only once the lip is pitching over: droplets thrown forward that arc and fall
+        if (ph > 0.5 && Math.random() < 0.45) fx.add({ kind: 'drop', x: w.x + w.dir * 40, y: w.y - w.h * rand(0.35, 0.7) * (1.2 - ph), vx: w.dir * rand(140, 300), vy: -rand(120, 300), g: 1500, color: pick(['#9fd8ff', '#c9ecff', '#5aaee6']), size: rand(1.5, 3), life: 0.5, add: false });
       }
       if (w.el !== 'water' && Math.random() < 0.6) fx.add({ kind: 'chunk', x: w.x, y: w.y, vx: rand(-60, 60), vy: -rand(200, 450), g: 1600, color: pick(['#9b7653', '#c4a07a']), size: rand(3, 7), life: 0.6, vr: rand(-10, 10), add: false });
     }
@@ -4340,7 +4350,7 @@ const Game = (() => {
   // accent emitted along the edge while the swing is live (see swingAccent)
   const SWING_LOOK = {
     light:   { body: '#f2b41c', edge: '#fffbe5', w: 0.5, hold: 1.0, accent: 'glint', echo: 2 },
-    crimson: { body: '#6e0c22', edge: '#ff5a72', w: 0.35, hold: 0.7, accent: 'blood', echo: 0 },
+    crimson: { body: '#7a0c24', edge: '#ff2e4d', w: 0.46, hold: 1.0, accent: 'blood', echo: 1, dark: true },
     moon:    { body: '#6f7fc4', edge: '#eef2ff', w: 0.38, hold: 1.4, accent: 'mote', echo: 1 },
     shadow:  { body: '#2a1840', edge: '#b48cff', w: 0.62, hold: 1.1, accent: 'ink', echo: 0, dark: true },
     time:    { body: '#b88a2e', edge: '#fff1c4', w: 0.32, hold: 1.0, accent: 'tick', echo: 3 },
@@ -4354,7 +4364,9 @@ const Game = (() => {
     const el = act.el, L = swingLook(el), E = ELEMENT_BY_ID[el] || NEUTRAL;
     switch (L.accent) {
       case 'glint': if (Math.random() < 0.7) fx.add({ kind: 'spark', x, y, vx: ux * rand(80, 220) + rand(-60, 60), vy: uy * rand(80, 220) + rand(-90, 20), color: L.edge, size: rand(3, 5), life: rand(0.18, 0.32), drag: 5 }); break;
-      case 'blood': if (Math.random() < 0.55) fx.add({ kind: 'drop', x, y, vx: ux * rand(120, 320) + rand(-50, 50), vy: uy * rand(60, 200) - rand(40, 160), g: 1400, color: pick(['#8e0f2a', '#b3163a', '#5e0a1c']), size: rand(2.5, 4), life: rand(0.35, 0.55), add: false }); break;
+      case 'blood':
+        if (Math.random() < 0.5) fx.add({ kind: 'smoke', x, y, vx: ux * rand(20, 60), vy: uy * rand(20, 60) - rand(10, 30), color: pick(['#a3122f', '#c8143a']), size: rand(3, 5), life: rand(0.25, 0.4), grow: 8, add: false });
+        if (Math.random() < 0.35) fx.add({ kind: 'drop', x, y, vx: ux * rand(120, 320) + rand(-50, 50), vy: uy * rand(60, 200) - rand(40, 160), g: 1400, color: pick(['#8e0f2a', '#b3163a', '#5e0a1c']), size: rand(2.5, 4), life: rand(0.35, 0.55), add: false }); break;
       case 'mote': if (Math.random() < 0.6) fx.add({ x, y, vx: rand(-30, 30), vy: rand(-50, -10), color: '#dfe6ff', size: rand(2.5, 4), life: rand(0.5, 0.9), drag: 1.5 }); break;
       case 'ink': fx.add({ kind: 'smoke', x: x + rand(-6, 6), y: y + rand(-6, 6), vx: ux * 40 + rand(-25, 25), vy: rand(-60, -20), color: pick(['#1b1029', '#2a1840']), size: rand(5, 9), life: rand(0.45, 0.7), grow: 14, add: false }); break;
       case 'tick': if (Math.random() < 0.5) fx.add({ kind: 'spark', x, y, vx: -uy * rand(120, 200), vy: ux * rand(120, 200), color: '#ffe7a8', size: rand(2.5, 3.5), life: 0.16, drag: 8 }); break;
@@ -4407,46 +4419,11 @@ const Game = (() => {
         c.beginPath(); c.moveTo(tr[i - 1].x, tr[i - 1].y); c.lineTo(tr[i].x, tr[i].y); c.stroke();
       }
     }
-    if (act.el === 'crimson' && u <= 1.25) drawBloodWhip(c, f, act, u);
     // a soft bloom at the blade's head while it is cutting
-    if (u <= 1 && act.el !== 'crimson') {
+    if (u <= 1) {
       const h = tr[n - 1];
       c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fade;
       Glow.draw(c, L.edge, h.x, h.y, (finisher ? 34 : 24) * f.s, 1);
-    }
-    c.restore();
-  }
-
-  // Crimson Lash: a whip of blood from the hand to the tip of the swing, thick at the grip and
-  // tapering to a thread, a ripple running down it, a wet highlight, and a crack at full reach
-  function drawBloodWhip(c, f, act, u) {
-    const tr = act.trail, n = tr.length, h = f.hand(), tip = tr[n - 1], mid = tr[Math.max(0, n - 4)];
-    const fade = clamp((1.25 - u) / 0.35, 0, 1);
-    // control point lags behind the tip, so the whip bows like a real lash
-    const cx = lerp(h.x, mid.x, 0.8) + (h.y - tip.y) * 0.18, cy = lerp(h.y, mid.y, 0.8) - (h.x - tip.x) * 0.06;
-    const N = 22, pts = [];
-    for (let i = 0; i <= N; i++) {
-      const t = i / N, a = (1 - t) * (1 - t), b = 2 * (1 - t) * t, q = t * t;
-      let x = a * h.x + b * cx + q * tip.x, y = a * h.y + b * cy + q * tip.y;
-      const ripple = Math.sin(t * 9 - u * 14) * 6 * t * f.s;                  // a wave running out to the tip
-      const nx = -(tip.y - h.y), ny = tip.x - h.x, nl = Math.hypot(nx, ny) || 1;
-      pts.push([x + nx / nl * ripple, y + ny / nl * ripple]);
-    }
-    c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.globalCompositeOperation = 'source-over';
-    for (let i = 1; i <= N; i++) {
-      const t = i / N, w = lerp(10, 2, t) * f.s;
-      c.globalAlpha = fade; c.strokeStyle = t < 0.5 ? '#5e0a1c' : '#7d0f26'; c.lineWidth = w;
-      c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.stroke();
-    }
-    // wet highlight along the upper side of the lash
-    c.globalCompositeOperation = 'lighter';
-    c.globalAlpha = fade * 0.4; c.strokeStyle = '#ff4f6d'; c.lineWidth = 1.4 * f.s;
-    c.beginPath(); for (let i = 2; i <= N - 3; i++) (i === 2 ? c.moveTo : c.lineTo).call(c, pts[i][0], pts[i][1] - 1.8 * f.s); c.stroke();
-    // the crack at full reach
-    if (u > 0.7 && u < 1.05) {
-      const k = 1 - Math.abs(u - 0.88) / 0.18;
-      c.globalAlpha = clamp(k, 0, 1) * 0.9; Glow.draw(c, '#ff3d5e', tip.x, tip.y, 26 * f.s, 1);
-      c.globalAlpha = clamp(k, 0, 1); Glow.draw(c, '#ffd0d8', tip.x, tip.y, 9 * f.s, 1);
     }
     c.restore();
   }
@@ -4806,56 +4783,87 @@ const Game = (() => {
     c.restore();
   }
 
-  // Tide: a curling breaker. A long swell rises from behind to a crest, the lip curls forward over
-  // a steep face; the lip is lit through (lighter, translucent), foam rides the crest and whitewash
-  // churns at its foot
-  function drawWaterWave(c, w, h, k) {
-    const d = w.dir, X = w.x, Y = w.y, tail = 230 * (h / 95), seed = w.seed || (w.seed = Math.random() * 10);
-    const surf = u => Math.sin(u * 9 + time * 7 + seed) * 2.5 + Math.sin(u * 23 - time * 11) * 1.2;   // ripples
-    // top surface: from the tail (u=0) to the crest (u=1)
-    const top = [];
-    for (let i = 0; i <= 18; i++) {
-      const u = i / 18, rise = Math.pow(u, 2.2);
-      top.push([X - d * tail * (1 - u), Y - h * rise + surf(u) * u]);
+  // Tide: a breaking wave simulated as a row of water columns. Each column is a damped spring
+  // pulled toward the wave's shape and coupled to its neighbours, so the surface ripples, sloshes
+  // and settles like water. Over its life the wave rises, rolls, peaks, pitches its lip forward and
+  // collapses into a spreading wash.
+  const WAVE_COLS = 34;
+  function waveShape(w, i, phase) {
+    // column i spans from far behind the crest (0) to just ahead of it (WAVE_COLS-1)
+    const u = i / (WAVE_COLS - 1);
+    const grow = clamp(phase / 0.18, 0, 1), fall = clamp((phase - 0.6) / 0.4, 0, 1);
+    const crestU = 0.78 + fall * 0.12;                               // the crest pitches forward as it breaks
+    let hgt;
+    if (u <= crestU) hgt = Math.pow(u / crestU, 2.4);               // long gentle back slope
+    else hgt = Math.max(0, 1 - Math.pow((u - crestU) / (1 - crestU), 0.6) * (1.05 - fall * 0.4));   // steep face, flattening as it falls
+    const amp = w.h * grow * (1 - fall * 0.75);                     // collapses into a low wash
+    return amp * hgt;
+  }
+  function waveSim(w, dt) {
+    if (!w.cols) {
+      w.cols = Array.from({ length: WAVE_COLS }, () => ({ h: 0, v: 0 }));
+      w.len = 260 * (w.h / 95);
     }
-    const lipX = X + d * h * 0.42, lipY = Y - h * 0.62, faceX = X + d * h * 0.18;
+    const phase = 1 - w.life / w.max;
+    w.len += dt * 60 * clamp((phase - 0.55) * 4, 0, 1);              // the wash spreads as it collapses
+    const C = w.cols, K = 140, NB = 900, D = 7;
+    for (let it = 0; it < 2; it++) {
+      const sdt = dt / 2;
+      for (let i = 0; i < C.length; i++) {
+        const c = C[i], l = C[i - 1] || c, r = C[i + 1] || c;
+        const a = (waveShape(w, i, phase) - c.h) * K + (l.h + r.h - 2 * c.h) * NB - c.v * D;
+        c.v += a * sdt;
+      }
+      for (const c of C) c.h += c.v * sdt;
+    }
+  }
+  function drawWaterWave(c, w, h, k) {
+    if (!w.cols) return;
+    const d = w.dir, X = w.x, Y = w.y, C = w.cols, n = C.length, L = w.len;
+    const phase = 1 - w.life / w.max, fall = clamp((phase - 0.6) / 0.4, 0, 1);
+    const px = i => X - d * L * (1 - i / (n - 1)) + d * 40;
+    const py = i => Y - Math.max(0, C[i].h);
+    let crest = 0; for (let i = 1; i < n; i++) if (C[i].h > C[crest].h) crest = i;
+    const H = Math.max(1, C[crest].h);
+    // the lip: overhang thrown forward from the crest, growing as the wave breaks
+    const lipLen = H * (0.15 + fall * 0.55), lipDrop = H * (0.25 + fall * 0.5);
+    const lx = px(crest) + d * lipLen, ly = py(crest) + lipDrop;
     c.save();
     // body
-    const g = c.createLinearGradient(0, Y - h, 0, Y);
-    g.addColorStop(0, rgba('#8fd3f0', 0.88 * k)); g.addColorStop(0.45, rgba('#2f8fd0', 0.86 * k)); g.addColorStop(1, rgba('#123f7a', 0.92 * k));
+    const g = c.createLinearGradient(0, Y - H, 0, Y);
+    g.addColorStop(0, rgba('#6cc4ea', 0.9 * k)); g.addColorStop(0.5, rgba('#2c86c8', 0.88 * k)); g.addColorStop(1, rgba('#0f3a72', 0.94 * k));
     c.fillStyle = g;
-    c.beginPath(); c.moveTo(X - d * tail, Y);
-    for (const [x, y] of top) c.lineTo(x, y);
-    c.bezierCurveTo(X + d * h * 0.25, Y - h * 1.04, lipX + d * 6, Y - h * 0.9, lipX, lipY);        // over the crest into the lip
-    c.quadraticCurveTo(X + d * h * 0.28, Y - h * 0.5, faceX + d * 4, Y - h * 0.62);                 // lip curls back under
-    c.quadraticCurveTo(faceX - d * 10, Y - h * 0.3, faceX + d * 14, Y);                             // steep face down to the ground
+    c.beginPath(); c.moveTo(px(0), Y);
+    c.lineTo(px(0), py(0));
+    for (let i = 1; i < n; i++) { const mx = (px(i - 1) + px(i)) / 2, my = (py(i - 1) + py(i)) / 2; c.quadraticCurveTo(px(i - 1), py(i - 1), mx, my); }
+    c.lineTo(px(n - 1), py(n - 1));
+    c.lineTo(px(n - 1), Y);
     c.closePath(); c.fill();
-    // light through the lip
+    // the curling lip over the face (only once the wave is tall enough to break)
+    if (H > 20) {
+      c.beginPath();
+      c.moveTo(px(crest - 2), py(crest - 2));
+      c.quadraticCurveTo(px(crest) + d * lipLen * 0.6, py(crest) - H * 0.12, lx, ly);
+      c.quadraticCurveTo(px(crest) + d * lipLen * 0.25, py(crest) + lipDrop * 0.4, px(Math.min(n - 1, crest + 2)), py(Math.min(n - 1, crest + 2)) + 2);
+      c.closePath(); c.fill();
+    }
+    // light through the thin water near the crest, and a soft sheen along the surface (no lines or dots)
     c.globalCompositeOperation = 'lighter';
-    const lg = c.createRadialGradient(X + d * h * 0.18, Y - h * 0.82, 2, X + d * h * 0.18, Y - h * 0.82, h * 0.5);
-    lg.addColorStop(0, rgba('#bff0ff', 0.5 * k)); lg.addColorStop(1, rgba('#bff0ff', 0));
-    c.fillStyle = lg; c.fillRect(X - d * h * 0.4 - h * 0.6, Y - h * 1.4, h * 2, h * 1.2);
-    // streaks of moving water down the swell
-    c.strokeStyle = rgba('#d6f3ff', 0.25 * k); c.lineWidth = 1.5; c.lineCap = 'round';
-    for (let j = 0; j < 4; j++) {
-      const u0 = ((time * 0.9 + j * 0.27) % 1) * 0.8 + 0.15, [x0, y0] = top[Math.round(u0 * 18)];
-      c.beginPath(); c.moveTo(x0, y0 + 8); c.lineTo(x0 - d * 26, y0 + 8 + h * 0.18); c.stroke();
-    }
-    // foam riding the crest and lip: soft, broken, never an outline
-    c.globalCompositeOperation = 'source-over';
-    for (let i = 10; i <= 18; i++) {
-      const [x, y] = top[i], r = (3 + (i - 10) * 0.7) * (0.8 + 0.4 * Math.sin(i * 3.1 + time * 9));
-      c.globalAlpha = 0.75 * k; c.fillStyle = '#f2fbff'; c.beginPath(); c.arc(x, y + 1, r, 0, TAU); c.fill();
-    }
-    for (let i = 0; i < 6; i++) {
-      const t = i / 5, x = lerp(top[18][0], lipX, t) + Math.sin(time * 13 + i) * 1.5, y = lerp(top[18][1], lipY, t) - Math.sin(t * Math.PI) * h * 0.12;
-      c.globalAlpha = 0.85 * k; c.beginPath(); c.arc(x, y, 4.5 - t * 1.5, 0, TAU); c.fill();
-    }
-    // whitewash churning at the foot
-    c.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 5; i++) {
-      const x = faceX + d * (8 + Math.sin(time * 10 + i * 1.7) * 10 + i * 6), y = Y - 6 - Math.abs(Math.sin(time * 8 + i)) * 10;
-      c.globalAlpha = 0.45 * k; Glow.draw(c, '#e8f8ff', x, y, 16 + i * 2, 1);
+    const lg = c.createRadialGradient(px(crest) - d * H * 0.2, py(crest) + H * 0.25, 2, px(crest) - d * H * 0.2, py(crest) + H * 0.25, H * 0.7);
+    lg.addColorStop(0, rgba('#8fe0ff', 0.18 * k)); lg.addColorStop(1, rgba('#8fe0ff', 0));
+    c.fillStyle = lg; c.fillRect(px(crest) - H * 1.2, py(crest) - H * 0.5, H * 2.4, H * 1.6);
+    const sh = c.createLinearGradient(0, py(crest), 0, py(crest) + H * 0.35);
+    sh.addColorStop(0, rgba('#cdeeff', 0.16 * k)); sh.addColorStop(1, rgba('#e8f8ff', 0));
+    c.fillStyle = sh;
+    c.beginPath(); c.moveTo(px(Math.max(0, crest - 10)), py(Math.max(0, crest - 10)));
+    for (let i = Math.max(0, crest - 10); i <= crest; i++) c.lineTo(px(i), py(i));
+    for (let i = crest; i >= Math.max(0, crest - 10); i--) c.lineTo(px(i), py(i) + H * 0.12 * (1 - (crest - i) / 10));
+    c.closePath(); c.fill();
+    // whitewater where the lip lands and along the foot, as soft mist (fades in as it breaks)
+    const ww = fall * 0.6;
+    for (let i = 0; i < 3 && ww > 0.02; i++) {
+      c.globalAlpha = ww * k * 0.3;
+      Glow.draw(c, '#eef9ff', lx + d * i * 12 + Math.sin(time * 9 + i) * 4, Math.min(Y - 4, ly + i * 6), 22 + i * 6, 1);
     }
     c.restore();
   }

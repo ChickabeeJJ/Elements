@@ -202,7 +202,7 @@ function citadelFaded(realm) {
   c.filter = 'none';
   c.globalCompositeOperation = 'destination-in';
   const m = c.createLinearGradient(0, 0, 0, cv.height);
-  m.addColorStop(0, '#000'); m.addColorStop(0.9, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
+  m.addColorStop(0, '#000'); m.addColorStop(0.985, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
   c.fillStyle = m; c.fillRect(0, 0, cv.width, cv.height);
   citadelCv = cv;
   return cv;
@@ -333,7 +333,7 @@ const DECOR = {
         // margin), so the image's bottom edge is always under sand; its last strip also fades out
         let foot = 0;
         for (let x = cx - w / 2 - 20; x <= cx + w / 2 + 20; x += 6) foot = Math.max(foot, ridgeY(1, x));
-        foot += 34;
+        foot += 7;   // the image's bottom edge sits just below the dune's lowest point: hidden, but only barely
         const gl = g.createRadialGradient(cx, foot - h * 0.55, 0, cx, foot - h * 0.55, 480);
         gl.addColorStop(0, 'rgba(255,232,175,0.48)'); gl.addColorStop(1, 'rgba(255,230,170,0)');
         g.fillStyle = gl; g.fillRect(cx - 480, foot - h - 140, 960, h + 260);
