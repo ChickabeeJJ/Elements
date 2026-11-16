@@ -208,6 +208,15 @@ function citadelFaded(realm) {
   return cv;
 }
 
+// where the castle's bottom edge sits: just below the nearer dune's lowest point across its width
+const CITADEL_W = 703;
+function citadelFoot(realm, rawRidge) {
+  const cx = W * realm.sunPos[0];
+  let foot = 0;
+  for (let x = cx - CITADEL_W / 2 - 20; x <= cx + CITADEL_W / 2 + 20; x += 6) foot = Math.max(foot, rawRidge(1, x));
+  return foot + 7;
+}
+
 const DECOR = {
   winter: {
     sky(g, realm, x0, x1, y0, y1) {
@@ -273,6 +282,17 @@ const DECOR = {
     },
   },
   citadel: {
+    // the dune in front of the castle dips to just above the image's bottom edge, so it hides the
+    // cut and as little of the castle as possible, easing back into its natural shape either side
+    shapeRidge(realm, li, x, raw, cache) {
+      const yy = raw(li, x);
+      if (li !== 1 || !(CITADEL_IMG.complete && CITADEL_IMG.naturalWidth)) return yy;
+      if (cache.foot == null) cache.foot = citadelFoot(realm, raw);
+      const cx = W * realm.sunPos[0], half = CITADEL_W / 2 + 10, ease = 150;
+      const dx = Math.abs(x - cx), t = clamp((half + ease - dx) / ease, 0, 1), wgt = t * t * (3 - 2 * t);
+      const lip = cache.foot - 9 - (Math.sin(x * 0.011) * 0.5 + 0.5) * 3;   // a gentle sandy roll, always above the cut
+      return lerp(yy, Math.max(yy, lip), wgt);
+    },
     sky(g, realm, x0, x1, y0, y1) {
       const sx = W * realm.sunPos[0], sy = H * realm.sunPos[1];
       // god rays fanning down from the sun
@@ -331,9 +351,7 @@ const DECOR = {
         const w = 703, h = w * CITADEL_IMG.naturalHeight / CITADEL_IMG.naturalWidth;
         // the foot goes below the nearer dune's LOWEST point across the castle's full width (plus a
         // margin), so the image's bottom edge is always under sand; its last strip also fades out
-        let foot = 0;
-        for (let x = cx - w / 2 - 20; x <= cx + w / 2 + 20; x += 6) foot = Math.max(foot, ridgeY(1, x));
-        foot += 7;   // the image's bottom edge sits just below the dune's lowest point: hidden, but only barely
+        const foot = citadelFoot(realm, ridgeY);
         const gl = g.createRadialGradient(cx, foot - h * 0.55, 0, cx, foot - h * 0.55, 480);
         gl.addColorStop(0, 'rgba(255,232,175,0.48)'); gl.addColorStop(1, 'rgba(255,230,170,0)');
         g.fillStyle = gl; g.fillRect(cx - 480, foot - h - 140, 960, h + 260);
@@ -452,6 +470,8 @@ const Backdrop = (() => {
       return yy;
     };
     if (realm.decor && DECOR[realm.decor].back) DECOR[realm.decor].back(g, realm, x0, x1, y0, y1, ridgeY);
+    const D = realm.decor && DECOR[realm.decor], rcache = {};
+    const drawRidge = D && D.shapeRidge ? (li, x) => D.shapeRidge(realm, li, x, ridgeY, rcache) : ridgeY;
     for (let li = 0; li < layers.length; li++) {
       if (li === 1 && realm.decor && DECOR[realm.decor].far) DECOR[realm.decor].far(g, realm, x0, x1, y0, y1, ridgeY);
       const base = H * (0.55 + li * 0.13);
@@ -459,7 +479,7 @@ const Backdrop = (() => {
       g.fillStyle = layers[li];
       g.beginPath();
       g.moveTo(x0, y1);
-      for (let x = x0; x <= x1 + 20; x += 12) g.lineTo(x, ridgeY(li, x));
+      for (let x = x0; x <= x1 + 20; x += 12) g.lineTo(x, drawRidge(li, x));
       g.lineTo(x1, y1);
       g.closePath(); g.fill();
       // haze between layers
