@@ -19,7 +19,7 @@ const WINTER_REALM = {
   sky: ['#0b1636', '#1d3a6e', '#6d8fc4'], sun: '#fff8e8', sunPos: [0.8, 0.17], showSun: true,
   hills: ['#cfe3f5', '#9dbcdd', '#6d8fbd'], fog: '#e6f2ff',
   top: '#ffffff', topDark: '#d3e8f7', rock: '#5f6f8f', rockDark: '#3b4766',
-  ambient: 'snow', tint: '#7fe0ff', decor: 'winter',
+  ambient: 'snow', ambientN: 46, tint: '#7fe0ff', decor: 'winter',
 };
 
 const WINTER_MODES = {

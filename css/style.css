@@ -2517,11 +2517,8 @@ body.touch .codex .el-grid .et b { font-size: 10px; }
 #cine .cine-cap.in { opacity: 1; transform: none; }
 #cine .cine-cap small { display: block; font-weight: 800; font-size: clamp(10px, 1.3vw, 13px); letter-spacing: 0.4em; color: #ffffff; opacity: 0.8; margin-bottom: 8px; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7); }
 #cine .cine-cap b { font-weight: 600; font-size: clamp(18px, 2.8vw, 34px); letter-spacing: 0.02em; color: #f4f7ff; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6); }
-#cine .ttl { position: absolute; left: 0; right: 0; top: 34%; text-align: center; opacity: 0; transform: scale(1.08); filter: blur(8px); transition: opacity 1.2s ease, transform 2.4s cubic-bezier(.2, .8, .2, 1), filter 1.2s ease; }
+#cine .ttl { position: absolute; left: 0; right: 0; top: 17%; text-align: center; opacity: 0; transform: scale(1.08); filter: blur(8px); transition: opacity 1.2s ease, transform 2.4s cubic-bezier(.2, .8, .2, 1), filter 1.2s ease; }
 #cine .ttl.in { opacity: 1; transform: none; filter: none; }
 #cine .ttl h1 { margin: 0; font-weight: 900; font-size: clamp(42px, 8vw, 104px); letter-spacing: 0.12em; color: #ffffff; text-shadow: 0 0 28px color-mix(in srgb, var(--cc) 70%, transparent), 0 4px 24px rgba(0, 0, 0, 0.5); }
 #cine .ttl p { margin: 10px 0 0; font-weight: 800; font-size: clamp(10px, 1.3vw, 14px); letter-spacing: 0.3em; color: var(--cc); }
 #cine .cine-skip { position: absolute; right: calc(16px + var(--safe-r, 0px)); bottom: calc(11vh + 12px); opacity: 0.75; }
-canvas#stage.cine-cam { animation: cineCam 12.5s cubic-bezier(.3, 0, .3, 1) both; transform-origin: 50% 60%; }
-@keyframes cineCam { from { transform: scale(1.14) translateY(3%); } to { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { canvas#stage.cine-cam { animation: none; } }

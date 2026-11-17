@@ -475,20 +475,29 @@ const UI = (() => {
     el.innerHTML = `<canvas></canvas><i class="cb top"></i><i class="cb bot"></i><div class="cine-cap"><small></small><b></b></div>
       <div class="ttl"><h1></h1><p></p></div><button class="btn small cine-skip" type="button"><b>SKIP</b></button>`;
     document.body.appendChild(el);
-    $('stage').classList.add('cine-cam');
+    // the trailer shows the event's landscape alone (no arena, no fighters): its backdrop is drawn
+    // straight onto the trailer canvas, framed to cover the screen
+    $('stage').style.visibility = 'hidden';
     const cv = el.querySelector('canvas'), g = cv.getContext('2d');
     const dpr = Math.min(2, devicePixelRatio || 1);
-    const size = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; };
+    let land = null;
+    const size = () => {
+      cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+      const k = Math.max(innerWidth / W, innerHeight / H), vw = innerWidth / k, vh = innerHeight / k;
+      land = Backdrop.render(I.realm(), { x0: (W - vw) / 2, y0: (H - vh) / 2, w: vw, h: vh }, Math.min(2, k * dpr));
+    };
     size(); addEventListener('resize', size);
-    const flakes = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6 }));
-    const eyes = Array.from({ length: 6 }, (_, i) => ({ x: 0.12 + i * 0.15 + Math.random() * 0.05, y: 0.78 + Math.random() * 0.1, on: 0.4 + Math.random() * 1.6, s: 0.7 + Math.random() * 0.6 }));
+    // a few large, soft flakes close to the lens, spread evenly (golden-ratio sequence) in three depths
+    const flakes = Array.from({ length: 36 }, (_, i) => ({ x: (i * 0.618034) % 1, y: (i * 0.754878) % 1, z: [0.4, 0.65, 1][i % 3], ph: i * 1.7 }));
+    // eyes in mirrored pairs, opening one pair at a time from the centre outward
+    const eyes = [0.42, 0.58, 0.28, 0.72, 0.15, 0.85].map((x, i) => ({ x, y: 0.8 + (i >> 1) * 0.025, on: 0.3 + (i >> 1) * 0.5, s: 1 - (i >> 1) * 0.15 }));
     const cap = el.querySelector('.cine-cap'), ttl = el.querySelector('.ttl');
     let t0 = performance.now(), raf = 0, beatIdx = -1, done = false;
     const end = () => {
       if (done) return; done = true;
       cancelAnimationFrame(raf); removeEventListener('resize', size);
       el.classList.add('out');
-      setTimeout(() => { el.remove(); $('stage').classList.remove('cine-cam'); for (const f of Game.dev.all()) f.hidden = false; const hero = Game.dev.player(); if (hero) hero.hidden = false; finish(); }, 600);
+      setTimeout(() => { el.remove(); $('stage').style.visibility = ''; Backdrop.invalidate(); for (const f of Game.dev.all()) f.hidden = false; const hero = Game.dev.player(); if (hero) hero.hidden = false; finish(); }, 600);
     };
     el.querySelector('.cine-skip').onclick = () => { Sfx.click(); end(); };
     Sfx.whoosh();
@@ -510,6 +519,12 @@ const UI = (() => {
       const B = I.beats[beatIdx];
       const W2 = cv.width, H2 = cv.height;
       g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W2, H2);
+      // slow push-in on the landscape (eased), anchored a little below centre
+      if (land) {
+        const u = Math.min(1, t / I.len), e = 1 - Math.pow(1 - u, 2), z = 1.14 - 0.14 * e;
+        const dw = W2 * z, dh = H2 * z;
+        g.drawImage(land, (W2 - dw) / 2, (H2 - dh) * 0.62 - H2 * 0.03 * (1 - e), dw, dh);
+      }
       // vignette that opens from black at the start and closes at the end
       const open = Math.min(1, t / 1.4), close = Math.max(0, (t - (I.len - 1)) / 1);
       const vg = g.createRadialGradient(W2 / 2, H2 * 0.45, Math.min(W2, H2) * (0.15 + 0.4 * open), W2 / 2, H2 * 0.45, Math.max(W2, H2) * 0.75);
@@ -518,8 +533,10 @@ const UI = (() => {
       g.fillStyle = `rgba(4,6,14,${Math.max(1 - open * 1.2, close)})`; g.fillRect(0, 0, W2, H2);
       // close, soft snow drifting across the lens
       for (const f of flakes) {
-        const x = ((f.x + t * 0.012 * f.z + Math.sin(t * 0.7 + f.ph) * 0.006) % 1) * W2, y = ((f.y + t * 0.05 * f.z) % 1) * H2, r = f.z * 2.6 * dpr;
-        g.globalAlpha = 0.25 + f.z * 0.55; g.fillStyle = '#eef6ff'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+        const x = ((f.x + t * 0.008 * f.z + Math.sin(t * 0.5 + f.ph) * 0.004) % 1) * W2, y = ((f.y + t * 0.035 * f.z) % 1) * H2, r = f.z * 3.2 * dpr;
+        const fg = g.createRadialGradient(x, y, 0, x, y, r * 2);
+        fg.addColorStop(0, `rgba(238,246,255,${0.2 + f.z * 0.45})`); fg.addColorStop(1, 'rgba(238,246,255,0)');
+        g.fillStyle = fg; g.beginPath(); g.arc(x, y, r * 2, 0, TAU); g.fill();
       }
       g.globalAlpha = 1;
       // eyes in the drifts
@@ -527,7 +544,7 @@ const UI = (() => {
         const k = Math.min(1, (t - B.t) / 0.8);
         for (const e of eyes) {
           if (t - B.t < e.on) continue;
-          const blink = Math.abs(Math.sin((t + e.x * 9) * 1.3)) > 0.08 ? 1 : 0.1, x = e.x * W2, y = e.y * H2, r = 3.2 * dpr * e.s, gap = 13 * dpr * e.s;
+          const blink = ((t - B.t - e.on) % 2.4) < 0.12 ? 0.1 : 1, x = e.x * W2, y = e.y * H2, r = 3.2 * dpr * e.s, gap = 13 * dpr * e.s;
           for (const dx of [-gap / 2, gap / 2]) {
             g.globalAlpha = k * blink * 0.5; Glow.draw(g, I.accent, x + dx, y, r * 6, 1);
             g.globalAlpha = k * blink; g.fillStyle = '#ffd2d8'; g.beginPath(); g.ellipse(x + dx, y, r, r * 0.55, 0, 0, TAU); g.fill();
