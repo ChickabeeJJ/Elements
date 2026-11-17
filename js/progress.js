@@ -31,7 +31,8 @@ const Save = (() => {
     // live features (js/meta.js): Arena trophies, daily quests, event progress
     arena: { trophies: 0, peak: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, tiersClaimed: 0, season: 0, seasonPeak: 0, history: [], pending: null },
     daily: { day: -1, list: [], bonus: false },
-    ads: { day: -1, n: 0 },   // opt-in "+gems" rewarded ads watched today (capped)
+    ads: { day: -1, n: 0 },
+    streak: { last: -1, n: 0 },   // daily login streak (days in a row, 1-7, then it loops)   // opt-in "+gems" rewarded ads watched today (capped)
     event: { cycle: -1, id: '', tokens: 0, prog: {}, claimed: [], day: -1, list: [] },
     // the Shop: owned / worn cosmetics, and one-run items (counts + the ones armed for the next run)
     cos: { colours: ['snow'], hats: [], colour: 'snow', hat: null },
@@ -54,6 +55,7 @@ const Save = (() => {
         data.arena = Object.assign(fresh().arena, d.arena || {});
         data.daily = Object.assign(fresh().daily, d.daily || {});
         data.ads = Object.assign(fresh().ads, d.ads || {});
+        data.streak = Object.assign(fresh().streak, d.streak || {});
         data.event = Object.assign(fresh().event, d.event || {});
         data.cos = Object.assign(fresh().cos, d.cos || {});
         data.items = Object.assign(fresh().items, d.items || {});

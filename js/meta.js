@@ -340,9 +340,38 @@ const Meta = (() => {
     d.bonus = true; Save.data.essence += DAILY_BONUS; Save.save();
     return DAILY_BONUS;
   }
+  // swap one unfinished daily quest for a different one (once a day, offered for a rewarded ad)
+  function rerollDaily(i) {
+    const d = syncDaily(), q = d.list[i];
+    if (!q || q.claimed || q.prog >= q.n || d.rerolled === d.day) return false;
+    const used = new Set(d.list.map(x => x.type));
+    const opts = QUEST_POOL.filter(p => !used.has(p.type));
+    if (!opts.length) return false;
+    const p = pick(opts);
+    const n = p.n[0] >= 20 ? round5(rand(p.n[0], p.n[1])) : randi(p.n[0], p.n[1]);
+    const nq = { type: p.type, n, gems: round5(rand(p.gems[0], p.gems[1])), prog: 0, claimed: false };
+    if (p.el) nq.el = pick(Save.unlockedElements()).id;
+    d.list[i] = nq; d.rerolled = d.day; Save.save();
+    return true;
+  }
+
+  /* ------------------------------------------------------ login streak */
+  // a small gift for each day in a row the game is opened: 7 rising gifts, then it starts again
+  const STREAK_GEMS = [20, 30, 40, 50, 60, 80, 150];
+  function takeStreak() {
+    const s = Save.data.streak, t = today();
+    if (s.last === t) return null;
+    s.n = s.last === t - 1 ? (s.n % 7) + 1 : 1;
+    s.last = t;
+    const gems = STREAK_GEMS[s.n - 1];
+    Save.data.essence += gems; Save.save();
+    return { day: s.n, gems, table: STREAK_GEMS };
+  }
+
   function dailyState() {
     const d = syncDaily();
     return {
+      canReroll: d.rerolled !== d.day,
       list: d.list.map((q, i) => Object.assign({}, q, { i, text: questText(q), done: q.prog >= q.n })),
       bonus: d.bonus, bonusGems: DAILY_BONUS, bonusReady: !d.bonus && d.list.every(q => q.claimed),
       left: (today() + 1) * DAY - Date.now(),
@@ -363,7 +392,7 @@ const Meta = (() => {
 
   return {
     TIERS, EVENTS, tierOf, makeRival, findMatch, recordDuel, seasonOf, syncSeason, takeSeasonSummary,
-    track, claimDaily, claimBonus, dailyState, eventState, claimEvent, buyEventElement, buyEventCosmetic, buyCache, elementEvent, liveEvent,
+    track, claimDaily, claimBonus, dailyState, rerollDaily, takeStreak, eventState, claimEvent, buyEventElement, buyEventCosmetic, buyCache, elementEvent, liveEvent,
     winterLive: () => { const e = liveEvent(); return !!(e && e.kind === 'winterfest'); },
     claimable, fmtLeft, onNotify: cb => listeners.push(cb), questText,
   };

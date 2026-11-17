@@ -87,7 +87,7 @@ const UI = (() => {
     $('homeLoadout').innerHTML = `<span class="lbl">YOUR ELEMENTS${Save.trial ? ` · <em class="trial-lbl">+ ${NAME(Save.trial)} TRIAL</em>` : ''}</span><div class="row">${(Save.trial ? [Save.trial] : []).concat(Save.loadout()).slice(0, 3).map(id => hex(id)).join('')}<button class="btn small" id="homeChange"><b>CHANGE</b></button></div>`;
     $('homeChange').onclick = () => { Sfx.ensure(); Sfx.click(); openLoadout(); };
     refreshUser();
-    setTimeout(() => { if (current === 'home' && !modalOpen()) maybeSeasonSummary(); }, 400);
+    setTimeout(() => { if (current === 'home' && !modalOpen() && !maybeSeasonSummary(maybeStreak)) maybeStreak(); }, 400);
   }
 
   /* -------------------------------------------------------- banner ad */
@@ -140,6 +140,8 @@ const UI = (() => {
 
   // opt-in rewarded "+gems" when you are short, a few times a day
   const GEM_AD = 60, GEM_AD_CAP = 5;
+  const SHIELD_CAP = 3;            // Arena losses shielded by an ad, per day
+  const FREE_ITEM_GAP = 4 * 3600 * 1000;   // a free item by ad every 4 hours
   function gemAdsLeft() {
     const a = Save.data.ads, d = Math.floor(Date.now() / 86400000);
     if (a.day !== d) { a.day = d; a.n = 0; }
@@ -162,7 +164,7 @@ const UI = (() => {
           closeModal();
           if (!ok) { toast('AD UNAVAILABLE'); return; }
           Save.data.ads.n++; Save.data.essence += GEM_AD; Save.save();
-          Sfx.pickup(); toast(`+${GEM_AD} GEMS`);
+          Sfx.pickup(); toast(`YOU GOT ${GEM_AD} GEMS`);
           document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
           after && after();
         });
@@ -603,7 +605,7 @@ const UI = (() => {
     const els = t === 'elements';
     $('codex').querySelector('.codex').classList.toggle('hidden', !els);
     $('shopPane').classList.toggle('hidden', els);
-    $('codexCountPill').classList.toggle('hidden', !els);
+    $('codexCountPill').classList.toggle('ghost', !els);   // keeps its space, so the bar doesn't shift
     if (!els) renderShop();
     fitScreen();
   }
@@ -673,6 +675,13 @@ const UI = (() => {
     renderShopDetail();
     document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); });
   }
+  // a random item for a rewarded ad, every few hours (items are never event exclusives)
+  function freeItemRow() {
+    if (!Platform.rewardedAvailable) return '';
+    const left = (Save.data.ads.freeItemAt || 0) + FREE_ITEM_GAP - Date.now();
+    return left > 0 ? `<div class="sd-free"><span>NEXT FREE ITEM IN <b>${Meta.fmtLeft(left)}</b></span></div>`
+      : `<div class="sd-free"><span>A random item, on us</span>${adBtn('sdFree', 'FREE ITEM', ' small')}</div>`;
+  }
   function renderShopDetail() {
     const det = $('shopDetail');
     if (shopTab === 'items') {
@@ -685,12 +694,20 @@ const UI = (() => {
             <button class="btn${Save.data.essence >= it.price ? ' primary' : ''}" id="sdBuy">${ic('gem')}<b>BUY · ${it.price}</b></button>
             <button class="btn${isArmed ? ' primary' : ''}" id="sdArm" ${!n && !isArmed ? 'disabled' : ''}><b>${isArmed ? 'ARMED · TAP TO DISARM' : 'ARM FOR NEXT RUN'}</b></button>
           </div>
+          ${freeItemRow()}
           <div class="sd-slots"><small>ARMED FOR YOUR NEXT RUN (${armed.length}/${ITEM_ARM_MAX})</small><div>${[0, 1].map(k => armed[k] ? `<span class="slot" style="--c:${ITEM_BY_ID[armed[k]].color}"><canvas data-item="${armed[k]}"></canvas>${ITEM_BY_ID[armed[k]].name.toUpperCase()}</span>` : '<span class="slot empty">EMPTY</span>').join('')}</div>
           <p class="fine">Armed items are used up when your next stage, Endless run or Winterfest stage starts. They are never used in the Arena.</p></div>
         </div>`;
       Icons.hydrate(det); paintItems(det); liveItem(det.querySelector('#sdItem'), it.id);
+      const fr = det.querySelector('#sdFree');
+      if (fr) fr.onclick = () => { Sfx.click(); fr.disabled = true; Platform.rewarded(ok => {
+        if (!ok) { fr.disabled = false; toast('AD UNAVAILABLE'); return; }
+        const pickIt = pick(ITEMS); Save.data.items.n[pickIt.id] = (Save.data.items.n[pickIt.id] || 0) + 1;
+        Save.data.ads.freeItemAt = Date.now(); Save.save();
+        Sfx.unlock(); toast(`YOU GOT ${pickIt.name.toUpperCase()}`); renderShop();
+      }); };
       det.querySelector('#sdBuy').onclick = () => {
-        if (Cosmetics.buyItem(it.id)) { Sfx.pickup(); toast(`${it.name.toUpperCase()} +1`); renderShop(); }
+        if (Cosmetics.buyItem(it.id)) { Sfx.pickup(); toast(`PURCHASED ${it.name.toUpperCase()}`); renderShop(); }
         else needGems(it.price - Save.data.essence, () => renderShop());
       };
       det.querySelector('#sdArm').onclick = () => {
@@ -723,7 +740,7 @@ const UI = (() => {
     Cosmetics.liveMannequin(det.querySelector('#sdCanvas'), look);
     const on = (sel, fn) => { const b = det.querySelector(sel); if (b) b.onclick = fn; };
     on('#sdBuy', () => {
-      if (Cosmetics.buy(kind, id)) { Sfx.unlock(); Cosmetics.equip(kind, id); toast(`${def.name.toUpperCase()} · YOURS`); renderShop(); }
+      if (Cosmetics.buy(kind, id)) { Sfx.unlock(); Cosmetics.equip(kind, id); toast(`PURCHASED ${def.name.toUpperCase()}`); renderShop(); }
       else needGems(def.price - Save.data.essence, () => renderShop());
     });
     on('#sdEquip', () => { Sfx.click(); Cosmetics.equip(kind, def ? id : null); renderShop(); });
@@ -817,9 +834,9 @@ const UI = (() => {
     const buy = det.querySelector('#buyEl');
     if (buy) buy.onclick = () => {
       if (Save.buyElement(e.id)) {
-        Sfx.unlock(); ;
+        Sfx.unlock();
         const l = Save.loadout(); if (l.length < 3 && !l.includes(e.id)) Save.setLoadout(l.concat(e.id));
-        toast(`${e.name.toUpperCase()} UNLOCKED!`);
+        toast(`PURCHASED ${e.name.toUpperCase()}`);
         show('codex'); renderCodex();
       } else needGems(e.price - Save.data.essence, () => renderCodexDetail());
     };
@@ -866,12 +883,12 @@ const UI = (() => {
   }
   const QUEST_ICON = { kills: 'sword', ringouts: 'burst', stages: 'map', stars3: 'star', duels: 'swords', duelWins: 'trophy', endlessKills: 'infinity', combo: 'bolt', gems: 'gem' };
   const until = (ts, pre = '') => `<b data-until="${ts}" data-pre="${pre}">${pre}${Meta.fmtLeft(ts - Date.now())}</b>`;
-  function questRow(q, reward, claimAttr) {
+  function questRow(q, reward, claimAttr, swap) {
     const pct = Math.round(q.prog / q.n * 100);
     const icon = q.el ? hex(q.el) : `<span class="q-ic">${ic(QUEST_ICON[q.type] || 'scroll')}</span>`;
     const right = q.claimed ? `<span class="q-done">${ic('check')}</span>`
       : q.done ? `<button class="btn small primary claim" ${claimAttr}>${reward}<b>CLAIM</b></button>`
-      : `<span class="q-rw">${reward}</span>`;
+      : `<span class="q-rw">${reward}</span>${swap ? `<button class="btn small rw-offer q-swap" data-swap="${q.i}" title="Watch a short ad to swap this quest (once a day)">${adTag()}<b>SWAP</b></button>` : ''}`;
     return `<div class="quest${q.done ? ' done' : ''}${q.claimed ? ' claimed' : ''}">${icon}
       <div class="q-body"><b>${q.text}</b><div class="q-bar"><i style="width:${pct}%"></i></div><small>${fmt(q.prog)} / ${fmt(q.n)}</small></div>${right}</div>`;
   }
@@ -991,7 +1008,7 @@ const UI = (() => {
     return `<div class="hub-grid quests-tab">
       <div class="card panel">
         <div class="panel-head"><h4>${ic('scroll')}DAILY QUESTS</h4><small>NEW QUESTS IN ${until(Date.now() + d.left)}</small></div>
-        <div class="quest-list" data-part="dq">${d.list.map(q => questRow(q, gemRw(q.gems), `data-dq="${q.i}"`)).join('')}</div>
+        <div class="quest-list" data-part="dq">${d.list.map(q => questRow(q, gemRw(q.gems), `data-dq="${q.i}"`, d.canReroll && Platform.rewardedAvailable && !q.done && !q.claimed)).join('')}</div>
         <div data-part="bonus" class="bonus${d.bonus ? ' claimed' : d.bonusReady ? ' ready' : ''}">
           <span class="q-ic gift">${ic('gift')}</span>
           <div class="q-body"><b>DAILY CHEST</b><small>Claim all three quests to open it</small><div class="pips">${[0, 1, 2].map(i => `<i class="${i < claimed ? 'on' : ''}"></i>`).join('')}</div></div>
@@ -1076,20 +1093,24 @@ const UI = (() => {
   }
   function bindHub(body) {
     const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
-    on('[data-evq]', b => { const n = Meta.claimEvent(+b.dataset.evq); if (n) { Sfx.pickup(); toast(`+${n} EVENT TOKENS`); softRefreshHub(); } });
-    on('[data-dq]', b => { const n = Meta.claimDaily(+b.dataset.dq); if (n) { Sfx.pickup(); toast(`+${n} GEMS`); softRefreshHub(); } });
+    on('[data-evq]', b => { const n = Meta.claimEvent(+b.dataset.evq); if (n) { Sfx.pickup(); toast(`YOU GOT ${n} EVENT TOKENS`); softRefreshHub(); } });
+    on('[data-swap]', b => { Sfx.click(); b.disabled = true; Platform.rewarded(ok => {
+      if (ok && Meta.rerollDaily(+b.dataset.swap)) { Sfx.pickup(); toast('QUEST SWAPPED'); renderHub(); }
+      else { b.disabled = false; if (!ok) toast('AD UNAVAILABLE'); }
+    }); });
+    on('[data-dq]', b => { const n = Meta.claimDaily(+b.dataset.dq); if (n) { Sfx.pickup(); toast(`YOU GOT ${n} GEMS`); softRefreshHub(); } });
     on('#dqBonusAd', b => { Sfx.click(); b.disabled = true; Platform.rewarded(ok => {
       if (!ok) { b.disabled = false; toast('AD UNAVAILABLE'); return; }
       const n = Meta.claimBonus(); if (!n) return;
       Save.data.essence += n; Save.save();
-      Sfx.unlock(); ; toast(`DAILY CHEST ×2 · +${n * 2} GEMS`); softRefreshHub();
+      Sfx.unlock(); toast(`YOU GOT ${n * 2} GEMS`); softRefreshHub();
     }); });
-    on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); ; toast(`DAILY CHEST · +${n} GEMS`); softRefreshHub(); } });
+    on('#dqBonus', () => { const n = Meta.claimBonus(); if (n) { Sfx.unlock(); toast(`YOU GOT ${n} GEMS`); softRefreshHub(); } });
     on('#rkPlay', () => { Sfx.click(); openArena(); });
     on('#wfPlay', () => { Sfx.click(); mapMode = 'event'; openMap(); Game.idleScene(WINTER_REALM); });
     on('[data-wfbuy]', b => {
       const [kind, id] = b.dataset.wfbuy.split(':');
-      if (Meta.buyEventCosmetic(kind, id)) { Sfx.unlock(); Cosmetics.equip(kind, id); toast(`${(kind === 'hat' ? HAT_BY_ID[id] : COLOUR_BY_ID[id]).name.toUpperCase()} · YOURS`); renderHub(); }
+      if (Meta.buyEventCosmetic(kind, id)) { Sfx.unlock(); Cosmetics.equip(kind, id); toast(`PURCHASED ${(kind === 'hat' ? HAT_BY_ID[id] : COLOUR_BY_ID[id]).name.toUpperCase()}`); renderHub(); }
       else { Sfx.denied(); toast('NOT ENOUGH SNOWFLAKES'); }
     });
     on('#evCache', () => { if (Meta.buyCache()) { Sfx.pickup(); toast('GEM CACHE OPENED'); softRefreshHub(); } else { Sfx.denied(); toast('NOT ENOUGH TOKENS'); } });
@@ -1097,9 +1118,9 @@ const UI = (() => {
       const st = Meta.eventState(); if (!st) return;
       const el = ELEMENT_BY_ID[st.ev.element];
       if (Meta.buyEventElement()) {
-        Sfx.unlock(); ;
+        Sfx.unlock();
         const l = Save.loadout(); if (l.length < 3 && !l.includes(el.id)) Save.setLoadout(l.concat(el.id));
-        toast(`${el.name.toUpperCase()} UNLOCKED!`); softRefreshHub();
+        toast(`OBTAINED ${el.name.toUpperCase()}`); softRefreshHub();
       } else { Sfx.denied(); toast(`NEED ${st.price - st.tokens} MORE TOKENS`); }
     });
     on('#evEquip', () => {
@@ -1139,6 +1160,26 @@ const UI = (() => {
     return `<span class="season-chip ol">${ic('trophy')}SEASON ${S.n}<i></i>ENDS IN <b data-until="${S.end}">${Meta.fmtLeft(S.end - Date.now())}</b></span>`;
   }
   // a season ended since the last visit: a short summary with the reward
+  // daily login gift: shown once a day on the main menu, with an optional ad to double it
+  function maybeStreak() {
+    if (!Save.data.tutorialDone || current !== 'home' || modalOpen()) return false;
+    const g = Meta.takeStreak();
+    if (!g) return false;
+    const cells = g.table.map((n, i) => `<div class="stk${i + 1 < g.day ? ' got' : i + 1 === g.day ? ' now' : ''}"><small>DAY ${i + 1}</small>${ic('gem', 'gem')}<b>${n}</b></div>`).join('');
+    modal(`<h2>DAILY GIFT</h2><p class="sub">DAY ${g.day} IN A ROW · COME BACK TOMORROW FOR MORE</p>
+      <div class="stk-row">${cells}</div>
+      <div class="actions"><button class="btn${Platform.rewardedAvailable ? '' : ' primary'}" id="stkOk"><b>COLLECT ${g.gems}</b></button>${Platform.rewardedAvailable ? adBtn('stkAd', `COLLECT ${g.gems * 2}`, ' primary') : ''}</div>`, sh => {
+      Icons.hydrate(sh);
+      const done = () => { closeModal(); document.querySelectorAll('.essence-val').forEach(el => { el.textContent = fmt(Save.data.essence); }); };
+      sh.querySelector('#stkOk').onclick = () => { Sfx.pickup(); toast(`YOU GOT ${g.gems} GEMS`); done(); };
+      const ad = sh.querySelector('#stkAd');
+      if (ad) ad.onclick = () => { Sfx.click(); ad.disabled = true; Platform.rewarded(ok => {
+        if (ok) { Save.data.essence += g.gems; Save.save(); Sfx.unlock(); toast(`YOU GOT ${g.gems * 2} GEMS`); done(); }
+        else { ad.disabled = false; toast('AD UNAVAILABLE'); }
+      }); };
+    }, 'streak');
+    return true;
+  }
   function maybeSeasonSummary(then) {
     const p = Meta.takeSeasonSummary();
     if (!p) return false;
@@ -1485,6 +1526,10 @@ const UI = (() => {
   function showDuelResult(res, tiles) {
     const rv = res.rival;
     const r = Meta.recordDuel(res.won, rv);
+    // a lost match can be shielded with a rewarded ad: the trophies come back (3 a day)
+    const ads = Save.data.ads, dn = Math.floor(Date.now() / 86400000);
+    if (ads.shieldDay !== dn) { ads.shieldDay = dn; ads.shieldN = 0; }
+    const shield = !res.won && r.delta < 0 && ads.shieldN < SHIELD_CAP;
     Meta.track('duels');
     if (res.won) Meta.track('duelWins');
     modal(`
@@ -1497,12 +1542,20 @@ const UI = (() => {
         ${!Platform.rewardedAvailable && Platform.adBlock ? '<p class="fine center">Optional ad rewards are unavailable while an ad blocker is active.</p>' : ''}
         ${r.promoted ? `<div class="unlock" style="--c:${r.promoted.color}">${tierBadge(r.tier, 'md')}<div><small>PROMOTED</small><b>${r.promoted.name.toUpperCase()}</b><p>You reached a new Arena tier.</p></div></div>` : ''}
       </div>
-      ${resultActions('<button class="btn" id="rMenu"><b>HOME</b></button><button class="btn" id="rRanks"><b>RANKS</b></button>', '<button class="btn primary" id="rAgain"><b>NEXT MATCH</b></button>', Platform.rewardedAvailable ? adBtn('rDouble', 'DOUBLE GEMS') : '')}`, sh => {
-      if (r.promoted) { Sfx.unlock(); ; }
+      ${resultActions('<button class="btn" id="rMenu"><b>HOME</b></button><button class="btn" id="rRanks"><b>RANKS</b></button>', '<button class="btn primary" id="rAgain"><b>NEXT MATCH</b></button>', !Platform.rewardedAvailable ? '' : shield ? adBtn('rShield', 'KEEP TROPHIES') : adBtn('rDouble', 'DOUBLE GEMS'))}`, sh => {
+      if (r.promoted) { Sfx.unlock(); }
       const dbl = sh.querySelector('#rDouble'), total = r.gems + res.essence;
       if (dbl) dbl.onclick = () => { Sfx.click(); dbl.disabled = true; Platform.rewarded(ok => {
         if (ok) { Save.data.essence += total; Save.save(); sh.querySelector('#payoutNum').textContent = '+' + total * 2; toast('GEMS DOUBLED!'); dbl.remove(); }
         else { dbl.disabled = false; toast('AD UNAVAILABLE'); }
+      }); };
+      const sb = sh.querySelector('#rShield');
+      if (sb) sb.onclick = () => { Sfx.click(); sb.disabled = true; Platform.rewarded(ok => {
+        if (!ok) { sb.disabled = false; toast('AD UNAVAILABLE'); return; }
+        const a = Save.data.arena; a.trophies -= r.delta; Save.data.ads.shieldN++; Save.save();
+        const d = sh.querySelector('.trophy-delta b'); if (d) d.innerHTML = `${ic('trophy')}0`;
+        const sm = sh.querySelector('.trophy-delta small'); if (sm) sm.textContent = `${fmt(a.trophies)} TROPHIES · ${r.tier.label}`;
+        Sfx.unlock(); toast('TROPHIES KEPT'); sb.remove();
       }); };
       sh.querySelector('#rMenu').onclick = toMenu;
       sh.querySelector('#rRanks').onclick = () => { Sfx.click(); closeModal(); Game.quit(); Game.idleScene(0); openHub('ranks'); };
