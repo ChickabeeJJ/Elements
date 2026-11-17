@@ -154,6 +154,37 @@ XMAS_TREE.decoding = 'async';
 XMAS_TREE.onload = () => { if (typeof Backdrop !== 'undefined') Backdrop.invalidate(); };
 XMAS_TREE.src = 'assets/img/xmas_tree.webp';
 const WINTER_TREES = [];
+// the painted tree graded into the night: a little less saturated and bright, a cool moonlit cast over
+// the greens and snow, while its lights and star keep their warmth
+let xmasCv = null;
+function xmasTreeGraded(realm) {
+  if (xmasCv) return xmasCv;
+  const im = XMAS_TREE, cv = document.createElement('canvas');
+  cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+  const c = cv.getContext('2d');
+  c.filter = 'saturate(0.78) brightness(0.86) contrast(0.95)';
+  c.drawImage(im, 0, 0);
+  c.filter = 'none';
+  c.globalCompositeOperation = 'source-atop';
+  const tint = c.createLinearGradient(0, 0, 0, cv.height);
+  tint.addColorStop(0, rgba(realm.sky[1], 0.12)); tint.addColorStop(1, rgba(realm.sky[1], 0.26));
+  c.fillStyle = tint; c.fillRect(0, 0, cv.width, cv.height);
+  // bring the lights and star back up so they still glow against the cooler tree
+  c.globalCompositeOperation = 'lighter';
+  c.filter = 'brightness(0.9)';
+  const lum = document.createElement('canvas'); lum.width = cv.width; lum.height = cv.height;
+  const lc = lum.getContext('2d'); lc.drawImage(im, 0, 0);
+  const d = lc.getImageData(0, 0, lum.width, lum.height), px = d.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i], g = px[i + 1], b = px[i + 2], warm = r > 200 && g > 150 && b < 170 && r - b > 50;
+    if (!warm) px[i + 3] = 0; else px[i + 3] = Math.min(px[i + 3], 120);
+  }
+  lc.putImageData(d, 0, 0);
+  c.drawImage(lum, 0, 0);
+  c.filter = 'none';
+  xmasCv = cv;
+  return cv;
+}
 
 // a flat, clean pine: three tiers, no outline or noise; optional snow resting along each tier
 function flatPine(g, x, base, h, col, snow) {
@@ -198,7 +229,7 @@ const DECOR = {
       g.filter = 'none';
       g.restore();
     },
-    far(g, realm, x0, x1, y0, y1) {
+    far(g, realm, x0, x1, y0, y1, ridgeY) {
       const cx = W * 0.5, base = H * 0.64;
       WINTER_TREES.length = 0;
       // each treeline stands on its own rolling snow bank: trunks are planted in snow, and the
@@ -242,13 +273,16 @@ const DECOR = {
         g.beginPath(); g.moveTo(hx - w / 2 - 14, by + 2); g.quadraticCurveTo(hx, by - 12, hx + w / 2 + 14, by + 2); g.closePath(); g.fill();
       }
       // the focal tree (painted), planted in its own small drift
-      const tb = base + 46, th = 300;
+      // the tree's foot sinks behind the next snow layer (drawn after this), like the citadel's castle:
+      // the trunk sits just below that layer's highest point across the trunk, so it is hidden
+      const th = 300;
+      let ridgeTop = Infinity;
+      for (let x = cx - 30; x <= cx + 30; x += 5) ridgeTop = Math.min(ridgeTop, ridgeY(1, x));
+      const tb = ridgeTop + th * 0.11;
       if (XMAS_TREE.complete && XMAS_TREE.naturalWidth) {
         const tw = th * XMAS_TREE.naturalWidth / XMAS_TREE.naturalHeight;
-        g.drawImage(XMAS_TREE, cx - tw * 0.502, tb - th * 0.985, tw, th);
+        g.drawImage(xmasTreeGraded(realm), cx - tw * 0.502, tb - th * 0.985, tw, th);
       } else flatPine(g, cx, tb, th * 0.9, '#24584a', true);
-      g.fillStyle = '#e4edf8';
-      g.beginPath(); g.moveTo(cx - 70, tb + 4); g.quadraticCurveTo(cx, tb - 16, cx + 70, tb + 4); g.closePath(); g.fill();
     },
     near(g, realm, x0, x1, y0, y1) {
       // dark pines framing the edges, mirrored, each planted in a dark snow drift
@@ -433,11 +467,16 @@ const Backdrop = (() => {
     // sun (only realms that ask for one; night realms stay clean)
     if (realm.showSun) {
       const sx = W * realm.sunPos[0], sy = H * realm.sunPos[1];
-      const sun = g.createRadialGradient(sx, sy, 0, sx, sy, 380);
-      sun.addColorStop(0, rgba(realm.sun, 0.9));
-      sun.addColorStop(0.12, rgba(realm.sun, 0.55));
-      sun.addColorStop(0.4, rgba(realm.sun, 0.12));
-      sun.addColorStop(1, rgba(realm.sun, 0));
+      const R = realm.softGlow ? 560 : 380, sun = g.createRadialGradient(sx, sy, 0, sx, sy, R);
+      if (realm.softGlow) {
+        // a long, eased falloff: no visible edge where the glow ends
+        for (let i = 0; i <= 12; i++) { const u = i / 12; sun.addColorStop(u, rgba(realm.sun, 0.42 * Math.pow(1 - u, 2.6))); }
+      } else {
+        sun.addColorStop(0, rgba(realm.sun, 0.9));
+        sun.addColorStop(0.12, rgba(realm.sun, 0.55));
+        sun.addColorStop(0.4, rgba(realm.sun, 0.12));
+        sun.addColorStop(1, rgba(realm.sun, 0));
+      }
       g.globalAlpha = realm.sunAlpha || 1;
       g.fillStyle = sun; g.fillRect(x0, y0, view.w, view.h);
       g.fillStyle = realm.sun;

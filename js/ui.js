@@ -458,7 +458,7 @@ const UI = (() => {
         { t: 0.6, kind: 'line', kicker: 'EVERY DECEMBER', text: 'The islands fall quiet under the snow' },
         { t: 3.6, kind: 'eyes', kicker: 'BUT IN THE DRIFTS', text: 'Something has been waiting' },
         { t: 6.6, kind: 'line', kicker: 'THE KRAMPLINGS ARE LOOSE', text: 'And every present is gone' },
-        { t: 9.2, kind: 'title', text: 'WINTERFEST', sub: '20 STAGES · NEW GAME MODES · EXCLUSIVE HATS' },
+        { t: 9.2, kind: 'title', text: 'WINTERFEST' },
       ],
     },
   };
