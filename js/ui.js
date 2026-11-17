@@ -489,8 +489,15 @@ const UI = (() => {
     size(); addEventListener('resize', size);
     // a few large, soft flakes close to the lens, spread evenly (golden-ratio sequence) in three depths
     const flakes = Array.from({ length: 36 }, (_, i) => ({ x: (i * 0.618034) % 1, y: (i * 0.754878) % 1, z: [0.4, 0.65, 1][i % 3], ph: i * 1.7 }));
-    // eyes in mirrored pairs, opening one pair at a time from the centre outward
-    const eyes = [0.42, 0.58, 0.28, 0.72, 0.15, 0.85].map((x, i) => ({ x, y: 0.8 + (i >> 1) * 0.025, on: 0.3 + (i >> 1) * 0.5, s: 1 - (i >> 1) * 0.15 }));
+    // three pairs of eyes, each peeking from the foot of a chosen pine in the mid treeline, opening one
+    // at a time (world positions; mapped through the push-in when drawn)
+    let eyes = null;
+    const pickEyes = () => {
+      const T = WINTER_TREES.slice().sort((a, b) => a.x - b.x);
+      if (!T.length) return [];
+      const at = fx => T.reduce((best, t) => Math.abs(t.x - W * fx) < Math.abs(best.x - W * fx) ? t : best, T[0]);
+      return [[0.3, 0.2], [0.76, 1.15], [0.12, 2.1]].map(([fx, on]) => { const t = at(fx); return { wx: t.x + 4, wy: t.y - t.h * 0.2, on, s: t.h / 100 }; });
+    };
     const cap = el.querySelector('.cine-cap'), ttl = el.querySelector('.ttl');
     let t0 = performance.now(), raf = 0, beatIdx = -1, done = false;
     const end = () => {
@@ -520,10 +527,13 @@ const UI = (() => {
       const W2 = cv.width, H2 = cv.height;
       g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W2, H2);
       // slow push-in on the landscape (eased), anchored a little below centre
+      let toScr = null;
       if (land) {
         const u = Math.min(1, t / I.len), e = 1 - Math.pow(1 - u, 2), z = 1.14 - 0.14 * e;
-        const dw = W2 * z, dh = H2 * z;
-        g.drawImage(land, (W2 - dw) / 2, (H2 - dh) * 0.62 - H2 * 0.03 * (1 - e), dw, dh);
+        const dw = W2 * z, dh = H2 * z, dx = (W2 - dw) / 2, dy = (H2 - dh) * 0.62 - H2 * 0.03 * (1 - e);
+        g.drawImage(land, dx, dy, dw, dh);
+        const kk = Math.max(innerWidth / W, innerHeight / H), vw = innerWidth / kk, vh = innerHeight / kk, vx = (W - vw) / 2, vy = (H - vh) / 2;
+        toScr = (wx, wy) => [dx + (wx - vx) / vw * dw, dy + (wy - vy) / vh * dh, dw / vw];
       }
       // vignette that opens from black at the start and closes at the end
       const open = Math.min(1, t / 1.4), close = Math.max(0, (t - (I.len - 1)) / 1);
@@ -542,12 +552,14 @@ const UI = (() => {
       // eyes in the drifts
       if (B && B.kind === 'eyes') {
         const k = Math.min(1, (t - B.t) / 0.8);
+        if (!eyes) eyes = pickEyes();
         for (const e of eyes) {
-          if (t - B.t < e.on) continue;
-          const blink = ((t - B.t - e.on) % 2.4) < 0.12 ? 0.1 : 1, x = e.x * W2, y = e.y * H2, r = 3.2 * dpr * e.s, gap = 13 * dpr * e.s;
+          if (t - B.t < e.on || !toScr) continue;
+          const [x, y, sc] = toScr(e.wx, e.wy), open = Math.min(1, (t - B.t - e.on) / 0.35);
+          const blink = (((t - B.t - e.on) % 2.6) > 2.45 ? 0.1 : 1) * open, r = 2.6 * sc * e.s, gap = 9 * sc * e.s;
           for (const dx of [-gap / 2, gap / 2]) {
             g.globalAlpha = k * blink * 0.5; Glow.draw(g, I.accent, x + dx, y, r * 6, 1);
-            g.globalAlpha = k * blink; g.fillStyle = '#ffd2d8'; g.beginPath(); g.ellipse(x + dx, y, r, r * 0.55, 0, 0, TAU); g.fill();
+            g.globalAlpha = k * blink; g.fillStyle = '#ffd2d8'; g.beginPath(); g.ellipse(x + dx, y, r, r * 0.55 * open, 0, 0, TAU); g.fill();
           }
         }
         g.globalAlpha = 1;

@@ -147,6 +147,14 @@ class Island {
    Realm-specific scenery painted into the pre-rendered backdrop (drawn once per realm
    and view size, so it costs nothing per frame). sky: after the sun; far: on the
    farthest ridge; near: over the nearest ridge. */
+// the Winterfest focal tree (painted) and where the mid treeline's pines stand (the trailer's eyes peek
+// out from some of them)
+const XMAS_TREE = new Image();
+XMAS_TREE.decoding = 'async';
+XMAS_TREE.onload = () => { if (typeof Backdrop !== 'undefined') Backdrop.invalidate(); };
+XMAS_TREE.src = 'assets/img/xmas_tree.webp';
+const WINTER_TREES = [];
+
 // a flat, clean pine: three tiers, no outline or noise; optional snow resting along each tier
 function flatPine(g, x, base, h, col, snow) {
   g.fillStyle = col;
@@ -192,51 +200,66 @@ const DECOR = {
     },
     far(g, realm, x0, x1, y0, y1) {
       const cx = W * 0.5, base = H * 0.64;
-      // the far treeline: even spacing, heights rising gently toward the centre, one pale value
-      const row = (y, gap, h0, h1, col, skip) => {
-        for (let k = -14; k <= 14; k++) {
-          const x = cx + k * gap; if (x < x0 - 60 || x > x1 + 60 || Math.abs(k) < skip) continue;
+      WINTER_TREES.length = 0;
+      // each treeline stands on its own rolling snow bank: trunks are planted in snow, and the
+      // gentle roll of the bank keeps the row from reading as a ruler-straight line
+      const row = (y, gap, h0, h1, col, bank, roll, skip, keep) => {
+        const ground = x => y + Math.sin((x - cx) * 0.0062) * roll + Math.sin((x - cx) * 0.0151 + 1.1) * roll * 0.35;
+        for (let k = -16; k <= 16; k++) {
+          const x = cx + k * gap; if (x < x0 - 80 || x > x1 + 80 || Math.abs(k) < skip) continue;
           const t = Math.cos(Math.min(1, Math.abs(x - cx) / (W * 0.62)) * Math.PI / 2);
-          flatPine(g, x, y, lerp(h0, h1, t), col, false);
+          const h = lerp(h0, h1, t) * (k % 2 ? 0.88 : 1);                      // a gentle tall-short rhythm
+          flatPine(g, x, ground(x) + 6, h, col, false);
+          if (keep) WINTER_TREES.push({ x, y: ground(x), h });
         }
+        // the bank: a soft snow surface just above the trunks' feet, fading into the hill below
+        const gr = g.createLinearGradient(0, y - roll, 0, y + 90);
+        gr.addColorStop(0, bank); gr.addColorStop(1, rgba(bank, 0));
+        g.fillStyle = gr; g.beginPath(); g.moveTo(x0 - 20, y + 120);
+        for (let x = x0 - 20; x <= x1 + 20; x += 16) g.lineTo(x, ground(x) - 1);
+        g.lineTo(x1 + 20, y + 120); g.closePath(); g.fill();
       };
-      row(base + 6, 54, 46, 78, '#8ea7c8', 2);
-      row(base + 30, 78, 62, 104, '#5f7898', 2);
-      // two cabins, mirrored either side of the tree, one warm window each
+      row(base + 8, 54, 44, 74, '#8ea7c8', '#c3d6ec', 9, 2, false);
+      row(base + 34, 78, 60, 100, '#5f7898', '#a9c3df', 12, 2, true);
+      // two cabins, mirrored either side of the tree
       for (const side of [-1, 1]) {
-        const hx = cx + side * 210, w = 84, h = 46, by = base + 34, peak = by - h - 34;
-        g.fillStyle = '#41506d'; g.fillRect(hx - w / 2, by - h, w, h);
-        g.fillStyle = '#eef4fb';
-        g.beginPath(); g.moveTo(hx - w / 2 - 8, by - h + 2); g.lineTo(hx, peak); g.lineTo(hx + w / 2 + 8, by - h + 2); g.closePath(); g.fill();
-        const wx = hx - side * 14 - 9;
-        g.fillStyle = '#ffcf7a'; g.fillRect(wx, by - h + 14, 18, 16);
+        const hx = cx + side * 215, w = 88, h = 50, by = base + 40, peak = by - h - 36;
+        g.fillStyle = '#3f4c67'; g.fillRect(hx - w / 2, by - h, w, h);                      // walls
+        g.fillStyle = '#35405a'; g.fillRect(hx + side * 22 - 5, peak + 8, 10, 26);           // chimney
+        g.fillStyle = '#eef4fb'; g.fillRect(hx + side * 22 - 7, peak + 5, 14, 5);
+        g.fillStyle = '#eef4fb';                                                              // snow-laden roof with a soft overhang
+        g.beginPath(); g.moveTo(hx - w / 2 - 10, by - h + 4); g.lineTo(hx, peak); g.lineTo(hx + w / 2 + 10, by - h + 4);
+        g.quadraticCurveTo(hx + w / 2, by - h + 9, hx + w / 2 - 6, by - h + 4); g.lineTo(hx - w / 2 + 6, by - h + 4);
+        g.quadraticCurveTo(hx - w / 2, by - h + 9, hx - w / 2 - 10, by - h + 4); g.closePath(); g.fill();
+        const wx = hx - side * 16 - 9;                                                        // one warm window, a door
+        g.fillStyle = '#ffcf7a'; g.fillRect(wx, by - h + 15, 18, 15);
+        g.fillStyle = '#2d3650'; g.fillRect(hx + side * 16 - 7, by - 24, 14, 24);
         g.save(); g.globalCompositeOperation = 'lighter';
-        const wg = g.createRadialGradient(wx + 9, by - h + 22, 0, wx + 9, by - h + 22, 60);
+        const wg = g.createRadialGradient(wx + 9, by - h + 22, 0, wx + 9, by - h + 22, 64);
         wg.addColorStop(0, 'rgba(255,190,110,0.22)'); wg.addColorStop(1, 'rgba(255,190,110,0)');
-        g.fillStyle = wg; g.fillRect(wx - 60, by - h - 40, 140, 140); g.restore();
+        g.fillStyle = wg; g.fillRect(wx - 64, by - h - 42, 146, 146); g.restore();
+        g.fillStyle = '#e4edf8';                                                              // snow drifted against the walls
+        g.beginPath(); g.moveTo(hx - w / 2 - 14, by + 2); g.quadraticCurveTo(hx, by - 12, hx + w / 2 + 14, by + 2); g.closePath(); g.fill();
       }
-      // the focal tree: a clean silhouette, snow resting on each tier, a garland of lights on an even
-      // spiral, and the star
-      const tb = base + 40, th = 290;
-      flatPine(g, cx, tb, th, '#24584a', true);
-      g.save(); g.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 14; i++) {
-        const u = (i + 0.5) / 14, y = tb - th * 0.12 - u * th * 0.66, half = th * 0.4 * (1 - u * 0.86);
-        const x = cx + Math.sin(u * Math.PI * 5) * half * 0.82;
-        const col = i % 2 ? '#ffd27a' : '#ff8a7a';
-        const lg = g.createRadialGradient(x, y, 0, x, y, 9); lg.addColorStop(0, col); lg.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = lg; g.fillRect(x - 9, y - 9, 18, 18);
-      }
-      const sy = tb - th * 0.9;
-      const sg = g.createRadialGradient(cx, sy, 0, cx, sy, 70); sg.addColorStop(0, 'rgba(255,226,150,0.55)'); sg.addColorStop(1, 'rgba(255,226,150,0)');
-      g.fillStyle = sg; g.fillRect(cx - 70, sy - 70, 140, 140); g.restore();
-      g.fillStyle = '#ffe48a'; g.beginPath();
-      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 6 : 14; g.lineTo(cx + Math.cos(a) * rr, sy + Math.sin(a) * rr); }
-      g.closePath(); g.fill();
+      // the focal tree (painted), planted in its own small drift
+      const tb = base + 46, th = 300;
+      if (XMAS_TREE.complete && XMAS_TREE.naturalWidth) {
+        const tw = th * XMAS_TREE.naturalWidth / XMAS_TREE.naturalHeight;
+        g.drawImage(XMAS_TREE, cx - tw * 0.502, tb - th * 0.985, tw, th);
+      } else flatPine(g, cx, tb, th * 0.9, '#24584a', true);
+      g.fillStyle = '#e4edf8';
+      g.beginPath(); g.moveTo(cx - 70, tb + 4); g.quadraticCurveTo(cx, tb - 16, cx + 70, tb + 4); g.closePath(); g.fill();
     },
     near(g, realm, x0, x1, y0, y1) {
-      // dark pines framing the edges, mirrored, so the eye settles on the centre
-      for (const side of [-1, 1]) for (const [d, h] of [[0.47, 380], [0.4, 280]]) flatPine(g, W * (0.5 + side * d), H * 0.98, h, '#16283a', false);
+      // dark pines framing the edges, mirrored, each planted in a dark snow drift
+      for (const side of [-1, 1]) {
+        for (const [d, h] of [[0.47, 380], [0.4, 280]]) flatPine(g, W * (0.5 + side * d), H * 0.98, h, '#16283a', false);
+        const ex = side < 0 ? x0 - 40 : x1 + 40, ix = W * (0.5 + side * 0.3);
+        const dg = g.createLinearGradient(0, H * 0.9, 0, H);
+        dg.addColorStop(0, '#3a526e'); dg.addColorStop(1, '#22364c');
+        g.fillStyle = dg;
+        g.beginPath(); g.moveTo(ex, H * 0.915); g.quadraticCurveTo(W * (0.5 + side * 0.42), H * 0.9, ix, H * 0.99); g.lineTo(ix, y1 + 10); g.lineTo(ex, y1 + 10); g.closePath(); g.fill();
+      }
     },
   },
   citadel: {
