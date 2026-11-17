@@ -269,8 +269,6 @@ const DECOR = {
         const wg = g.createRadialGradient(wx + 9, by - h + 22, 0, wx + 9, by - h + 22, 64);
         wg.addColorStop(0, 'rgba(255,190,110,0.22)'); wg.addColorStop(1, 'rgba(255,190,110,0)');
         g.fillStyle = wg; g.fillRect(wx - 64, by - h - 42, 146, 146); g.restore();
-        g.fillStyle = '#e4edf8';                                                              // snow drifted against the walls
-        g.beginPath(); g.moveTo(hx - w / 2 - 14, by + 2); g.quadraticCurveTo(hx, by - 12, hx + w / 2 + 14, by + 2); g.closePath(); g.fill();
       }
       // the focal tree (painted), planted in its own small drift
       // the tree's foot sinks behind the next snow layer (drawn after this), like the citadel's castle:

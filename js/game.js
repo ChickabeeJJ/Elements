@@ -3073,7 +3073,6 @@ const Game = (() => {
     const x = S.isl.x + S.ox, base = S.isl.top, wob = S.wob * Math.sin(time * 30) * 0.08 + (S.hitT > 0 ? Math.sin(time * 60) * 0.03 : 0);
     const dmg = 1 - S.hp / S.max;
     c.save(); c.translate(x, base); c.rotate(wob);
-    c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.ellipse(0, 0, 46, 8, 0, 0, TAU); c.fill();
     const ball = (y, r) => {
       const g = c.createRadialGradient(-r * 0.35, y - r * 0.4, r * 0.1, 0, y, r);
       g.addColorStop(0, '#ffffff'); g.addColorStop(0.7, '#eef7ff'); g.addColorStop(1, '#c6dcef');
@@ -3093,9 +3092,13 @@ const Game = (() => {
     for (let k = -2; k <= 2; k++) { c.beginPath(); c.arc(k * 4.5, -126 + Math.abs(k) * -1.4, 1.6, 0, TAU); c.fill(); }
     c.fillStyle = '#ff8a2a'; c.beginPath(); c.moveTo(0, -136); c.lineTo(20, -132); c.lineTo(0, -131); c.closePath(); c.fill();
     // scarf
-    c.fillStyle = '#e2394b'; c.beginPath(); c.roundRect(-24, -122, 48, 9, 4); c.fill();
-    c.beginPath(); c.moveTo(8, -116); c.lineTo(20, -96 + Math.sin(time * 4) * 3); c.lineTo(11, -95); c.lineTo(2, -115); c.closePath(); c.fill();
-    c.fillStyle = '#ffffff'; for (let k = 0; k < 4; k++) c.fillRect(-22 + k * 12, -122, 4, 9);
+    // wrapped snugly round the neck: a band that follows the pinch between head and body
+    c.fillStyle = '#e2394b';
+    c.beginPath(); c.ellipse(0, -116, 18, 6.5, 0, 0, TAU); c.fill();
+    c.fillStyle = '#c42a3c'; c.beginPath(); c.ellipse(0, -114, 17, 3, 0, 0, Math.PI); c.fill();
+    c.fillStyle = '#e2394b';
+    c.beginPath(); c.moveTo(7, -114); c.quadraticCurveTo(13, -104, 15 + Math.sin(time * 4) * 2, -95); c.lineTo(7 + Math.sin(time * 4) * 2, -94); c.quadraticCurveTo(6, -104, 1, -113); c.closePath(); c.fill();
+    c.fillStyle = '#ffffff'; for (const sx of [-11, -3, 5]) c.fillRect(sx, -121, 3, 10);
     // top hat
     c.fillStyle = '#1d1f27'; c.beginPath(); c.roundRect(-24, -158, 48, 6, 3); c.fill(); c.fillRect(-15, -184, 30, 28);
     c.fillStyle = '#2f9e62'; c.fillRect(-15, -164, 30, 5);
