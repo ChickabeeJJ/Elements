@@ -2765,17 +2765,7 @@ const Game = (() => {
       c.fillStyle = rgba('#ffb347', 0.5 + k * 0.5);
       c.beginPath(); c.ellipse(e.x, e.y - 2, 14 + k * 26, 3, 0, 0, TAU); c.fill();
     }
-    for (const w of walls) {
-      const a = Math.min(1, w.t * 6) * Math.min(1, (w.dur - w.t) * 3);
-      const h = (w.bottom - w.top) * Math.min(1, w.t * 7);
-      const top = w.bottom - h;
-      c.globalAlpha = 0.35 * a; c.fillStyle = '#9ff0e8';
-      c.beginPath(); c.moveTo(w.x - 16, w.bottom); c.lineTo(w.x - 14, top + 18); c.lineTo(w.x, top); c.lineTo(w.x + 14, top + 18); c.lineTo(w.x + 16, w.bottom); c.closePath(); c.fill();
-      c.globalAlpha = 0.9 * a; c.strokeStyle = '#e6fffb'; c.lineWidth = 2.5; c.stroke();
-      c.globalAlpha = 0.6 * a; c.lineWidth = 1.6;
-      c.beginPath(); c.moveTo(w.x, top); c.lineTo(w.x - 4, w.bottom); c.moveTo(w.x - 14, top + 18); c.lineTo(w.x + 6, top + h * 0.55); c.stroke();
-      c.globalAlpha = 1;
-    }
+    for (const w of walls) drawPrismWall(c, w);
     for (const m of mines) {
       const armed = m.t >= m.arm;
       c.fillStyle = '#2fb0a8';
@@ -4359,6 +4349,7 @@ const Game = (() => {
     shadow:  { body: '#2a1840', edge: '#b48cff', w: 0.62, hold: 1.1, accent: 'ink', echo: 0, dark: true },
     time:    { body: '#b88a2e', edge: '#fff1c4', w: 0.32, hold: 1.0, accent: 'tick', echo: 3 },
     steel:   { body: '#7f8ea3', edge: '#ffffff', w: 0.3, hold: 0.8, accent: 'spark', echo: 0 },
+    smoke:   { body: '#6f6a7c', edge: '#d9d5e2', w: 0.4, hold: 0.6, accent: 'puff', echo: 0 },
     arcane:  { body: '#7a3fd0', edge: '#f4e7ff', w: 0.48, hold: 1.1, accent: 'glint', echo: 1 },
   };
   const swingLook = el => SWING_LOOK[el] || { body: (ELEMENT_BY_ID[el] || NEUTRAL).deep, edge: mixHex((ELEMENT_BY_ID[el] || NEUTRAL).color, '#ffffff', 0.5), w: 0.45, hold: 1.0, accent: null, echo: 0 };
@@ -4373,11 +4364,63 @@ const Game = (() => {
         if (Math.random() < 0.35) fx.add({ kind: 'drop', x, y, vx: ux * rand(120, 320) + rand(-50, 50), vy: uy * rand(60, 200) - rand(40, 160), g: 1400, color: pick(['#8e0f2a', '#b3163a', '#5e0a1c']), size: rand(2.5, 4), life: rand(0.35, 0.55), add: false }); break;
       case 'mote': if (Math.random() < 0.6) fx.add({ x, y, vx: rand(-30, 30), vy: rand(-50, -10), color: '#dfe6ff', size: rand(2.5, 4), life: rand(0.5, 0.9), drag: 1.5 }); break;
       case 'ink': fx.add({ kind: 'smoke', x: x + rand(-6, 6), y: y + rand(-6, 6), vx: ux * 40 + rand(-25, 25), vy: rand(-60, -20), color: pick(['#1b1029', '#2a1840']), size: rand(5, 9), life: rand(0.45, 0.7), grow: 14, add: false }); break;
+      case 'puff':   // a brief smoke trail: soft puffs left in the fist's wake, drifting up and thinning out
+        for (let i = 0; i < 3; i++) { const k = rand(0, 1); fx.add({ kind: 'smoke', x: x - ux * k * 22 + rand(-2, 2), y: y - uy * k * 22 + rand(-2, 2), vx: -ux * rand(20, 60) + rand(-8, 8), vy: -rand(10, 30), drag: 3, color: pick(['#c9c5d3', '#b3aebf', '#9d98aa']), size: rand(2.5, 4.5), life: rand(0.28, 0.42), grow: 34, add: false }); }
+        break;
       case 'tick': if (Math.random() < 0.5) fx.add({ kind: 'spark', x, y, vx: -uy * rand(120, 200), vy: ux * rand(120, 200), color: '#ffe7a8', size: rand(2.5, 3.5), life: 0.16, drag: 8 }); break;
       case 'spark': if (Math.random() < 0.55) fx.add({ kind: 'spark', x, y, vx: ux * rand(250, 520) + rand(-120, 120), vy: uy * rand(250, 520) - rand(0, 200), g: 900, color: pick(['#ffffff', '#ffe9b0', '#cfd8e6']), size: rand(2.5, 4), life: rand(0.15, 0.3), drag: 2 }); break;
       default:
         if (Math.random() < 0.4) fx.add({ x, y, vx: ux * rand(40, 140), vy: uy * rand(40, 140) - 30, color: E.color, size: rand(3, 5), life: rand(0.2, 0.35), drag: 4 });
     }
+  }
+
+  // Prism Wall: a tall cut-crystal slab seen edge-on. Three faces (shaded left, bright front, cool
+  // right) under a bevelled point, crisp edge highlights, a specular sheen that sweeps up the face,
+  // a thin spectral sliver along one edge, and a soft glow where it meets the ground.
+  function drawPrismWall(c, w) {
+    const a = Math.min(1, w.t * 6) * Math.min(1, (w.dur - w.t) * 3);
+    const h = (w.bottom - w.top) * (1 - Math.pow(1 - Math.min(1, w.t * 6), 3));   // rises with an eased snap
+    if (h < 2) return;
+    const x = w.x, B = w.bottom, T = B - h, hw = 18, inner = 7, cap = Math.min(30, h * 0.2);
+    const L = [x - hw, B], R = [x + hw, B], Lt = [x - hw, T + cap], Rt = [x + hw, T + cap], P = [x, T];
+    const iL = [x - inner, B], iR = [x + inner, B], iLt = [x - inner, T + cap * 0.55], iRt = [x + inner, T + cap * 0.55];
+    const poly = (pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fill(); };
+    c.save(); c.globalAlpha = a;
+    // ground glow
+    c.globalCompositeOperation = 'lighter';
+    c.save(); c.translate(x, B); c.scale(1, 0.48); c.translate(-x, -B);
+    const gg = c.createRadialGradient(x, B, 0, x, B, 70); gg.addColorStop(0, 'rgba(159,240,232,0.45)'); gg.addColorStop(1, 'rgba(159,240,232,0)');
+    c.fillStyle = gg; c.beginPath(); c.arc(x, B, 70, 0, TAU); c.fill(); c.restore();
+    c.globalCompositeOperation = 'source-over';
+    // faces
+    const lg = c.createLinearGradient(0, T, 0, B); lg.addColorStop(0, 'rgba(120,214,206,0.82)'); lg.addColorStop(1, 'rgba(47,140,150,0.78)');
+    poly([L, Lt, P, iLt, iL], lg);
+    const fg = c.createLinearGradient(x - inner, 0, x + inner, 0); fg.addColorStop(0, 'rgba(214,255,250,0.85)'); fg.addColorStop(0.5, 'rgba(176,246,238,0.7)'); fg.addColorStop(1, 'rgba(140,230,222,0.78)');
+    poly([iL, iLt, P, iRt, iR], fg);
+    const rg = c.createLinearGradient(0, T, 0, B); rg.addColorStop(0, 'rgba(150,226,236,0.8)'); rg.addColorStop(1, 'rgba(64,160,190,0.78)');
+    poly([iR, iRt, P, Rt, R], rg);
+    // sheen sweeping up the faces, clipped to the crystal
+    c.save();
+    c.beginPath(); [L, Lt, P, Rt, R].forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.clip();
+    const sy = B - ((time * 0.55 + w.x * 0.001) % 1.4) * (h + 80);
+    const sg = c.createLinearGradient(x - hw, sy + 30, x + hw, sy - 30);
+    sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.55)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    c.globalCompositeOperation = 'lighter'; c.fillStyle = sg; c.fillRect(x - hw, sy - 40, hw * 2, 80);
+    // spectral sliver along the right edge
+    const sp = c.createLinearGradient(0, T, 0, B);
+    sp.addColorStop(0, 'rgba(255,120,200,0.35)'); sp.addColorStop(0.35, 'rgba(255,230,120,0.3)'); sp.addColorStop(0.65, 'rgba(120,255,190,0.3)'); sp.addColorStop(1, 'rgba(120,170,255,0.35)');
+    c.fillStyle = sp; c.fillRect(x + hw - 4, T, 3, h);
+    c.restore();
+    // crisp edges
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    c.strokeStyle = 'rgba(240,255,253,0.95)'; c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(L[0], L[1]); c.lineTo(Lt[0], Lt[1]); c.lineTo(P[0], P[1]); c.lineTo(Rt[0], Rt[1]); c.lineTo(R[0], R[1]); c.stroke();
+    c.strokeStyle = 'rgba(240,255,253,0.6)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(iL[0], iL[1]); c.lineTo(iLt[0], iLt[1]); c.lineTo(P[0], P[1]); c.lineTo(iRt[0], iRt[1]); c.lineTo(iR[0], iR[1]); c.stroke();
+    // a glint at the point
+    c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * (0.6 + 0.4 * Math.sin(time * 4 + x));
+    Glow.draw(c, '#ffffff', P[0], P[1] + 3, 12, 1);
+    c.restore();
   }
 
   // the backdrop's living sand, drawn in world units through the same crop/scale as the backdrop
@@ -4837,7 +4880,7 @@ const Game = (() => {
     let crest = 0; for (let i = 1; i < C.length; i++) if (C[i].h > C[crest].h) crest = i;
     const Hc = Math.max(1, C[crest].h);
     const lip = w.lip || (w.lip = { x: 0, y: 0, vx: 0, vy: 0 });
-    const reach = Hc * (0.35 + clamp(phase * 1.6, 0, 0.55)), drop = Hc * (0.15 + clamp((phase - 0.35) * 1.6, 0, 0.75));
+    const reach = Hc * (0.22 + clamp(phase * 1.2, 0, 0.26)), drop = Hc * (0.15 + clamp((phase - 0.35) * 1.6, 0, 0.6));   // a short, hooked lip
     const ax = (reach - lip.x) * 60 - lip.vx * 9, ay = (drop - lip.y) * 60 - lip.vy * 9 + (phase > 0.45 ? 260 : 0);
     lip.vx += ax * dt; lip.vy += ay * dt; lip.x += lip.vx * dt; lip.y += lip.vy * dt;
     lip.y = Math.min(lip.y, Hc * 0.98);   // the lip lands on the water, never through the ground
@@ -4888,7 +4931,7 @@ const Game = (() => {
     // the inner edge leaves the tip almost parallel to the outer one, so the lip ends in a sharp point
     let ux = tipX - oX, uy = tipY - oY; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
     let nx = -uy, ny = ux; if (ny < 0) { nx = -nx; ny = -ny; }                                       // toward the hollow
-    c.quadraticCurveTo(tipX - ux * thick * 1.6 + nx * thick * 0.45, tipY - uy * thick * 1.6 + ny * thick * 0.45, cX + d * thick * 0.1, cY + thick);   // inner edge back under
+    c.quadraticCurveTo(tipX - ux * thick * 0.9 + nx * thick * 0.5, tipY - uy * thick * 0.9 + ny * thick * 0.5, cX + d * thick * 0.1, cY + thick);   // inner edge back under
     c.closePath(); c.fill();
     // 4. light through the thin lip, and a soft foam band on its crest (a gradient, never dots or lines)
     c.globalCompositeOperation = 'lighter';
