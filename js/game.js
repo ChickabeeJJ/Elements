@@ -4379,47 +4379,59 @@ const Game = (() => {
   // a thin spectral sliver along one edge, and a soft glow where it meets the ground.
   function drawPrismWall(c, w) {
     const a = Math.min(1, w.t * 6) * Math.min(1, (w.dur - w.t) * 3);
-    const h = (w.bottom - w.top) * (1 - Math.pow(1 - Math.min(1, w.t * 6), 3));   // rises with an eased snap
+    const grow = 1 - Math.pow(1 - Math.min(1, w.t * 6), 3);                     // rises with an eased snap
+    const h = (w.bottom - w.top) * grow;
     if (h < 2) return;
-    const x = w.x, B = w.bottom, T = B - h, hw = 18, inner = 7, cap = Math.min(30, h * 0.2);
-    const L = [x - hw, B], R = [x + hw, B], Lt = [x - hw, T + cap], Rt = [x + hw, T + cap], P = [x, T];
-    const iL = [x - inner, B], iR = [x + inner, B], iLt = [x - inner, T + cap * 0.55], iRt = [x + inner, T + cap * 0.55];
-    const poly = (pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fill(); };
+    const x = w.x, B = w.bottom, T = B - h;
+    const path = pts => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); };
+    // a crystal: translucent, slightly asymmetric, with a jagged off-centre point and two small shards at its foot
+    const main = [[x - 17, B], [x - 15, T + h * 0.3], [x - 9, T + h * 0.1], [x + 2, T], [x + 11, T + h * 0.14], [x + 16, T + h * 0.36], [x + 15, B]];
+    const shardL = [[x - 30, B], [x - 27, B - h * 0.3], [x - 21, B - h * 0.42], [x - 15, B - h * 0.2], [x - 14, B]];
+    const shardR = [[x + 13, B], [x + 18, B - h * 0.24], [x + 25, B - h * 0.3], [x + 28, B]];
     c.save(); c.globalAlpha = a;
     // ground glow
     c.globalCompositeOperation = 'lighter';
-    c.save(); c.translate(x, B); c.scale(1, 0.48); c.translate(-x, -B);
-    const gg = c.createRadialGradient(x, B, 0, x, B, 70); gg.addColorStop(0, 'rgba(159,240,232,0.45)'); gg.addColorStop(1, 'rgba(159,240,232,0)');
-    c.fillStyle = gg; c.beginPath(); c.arc(x, B, 70, 0, TAU); c.fill(); c.restore();
+    c.save(); c.translate(x, B); c.scale(1, 0.42); c.translate(-x, -B);
+    const gg = c.createRadialGradient(x, B, 0, x, B, 64); gg.addColorStop(0, 'rgba(159,240,232,0.4)'); gg.addColorStop(1, 'rgba(159,240,232,0)');
+    c.fillStyle = gg; c.beginPath(); c.arc(x, B, 64, 0, TAU); c.fill(); c.restore();
     c.globalCompositeOperation = 'source-over';
-    // faces
-    const lg = c.createLinearGradient(0, T, 0, B); lg.addColorStop(0, 'rgba(120,214,206,0.82)'); lg.addColorStop(1, 'rgba(47,140,150,0.78)');
-    poly([L, Lt, P, iLt, iL], lg);
-    const fg = c.createLinearGradient(x - inner, 0, x + inner, 0); fg.addColorStop(0, 'rgba(214,255,250,0.85)'); fg.addColorStop(0.5, 'rgba(176,246,238,0.7)'); fg.addColorStop(1, 'rgba(140,230,222,0.78)');
-    poly([iL, iLt, P, iRt, iR], fg);
-    const rg = c.createLinearGradient(0, T, 0, B); rg.addColorStop(0, 'rgba(150,226,236,0.8)'); rg.addColorStop(1, 'rgba(64,160,190,0.78)');
-    poly([iR, iRt, P, Rt, R], rg);
-    // sheen sweeping up the faces, clipped to the crystal
-    c.save();
-    c.beginPath(); [L, Lt, P, Rt, R].forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.clip();
+    const body = (pts, x0, x1) => {
+      const g = c.createLinearGradient(x0, T, x1, B);
+      g.addColorStop(0, 'rgba(214,255,250,0.5)'); g.addColorStop(0.45, 'rgba(140,232,222,0.3)'); g.addColorStop(1, 'rgba(70,170,180,0.42)');
+      path(pts); c.fillStyle = g; c.fill();
+    };
+    body(shardL, x - 30, x - 14); body(shardR, x + 13, x + 28); body(main, x - 17, x + 16);
+    // facets: the lit left plane and the shaded right plane, both still see-through
+    c.fillStyle = 'rgba(235,255,252,0.22)'; path([[x - 17, B], [x - 15, T + h * 0.3], [x - 9, T + h * 0.1], [x + 2, T], [x - 3, B]]); c.fill();
+    c.fillStyle = 'rgba(30,110,130,0.18)'; path([[x + 2, T], [x + 11, T + h * 0.14], [x + 16, T + h * 0.36], [x + 15, B], [x + 6, B]]); c.fill();
+    c.save(); path(main); c.clip();
+    // internal fractures, the clearest sign of crystal
+    c.lineCap = 'round'; c.strokeStyle = 'rgba(240,255,253,0.55)'; c.lineWidth = 1.1;
+    c.beginPath();
+    c.moveTo(x + 2, T); c.lineTo(x - 3, B);                                       // the main ridge
+    c.moveTo(x - 9, T + h * 0.1); c.lineTo(x - 1, T + h * 0.42);
+    c.moveTo(x + 11, T + h * 0.14); c.lineTo(x + 1, T + h * 0.3);
+    c.moveTo(x - 15, T + h * 0.55); c.lineTo(x - 2, T + h * 0.68); c.lineTo(x + 9, T + h * 0.6);
+    c.stroke();
+    c.strokeStyle = 'rgba(240,255,253,0.28)'; c.lineWidth = 0.8;
+    c.beginPath(); c.moveTo(x + 16, T + h * 0.36); c.lineTo(x + 4, T + h * 0.5); c.moveTo(x - 12, T + h * 0.8); c.lineTo(x + 6, T + h * 0.86); c.stroke();
+    // a sheen sweeping up through it, and a thin spectral sliver along the right edge (light split by the prism)
+    c.globalCompositeOperation = 'lighter';
     const sy = B - ((time * 0.55 + w.x * 0.001) % 1.4) * (h + 80);
-    const sg = c.createLinearGradient(x - hw, sy + 30, x + hw, sy - 30);
-    sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.55)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
-    c.globalCompositeOperation = 'lighter'; c.fillStyle = sg; c.fillRect(x - hw, sy - 40, hw * 2, 80);
-    // spectral sliver along the right edge
+    const sg = c.createLinearGradient(x - 17, sy + 26, x + 16, sy - 26);
+    sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.45)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = sg; c.fillRect(x - 18, sy - 40, 36, 80);
     const sp = c.createLinearGradient(0, T, 0, B);
-    sp.addColorStop(0, 'rgba(255,120,200,0.35)'); sp.addColorStop(0.35, 'rgba(255,230,120,0.3)'); sp.addColorStop(0.65, 'rgba(120,255,190,0.3)'); sp.addColorStop(1, 'rgba(120,170,255,0.35)');
-    c.fillStyle = sp; c.fillRect(x + hw - 4, T, 3, h);
+    sp.addColorStop(0, 'rgba(255,120,200,0.4)'); sp.addColorStop(0.35, 'rgba(255,230,120,0.32)'); sp.addColorStop(0.65, 'rgba(120,255,190,0.32)'); sp.addColorStop(1, 'rgba(120,170,255,0.4)');
+    c.fillStyle = sp; c.fillRect(x + 11, T, 4, h);
     c.restore();
-    // crisp edges
-    c.lineJoin = 'round'; c.lineCap = 'round';
-    c.strokeStyle = 'rgba(240,255,253,0.95)'; c.lineWidth = 1.6;
-    c.beginPath(); c.moveTo(L[0], L[1]); c.lineTo(Lt[0], Lt[1]); c.lineTo(P[0], P[1]); c.lineTo(Rt[0], Rt[1]); c.lineTo(R[0], R[1]); c.stroke();
-    c.strokeStyle = 'rgba(240,255,253,0.6)'; c.lineWidth = 1;
-    c.beginPath(); c.moveTo(iL[0], iL[1]); c.lineTo(iLt[0], iLt[1]); c.lineTo(P[0], P[1]); c.lineTo(iRt[0], iRt[1]); c.lineTo(iR[0], iR[1]); c.stroke();
+    // crisp bright edges
+    c.lineJoin = 'round'; c.strokeStyle = 'rgba(236,255,252,0.95)'; c.lineWidth = 1.8;
+    path(main); c.stroke();
+    c.lineWidth = 1.3; c.strokeStyle = 'rgba(236,255,252,0.75)'; path(shardL); c.stroke(); path(shardR); c.stroke();
     // a glint at the point
     c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * (0.6 + 0.4 * Math.sin(time * 4 + x));
-    Glow.draw(c, '#ffffff', P[0], P[1] + 3, 12, 1);
+    Glow.draw(c, '#ffffff', x + 2, T + 3, 12, 1);
     c.restore();
   }
 
@@ -4910,46 +4922,58 @@ const Game = (() => {
     // the face drops steeply from under the lip to the ground, slightly concave (the barrel's back wall)
     c.quadraticCurveTo(cX + d * H * 0.05, cY + H * 0.55, cX + d * H * 0.32, Y);
     c.closePath(); c.fill();
-    // 2. the hollow under the lip: darker, as the curl shades it
-    if (H > 18) {
-      const hg = c.createRadialGradient(cX + d * H * 0.18, cY + H * 0.45, 2, cX + d * H * 0.18, cY + H * 0.45, H * 0.5);
-      hg.addColorStop(0, rgba('#08284f', 0.5 * k)); hg.addColorStop(1, rgba('#08284f', 0));
-      c.fillStyle = hg;
-      c.beginPath(); c.moveTo(cX, cY + thick * 0.6);
-      c.quadraticCurveTo(cX + d * w.lip.x * 0.9, cY + thick * 0.3, tipX, tipY);
-      c.quadraticCurveTo(cX + d * H * 0.3, Y - H * 0.1, cX + d * H * 0.05, Y);
-      c.lineTo(cX - d * 4, cY + H * 0.4); c.closePath(); c.fill();
+    // 2-4. the curl (shaped like the classic breaking-wave glyph): the crest pitches forward, rolls over and
+    //    spirals back toward the face, a thick band thinning to a point. Inside the roll is the shaded barrel.
+    //    Built in local coords (f = forward) and mirrored by d.
+    const ph = clamp((w.lip.x / Math.max(1, H) - 0.22) / 0.26, 0, 1);       // 0 rising .. 1 fully rolled
+    const R = Math.max(7, H * (0.3 + ph * 0.1));
+    const oX = cX + d * R * 0.3, oY = cY + R;
+    const A0 = -Math.PI * 1.1, FULL = Math.PI * 1.85;
+    const A1 = -Math.PI * 0.35 + ph * Math.PI * 0.85;                          // how far the roll has wrapped
+    const N2 = 30, outer = [], innerE = [];
+    for (let i = 0; i <= N2; i++) {
+      const A = A0 + (A1 - A0) * (i / N2), sN = (A - A0) / FULL;            // sN: 0..1 along the full roll
+      const ro = R * (1 - 0.5 * sN), t = R * 0.62 * Math.pow(1 - sN, 1.25) * (0.35 + 0.65 * Math.min(1, (A1 - A) / 0.9 + 0.15));
+      const ri = Math.max(0, ro - t);
+      outer.push([oX + d * Math.cos(A) * ro, oY + Math.sin(A) * ro]);
+      innerE.push([oX + d * Math.cos(A) * ri, oY + Math.sin(A) * ri]);
     }
-    // 3. the curling lip: thick at the crest, tapering as it hooks over to the tip
-    c.fillStyle = body();
-    const ctrlX = cX + d * w.lip.x * 0.85, ctrlY = cY - H * 0.16 - Math.max(0, w.lip.x * 0.1);
-    c.beginPath();
-    c.moveTo(cX - d * thick * 0.6, cY + thick * 0.15);
-    c.quadraticCurveTo(cX + d * thick * 0.2, cY - H * 0.1, cX + d * thick * 0.5, cY - H * 0.06);   // over the top of the crest
-    const oX = ctrlX + d * thick * 0.4, oY = ctrlY;
-    c.quadraticCurveTo(oX, oY, tipX, tipY);                                                         // outer edge out to the tip
-    // the inner edge leaves the tip almost parallel to the outer one, so the lip ends in a sharp point
-    let ux = tipX - oX, uy = tipY - oY; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
-    let nx = -uy, ny = ux; if (ny < 0) { nx = -nx; ny = -ny; }                                       // toward the hollow
-    c.quadraticCurveTo(tipX - ux * thick * 0.9 + nx * thick * 0.5, tipY - uy * thick * 0.9 + ny * thick * 0.5, cX + d * thick * 0.1, cY + thick);   // inner edge back under
+    // the shaded barrel inside the roll
+    if (ph > 0.05) {
+      const hg = c.createRadialGradient(oX, oY + R * 0.1, 0, oX, oY, R);
+      hg.addColorStop(0, rgba('#06203f', 0.75 * k * ph)); hg.addColorStop(1, rgba('#123f76', 0.5 * k * ph));
+      c.fillStyle = hg; c.beginPath();
+      c.moveTo(innerE[0][0], innerE[0][1]);
+      for (const [x, y] of innerE) c.lineTo(x, y);
+      c.lineTo(cX + d * H * 0.12, Y - H * 0.25); c.closePath(); c.fill();
+    }
+    // the rolling band
+    const bg = c.createLinearGradient(0, cY, 0, oY + R);
+    bg.addColorStop(0, rgba('#6cc8ee', 0.95 * k)); bg.addColorStop(1, rgba('#1f6fb2', 0.95 * k));
+    c.fillStyle = bg;
+    c.beginPath(); c.moveTo(outer[0][0], outer[0][1]);
+    for (const [x, y] of outer) c.lineTo(x, y);
+    for (let i = innerE.length - 1; i >= 0; i--) c.lineTo(innerE[i][0], innerE[i][1]);
     c.closePath(); c.fill();
-    // 4. light through the thin lip, and a soft foam band on its crest (a gradient, never dots or lines)
+    // light through the thin, rolling water
     c.globalCompositeOperation = 'lighter';
-    const lg = c.createRadialGradient(cX + d * thick, cY + thick * 0.3, 1, cX + d * thick, cY + thick * 0.3, H * 0.45);
-    lg.addColorStop(0, rgba('#9fe8ff', 0.22 * k)); lg.addColorStop(1, rgba('#9fe8ff', 0));
-    c.fillStyle = lg; c.fillRect(cX - H, cY - H * 0.6, H * 2, H * 1.4);
+    const lg = c.createRadialGradient(oX + d * R * 0.6, oY - R * 0.4, 1, oX + d * R * 0.6, oY - R * 0.4, R * 1.2);
+    lg.addColorStop(0, rgba('#9fe8ff', 0.2 * k)); lg.addColorStop(1, rgba('#9fe8ff', 0));
+    c.fillStyle = lg; c.fillRect(oX - R * 2, oY - R * 2, R * 4, R * 3.5);
     c.globalCompositeOperation = 'source-over';
-    const fg = c.createLinearGradient(cX, cY - H * 0.12, cX, cY + thick * 0.5);
-    fg.addColorStop(0, rgba('#f4fbff', 0.5 * k)); fg.addColorStop(1, rgba('#f4fbff', 0));
-    c.fillStyle = fg;
-    c.beginPath();
-    c.moveTo(cX - d * thick * 1.6, cY + thick * 0.3);
-    c.quadraticCurveTo(cX, cY - H * 0.12, ctrlX, ctrlY + thick * 0.2);
-    c.quadraticCurveTo(cX + d * thick * 0.5, cY + thick * 0.2, cX - d * thick * 1.6, cY + thick * 0.3);
-    c.fill();
+    // one foam cap riding the top of the roll, thinning to nothing at both ends (a filled crescent, no seams)
+    const fEnd = Math.floor(outer.length * 0.72), fw = u => R * 0.15 * Math.sin(Math.PI * u);
+    c.fillStyle = rgba('#f4fbff', 0.88 * k); c.beginPath();
+    for (let i = 0; i <= fEnd; i++) c.lineTo(outer[i][0], outer[i][1]);
+    for (let i = fEnd; i >= 0; i--) {
+      const A = A0 + (A1 - A0) * (i / N2), q = fw(i / fEnd);
+      c.lineTo(outer[i][0] - d * Math.cos(A) * q, outer[i][1] - Math.sin(A) * q);
+    }
+    c.closePath(); c.fill();
+    const rC = R;
     // 5. where the lip lands: a soft mist, only once it has plunged
     const land = clamp((w.lip.y / H - 0.55) * 3, 0, 1);
-    if (land > 0) { c.globalAlpha = land * k * 0.35; Glow.draw(c, '#eaf8ff', tipX, tipY, H * 0.45, 1); }
+    if (land > 0) { c.globalAlpha = land * k * 0.3; Glow.draw(c, '#eaf8ff', cX + d * rC * 2, Y - 6, H * 0.4, 1); }
     c.restore();
   }
 
