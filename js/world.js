@@ -147,6 +147,43 @@ class Island {
    Realm-specific scenery painted into the pre-rendered backdrop (drawn once per realm
    and view size, so it costs nothing per frame). sky: after the sun; far: on the
    farthest ridge; near: over the nearest ridge. */
+// the Radiant Citadel's painted castle: once it loads, the cached backdrop is redrawn with it
+const CITADEL_IMG = new Image();
+CITADEL_IMG.decoding = 'async';
+CITADEL_IMG.onload = () => { if (typeof Backdrop !== 'undefined') Backdrop.invalidate(); };
+CITADEL_IMG.src = 'assets/img/citadel.webp';
+
+// the castle, prepared once: lifted slightly to hold up under the backdrop's dimming, and its bottom
+// 10% faded to nothing, so no hard image edge can ever show
+let citadelCv = null;
+function citadelFaded(realm) {
+  if (citadelCv) return citadelCv;
+  const im = CITADEL_IMG, cv = document.createElement('canvas');
+  cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+  const c = cv.getContext('2d');
+  // the art is already painted in this realm's palette: just lift it a little so it holds up
+  // under the backdrop's overall dimming
+  c.filter = 'saturate(1.28) brightness(1.22) contrast(1.04)';
+  c.drawImage(im, 0, 0);
+  c.filter = 'none';
+  c.globalCompositeOperation = 'destination-in';
+  const m = c.createLinearGradient(0, 0, 0, cv.height);
+  m.addColorStop(0, '#000'); m.addColorStop(0.985, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = m; c.fillRect(0, 0, cv.width, cv.height);
+  citadelCv = cv;
+  return cv;
+}
+
+// where the castle's bottom edge sits: just below the nearer dune's lowest point across its width
+const CITADEL_W = 648;
+const SAND_RESERVE = 6;   // px of the front dune that is live, drifting sand instead of baked into the backdrop
+function citadelFoot(realm, rawRidge) {
+  const cx = W * realm.sunPos[0];
+  let foot = 0;
+  for (let x = cx - CITADEL_W / 2 - 20; x <= cx + CITADEL_W / 2 + 20; x += 6) foot = Math.max(foot, rawRidge(1, x));
+  return foot + 7;
+}
+
 // the Winterfest focal tree (painted) and where the mid treeline's pines stand (the trailer's eyes peek
 // out from some of them)
 const XMAS_TREE = new Image();
