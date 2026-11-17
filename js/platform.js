@@ -167,7 +167,7 @@ const Platform = (() => {
       if (wasPlaying) gameplayStart();
       cb && cb(ok);
     };
-    const START_WAIT = kind === 'rewarded' ? 30000 : 8000;
+    const START_WAIT = kind === 'rewarded' ? 30000 : 5000;   // a midgame that hasn't started in 5 s is skipped, so play is never held up long
     watchdog = setTimeout(() => finish(false), START_WAIT);
     // the tap blocker never stays up longer than 8 s: a slow rewarded ad keeps loading behind it
     const unblock = setTimeout(() => { if (!done && !started) setAdWaitOverlay(false); }, 8000);
