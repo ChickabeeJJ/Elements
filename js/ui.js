@@ -428,6 +428,8 @@ const UI = (() => {
   function startWinter(i) {
     if (!Meta.winterLive()) { toast('WINTERFEST HAS ENDED'); return; }
     const tutorial = i === 0 && !Save.data.winter.tutDone;
+    // first time into the event: its intro cinematic plays, then the guided how-to begins
+    if (tutorial && !Save.data.intros.winterfest) { playEventIntro('winterfest', () => startWinter(i)); return; }
     lastStart = { mode: 'event', i };
     closeModal(); show(null);
     Game.start({ mode: 'event', i, tutorial });
@@ -440,6 +442,114 @@ const UI = (() => {
     setTimeout(() => { if (Game.state === 'play') toast(M.goal(w.n).toUpperCase()); }, 1100);
     if (w.twist !== 'none') setTimeout(() => { if (Game.state === 'play') toast(`${TWISTS[w.twist].name.toUpperCase()} · ${TWISTS[w.twist].desc}`); }, 3000);
   }
+  /* ------------------------------------------------------- event intros
+     A short cinematic that plays the first time a player enters an event, before its how-to.
+     For a future event: add an entry here (its backdrop realm, a colour, and its beats), then call
+     playEventIntro('<key>', start) where that event's first stage starts. Each plays once per player
+     (Save.data.intros), and can always be skipped. Beat kinds:
+       line  { t, kicker?, text }        a caption: small kicker over a large line
+       eyes  { t }                       pairs of glowing eyes blinking in the dark at the bottom
+       title { t, text, sub }            the event title, with a light sweep across it
+     t is when the beat starts (s); each lasts until the next one. */
+  const EVENT_INTROS = {
+    winterfest: {
+      realm: () => WINTER_REALM, color: '#bfeaff', accent: '#ff5a6e', len: 12.5,
+      beats: [
+        { t: 0.6, kind: 'line', kicker: 'EVERY DECEMBER', text: 'The islands fall quiet under the snow' },
+        { t: 3.6, kind: 'eyes', kicker: 'BUT IN THE DRIFTS', text: 'Something has been waiting' },
+        { t: 6.6, kind: 'line', kicker: 'THE KRAMPLINGS ARE LOOSE', text: 'And every present is gone' },
+        { t: 9.2, kind: 'title', text: 'WINTERFEST', sub: '20 STAGES · NEW GAME MODES · EXCLUSIVE HATS' },
+      ],
+    },
+  };
+  function playEventIntro(key, then) {
+    const I = EVENT_INTROS[key];
+    const finish = () => { Save.data.intros[key] = true; Save.save(); then && then(); };
+    if (!I || matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
+    closeModal();
+    for (const id of ['home', 'map', 'codex', 'forge', 'hub']) $(id).classList.add('hidden');
+    $('hud').classList.add('hidden');
+    Game.idleScene(I.realm());
+    const el = document.createElement('div');
+    el.id = 'cine'; el.style.setProperty('--cc', I.color); el.style.setProperty('--ca', I.accent);
+    el.innerHTML = `<canvas></canvas><i class="cb top"></i><i class="cb bot"></i><div class="cine-cap"><small></small><b></b></div>
+      <div class="ttl"><h1></h1><p></p></div><button class="btn small cine-skip" type="button"><b>SKIP</b></button>`;
+    document.body.appendChild(el);
+    $('stage').classList.add('cine-cam');
+    const cv = el.querySelector('canvas'), g = cv.getContext('2d');
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    const size = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; };
+    size(); addEventListener('resize', size);
+    const flakes = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6 }));
+    const eyes = Array.from({ length: 6 }, (_, i) => ({ x: 0.12 + i * 0.15 + Math.random() * 0.05, y: 0.78 + Math.random() * 0.1, on: 0.4 + Math.random() * 1.6, s: 0.7 + Math.random() * 0.6 }));
+    const cap = el.querySelector('.cine-cap'), ttl = el.querySelector('.ttl');
+    let t0 = performance.now(), raf = 0, beatIdx = -1, done = false;
+    const end = () => {
+      if (done) return; done = true;
+      cancelAnimationFrame(raf); removeEventListener('resize', size);
+      el.classList.add('out');
+      setTimeout(() => { el.remove(); $('stage').classList.remove('cine-cam'); for (const f of Game.dev.all()) f.hidden = false; const hero = Game.dev.player(); if (hero) hero.hidden = false; finish(); }, 600);
+    };
+    el.querySelector('.cine-skip').onclick = () => { Sfx.click(); end(); };
+    Sfx.whoosh();
+    const frame = now => {
+      const t = (now - t0) / 1000;
+      if (t >= I.len) { end(); return; }
+      // an empty landscape: the menu's demo fighters stay out of shot
+      for (const f of Game.dev.all()) f.hidden = true; const hero = Game.dev.player(); if (hero) hero.hidden = true;
+      // the current beat
+      let bi = -1; for (let i = 0; i < I.beats.length; i++) if (t >= I.beats[i].t) bi = i;
+      if (bi !== beatIdx) {
+        beatIdx = bi; const B = I.beats[bi];
+        cap.classList.remove('in'); ttl.classList.remove('in');
+        if (B) {
+          if (B.kind === 'title') { ttl.querySelector('h1').textContent = B.text; ttl.querySelector('p').textContent = B.sub || ''; requestAnimationFrame(() => ttl.classList.add('in')); Sfx.unlock(); }
+          else { cap.querySelector('small').textContent = B.kicker || ''; cap.querySelector('b').textContent = B.text || ''; requestAnimationFrame(() => cap.classList.add('in')); Sfx.whoosh(); }
+        }
+      }
+      const B = I.beats[beatIdx];
+      const W2 = cv.width, H2 = cv.height;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W2, H2);
+      // vignette that opens from black at the start and closes at the end
+      const open = Math.min(1, t / 1.4), close = Math.max(0, (t - (I.len - 1)) / 1);
+      const vg = g.createRadialGradient(W2 / 2, H2 * 0.45, Math.min(W2, H2) * (0.15 + 0.4 * open), W2 / 2, H2 * 0.45, Math.max(W2, H2) * 0.75);
+      vg.addColorStop(0, 'rgba(4,6,14,0)'); vg.addColorStop(1, 'rgba(4,6,14,0.85)');
+      g.fillStyle = vg; g.fillRect(0, 0, W2, H2);
+      g.fillStyle = `rgba(4,6,14,${Math.max(1 - open * 1.2, close)})`; g.fillRect(0, 0, W2, H2);
+      // close, soft snow drifting across the lens
+      for (const f of flakes) {
+        const x = ((f.x + t * 0.012 * f.z + Math.sin(t * 0.7 + f.ph) * 0.006) % 1) * W2, y = ((f.y + t * 0.05 * f.z) % 1) * H2, r = f.z * 2.6 * dpr;
+        g.globalAlpha = 0.25 + f.z * 0.55; g.fillStyle = '#eef6ff'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+      }
+      g.globalAlpha = 1;
+      // eyes in the drifts
+      if (B && B.kind === 'eyes') {
+        const k = Math.min(1, (t - B.t) / 0.8);
+        for (const e of eyes) {
+          if (t - B.t < e.on) continue;
+          const blink = Math.abs(Math.sin((t + e.x * 9) * 1.3)) > 0.08 ? 1 : 0.1, x = e.x * W2, y = e.y * H2, r = 3.2 * dpr * e.s, gap = 13 * dpr * e.s;
+          for (const dx of [-gap / 2, gap / 2]) {
+            g.globalAlpha = k * blink * 0.5; Glow.draw(g, I.accent, x + dx, y, r * 6, 1);
+            g.globalAlpha = k * blink; g.fillStyle = '#ffd2d8'; g.beginPath(); g.ellipse(x + dx, y, r, r * 0.55, 0, 0, TAU); g.fill();
+          }
+        }
+        g.globalAlpha = 1;
+      }
+      // the title's light sweep
+      if (B && B.kind === 'title') {
+        const u = (t - B.t) / 1.6;
+        if (u > 0 && u < 1) {
+          const sx = (-0.3 + u * 1.6) * W2;
+          const lg = g.createLinearGradient(sx - 160 * dpr, 0, sx + 160 * dpr, 0);
+          lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.22)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+          g.globalCompositeOperation = 'lighter'; g.fillStyle = lg; g.fillRect(0, H2 * 0.3, W2, H2 * 0.3); g.globalCompositeOperation = 'source-over';
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+  }
+
   // the first-time how-to: cards between its three short parts (the game pauses on each)
   const WF_CARDS = {
     welcome: { icon: 'snow', title: 'WELCOME TO WINTERFEST', text: 'Winterfest is here all December, with its own 20-stage chapter and new game modes. Each stage shows its goal at the top of the screen.',
@@ -1165,7 +1275,7 @@ const UI = (() => {
     if (!Save.data.tutorialDone || current !== 'home' || modalOpen()) return false;
     const g = Meta.takeStreak();
     if (!g) return false;
-    const cells = g.table.map((n, i) => `<div class="stk${i + 1 < g.day ? ' got' : i + 1 === g.day ? ' now' : ''}"><small>DAY ${i + 1}</small>${ic('gem', 'gem')}<b>${n}</b></div>`).join('');
+    const cells = g.table.map((n, i) => `<div class="stk ol${i + 1 < g.day ? ' got' : i + 1 === g.day ? ' now' : ''}"><small>DAY ${i + 1}</small>${ic('gem', 'gem')}<b>${n}</b></div>`).join('');
     modal(`<h2>DAILY GIFT</h2><p class="sub">DAY ${g.day} IN A ROW · COME BACK TOMORROW FOR MORE</p>
       <div class="stk-row">${cells}</div>
       <div class="actions"><button class="btn${Platform.rewardedAvailable ? '' : ' primary'}" id="stkOk"><b>COLLECT ${g.gems}</b></button>${Platform.rewardedAvailable ? adBtn('stkAd', `COLLECT ${g.gems * 2}`, ' primary') : ''}</div>`, sh => {

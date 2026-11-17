@@ -357,7 +357,7 @@ const Meta = (() => {
 
   /* ------------------------------------------------------ login streak */
   // a small gift for each day in a row the game is opened: 7 rising gifts, then it starts again
-  const STREAK_GEMS = [20, 30, 40, 50, 60, 80, 150];
+  const STREAK_GEMS = [20, 30, 50, 75, 110, 160, 300];
   function takeStreak() {
     const s = Save.data.streak, t = today();
     if (s.last === t) return null;
