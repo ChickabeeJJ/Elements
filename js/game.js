@@ -4433,9 +4433,6 @@ const Game = (() => {
     c.lineJoin = 'round'; c.strokeStyle = 'rgba(236,255,252,0.95)'; c.lineWidth = 1.8;
     path(main); c.stroke();
     c.lineWidth = 1.3; c.strokeStyle = 'rgba(236,255,252,0.75)'; path(shardL); c.stroke(); path(shardR); c.stroke();
-    // a glint at the point
-    c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * (0.6 + 0.4 * Math.sin(time * 4 + x));
-    Glow.draw(c, '#ffffff', x + 2, T + 3, 12, 1);
     c.restore();
   }
 
@@ -4919,7 +4916,7 @@ const Game = (() => {
     const Ox = px(cr);
     const P = (A, r) => [Ox + d * Math.cos(A) * r, Oy + Math.sin(A) * r];
     const As = -Math.PI / 2 - 0.75;                             // where the back slope meets the curl
-    const E = -0.7 + ph * 0.95;                                 // the lip's end angle (0 = straight ahead)
+    const E = -0.75 + ph * 0.5;                                 // the lip's end angle (0 = straight ahead)
     // the outline across the top: back slope (a smooth curve from the tail, tangent to the curl) + outer curl
     const tail = [px(0), Y], s0 = P(As, ro);
     const tg = [-d * Math.sin(As), Math.cos(As)];               // direction of travel along the curl at its start
