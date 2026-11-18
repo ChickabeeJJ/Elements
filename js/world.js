@@ -8,7 +8,7 @@ class Island {
   static PAD = 4;
   constructor(x, y, w, opts = {}) {
     this.x = x; this.y = y; this.w = w;
-    this.baseX = x; this.baseY = y;
+    this.baseX = x; this.baseY = y; this.opts = opts;
     this.depth = opts.depth || Math.min(240, w * 0.42 + 70);
     this.seed = opts.seed || Math.floor(Math.random() * 1e6);
     this.motion = opts.motion || null;    // {ax, ay, speed, phase}
@@ -50,14 +50,18 @@ class Island {
     const rng = mulberry32(Math.imul(this.seed, 2654435761) ^ 0x9e3779b9);
     rng(); rng();
     const want = clamp(Math.round(this.depth / t) + (rng() < 0.35 ? -1 : rng() < 0.3 ? 1 : 0), 2, 5);
+    const forced = this.opts && this.opts.rows;   // a layout can ask for an exact number of rock layers
     const minW = Math.max(2, Math.ceil(n * 0.25));
     const maxStep = n >= 12 ? 2 : 1;
     const rows = [[0, n]];
-    while (rows.length < want) {
+    const goal = forced || want;
+    while (rows.length < goal) {
       const [a, b] = rows[rows.length - 1];
       const sl = maxStep > 1 && rng() < 0.6 ? 2 : 1, sr = maxStep > 1 && rng() < 0.6 ? 2 : 1;
       if (b - a - sl - sr < minW) {
-        if (b - a - 2 >= minW) rows.push([a + 1, b - 1]);
+        if (b - a - 2 >= minW) { rows.push([a + 1, b - 1]); continue; }
+        if (forced && b - a - 1 >= minW) { rows.push(rows.length % 2 ? [a + 1, b] : [a, b - 1]); continue; }   // step one side only
+        if (forced) { rows.push([a, b]); continue; }
         break;
       }
       rows.push([a + sl, b - sr]);

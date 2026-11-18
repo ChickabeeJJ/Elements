@@ -105,9 +105,9 @@ const Game = (() => {
     // no island narrower than 200: smaller ones were too hard to stand and fight on
     // floating islands (well above the lowest ground) are built thinner, so their undersides never crowd the fighting below
     const ground = Math.max(...a.isl.map(d => d[1]));
-    islands = a.isl.map(([x, y, w, motion], i) => {
+    islands = a.isl.map(([x, y, w, motion, extra], i) => {
       const W = Math.max(ISLAND_MIN_W, w);
-      return new Island(x, y, W, { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion, depth: y < ground - 60 ? Math.min(110, W * 0.3 + 50) : 0 });
+      return new Island(x, y, W, { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion, rows: extra && extra.rows, depth: y < ground - 60 ? Math.min(110, W * 0.3 + 50) : 0 });
     });
   }
 

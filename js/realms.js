@@ -104,8 +104,8 @@ const ARENAS = [
   { name: 'Drift', isl: [[800, 705, 640], [270, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 0 }], [1330, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 3 }], [800, 440, 240, { ax: 120, ay: 0, speed: 0.6, phase: 1 }]] },
   { name: 'Pillars', isl: [[800, 690, 440], [330, 610, 200], [1270, 610, 200], [800, 430, 200]] },
   { name: 'Causeway', isl: [[800, 700, 920], [230, 560, 160], [1370, 560, 160], [800, 440, 200]] },   // side islands sit just past the main island's ends
-  { name: 'Terraces', isl: [[580, 720, 560], [1080, 640, 360], [1380, 520, 200], [260, 460, 200]] },
-  { name: 'Spire', isl: [[800, 700, 640], [800, 440, 240], [330, 600, 200], [1270, 600, 200]] },
+  { name: 'Terraces', isl: [[580, 720, 560], [1080, 640, 360, null, { rows: 4 }], [1380, 520, 200], [260, 460, 200]] },
+  { name: 'Spire', isl: [[800, 700, 640], [800, 400, 240, null, { rows: 3 }], [330, 600, 200], [1270, 600, 200]] },
   { name: 'Archipelago', isl: [[700, 700, 440], [1200, 700, 280], [290, 620, 200], [1010, 470, 200], [520, 440, 200]] },
 ];
 // arenas a twist can't use (Tight trims every island, so it skips the ones that are already small)
