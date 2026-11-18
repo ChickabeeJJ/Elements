@@ -92,21 +92,21 @@ const STAGES_PER_REALM = 8;
 const TOTAL_STAGES = REALMS.length * STAGES_PER_REALM;
 
 /* arena layouts: [x, top y, width, motion?]. Widths are multiples of the 40-unit tile.
-   The first island is where the hero spawns. Floating islands keep at least ~120 units
-   of headroom above anything below them. */
+   The first island is where the hero spawns. A floating island sits at least ~240 above any island it
+   overhangs (and floating islands are built thinner), so there is always room to stand and fight beneath. */
 const ARENAS = [
   { name: 'Mainland', isl: [[800, 680, 1040]] },
-  { name: 'Summit', isl: [[800, 690, 880], [800, 450, 280]] },
+  { name: 'Summit', isl: [[800, 690, 880], [800, 430, 280]] },
   { name: 'Crossing', isl: [[800, 700, 760], [240, 560, 240], [1360, 560, 240], [800, 430, 280]] },
   { name: 'Twin Peaks', isl: [[460, 690, 520], [1140, 690, 520], [800, 470, 240]] },
-  { name: 'Stairway', isl: [[640, 710, 680], [1220, 590, 280], [1460, 440, 240], [210, 580, 240], [860, 450, 240]] },
-  { name: 'Islets', isl: [[800, 700, 480], [300, 640, 320], [1300, 640, 320], [540, 470, 200], [1060, 470, 200]] },
+  { name: 'Stairway', isl: [[640, 710, 680], [1220, 590, 280], [1460, 440, 240], [190, 580, 240], [860, 450, 240]] },
+  { name: 'Islets', isl: [[800, 700, 480], [300, 640, 320], [1300, 640, 320], [540, 440, 200], [1060, 440, 200]] },
   { name: 'Drift', isl: [[800, 705, 640], [270, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 0 }], [1330, 580, 240, { ax: 0, ay: 60, speed: 0.9, phase: 3 }], [800, 440, 240, { ax: 120, ay: 0, speed: 0.6, phase: 1 }]] },
-  { name: 'Pillars', isl: [[800, 690, 440], [330, 610, 200], [1270, 610, 200], [800, 470, 160]] },
-  { name: 'Causeway', isl: [[800, 700, 920], [230, 560, 160], [1370, 560, 160], [800, 470, 200]] },   // side islands sit just past the main island's ends
-  { name: 'Terraces', isl: [[580, 720, 560], [1080, 640, 360], [1380, 520, 200], [300, 560, 200]] },
-  { name: 'Spire', isl: [[800, 700, 640], [800, 540, 240], [800, 380, 120], [330, 600, 160], [1270, 600, 160]] },
-  { name: 'Archipelago', isl: [[700, 700, 440], [1200, 700, 280], [290, 620, 200], [1010, 530, 200], [520, 480, 160]] },
+  { name: 'Pillars', isl: [[800, 690, 440], [330, 610, 200], [1270, 610, 200], [800, 430, 200]] },
+  { name: 'Causeway', isl: [[800, 700, 920], [230, 560, 160], [1370, 560, 160], [800, 440, 200]] },   // side islands sit just past the main island's ends
+  { name: 'Terraces', isl: [[580, 720, 560], [1080, 640, 360], [1380, 520, 200], [260, 460, 200]] },
+  { name: 'Spire', isl: [[800, 700, 640], [800, 440, 240], [330, 600, 200], [1270, 600, 200]] },
+  { name: 'Archipelago', isl: [[700, 700, 440], [1200, 700, 280], [290, 620, 200], [1010, 470, 200], [520, 440, 200]] },
 ];
 // arenas a twist can't use (Tight trims every island, so it skips the ones that are already small)
 const TWIST_ARENA_SKIP = { tight: ['Islets', 'Archipelago', 'Pillars'] };
@@ -132,7 +132,7 @@ function twistArena(a, twist) {
   if (twist === 'tight') return { name: a.name, isl: a.isl.map(d => [d[0], d[1], Math.max(200, Math.round(d[2] * 0.72 / 40) * 40), d[3]]) };
   return a;
 }
-const BOSS_ARENA = { name: 'Throne', isl: [[800, 705, 960], [270, 520, 240], [1330, 520, 240]] };
+const BOSS_ARENA = { name: 'Throne', isl: [[800, 705, 960], [230, 520, 240], [1370, 520, 240]] };
 
 const ENEMY_TYPES = {
   grunt:  { hp: 1, dmg: 1, cd: 1, scale: 1, weight: 1, speed: 250, label: 'Warrior' },

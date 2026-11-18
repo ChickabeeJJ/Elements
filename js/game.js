@@ -103,7 +103,12 @@ const Game = (() => {
   function buildArena(a, variant = 0) {
     arena = a;
     // no island narrower than 200: smaller ones were too hard to stand and fight on
-    islands = a.isl.map(([x, y, w, motion], i) => new Island(x, y, Math.max(ISLAND_MIN_W, w), { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion }));
+    // floating islands (well above the lowest ground) are built thinner, so their undersides never crowd the fighting below
+    const ground = Math.max(...a.isl.map(d => d[1]));
+    islands = a.isl.map(([x, y, w, motion], i) => {
+      const W = Math.max(ISLAND_MIN_W, w);
+      return new Island(x, y, W, { seed: 101 + i * 37 + realmIdx * 11 + variant * 7919, motion, depth: y < ground - 60 ? Math.min(110, W * 0.3 + 50) : 0 });
+    });
   }
 
   const arenaNamed = n => ARENAS.find(a => a.name === n) || ARENAS[0];
@@ -5355,6 +5360,7 @@ const Game = (() => {
     player: () => player,
     use: (slot, x, y) => tryMove(player, ELEMENT_BY_ID[player.el].moves[slot], x, y),
     islands: () => islands,
+    arena: a => { buildArena(a); Backdrop.invalidate && Backdrop.invalidate(); },
     spawnPickup: () => spawnPickup(),
     setEl: id => { setPlayerElement(player, id, true); for (const k in player.cds) player.cds[k] = 0; },
     spawn: (spec, x, y) => spawnEnemyAt(Object.assign({ type: 'grunt', element: realm.element, d: 0.3 }, spec), x, y, true),
