@@ -4932,7 +4932,8 @@ const Game = (() => {
     const NA = 34, inner = [];
     for (let i = 1; i <= NA; i++) {
       const u = i / NA, A = As + (E - As) * u;
-      const roA = ro - (ro - rh) * Math.pow(u, 2.2) * (A > -Math.PI / 2 ? 1 : 0.4);   // the lip thins toward its point
+      const bl = clamp((A + Math.PI / 2 + 0.4) / 0.8, 0, 1), sm = bl * bl * (3 - 2 * bl);
+      const roA = ro - (ro - rh) * Math.pow(u, 2.2) * (0.4 + 0.6 * sm);   // the lip thins toward its point (smoothly, no step)
       top.push(P(A, Math.max(rh * 0.9, roA)));
     }
     const tip = top[top.length - 1];
@@ -4955,7 +4956,7 @@ const Game = (() => {
     };
     // a filled ribbon along a polyline, offset into the water by depth with a width per point
     const normal = (pts, j) => {
-      const a0 = pts[Math.max(0, j - 1)], a1 = pts[Math.min(pts.length - 1, j + 1)];
+      const a0 = pts[Math.max(0, j - 2)], a1 = pts[Math.min(pts.length - 1, j + 2)];
       const tx = a1[0] - a0[0], ty = a1[1] - a0[1], l = Math.hypot(tx, ty) || 1;
       return [d * -ty / l, d * tx / l];                          // points into the water
     };
@@ -4979,9 +4980,9 @@ const Game = (() => {
     c.save(); outline(); c.clip();
     // 2. streaks that follow the water's motion: up the back slope and round into the curl
     const T = top.length - 1, sw = (m, p) => u => H * m * Math.pow(Math.sin(Math.PI * u), p);
-    ribbon(top, Math.floor(nSlope * 0.35), T - 6, u => H * (0.07 + 0.02 * u), sw(0.045, 0.7), rgba('#1c64b4', 0.55 * k));
-    ribbon(top, Math.floor(nSlope * 0.5), T - 10, u => H * (0.15 + 0.03 * u), sw(0.035, 0.7), rgba('#8fe6f5', 0.5 * k));
-    ribbon(top, Math.floor(nSlope * 0.25), T - 14, u => H * (0.23 + 0.02 * u), sw(0.04, 0.7), rgba('#1c64b4', 0.45 * k));
+    ribbon(top, Math.floor(nSlope * 0.35), T - 8, u => H * (0.07 + 0.02 * u), sw(0.045, 0.7), rgba('#1c64b4', 0.55 * k));
+    ribbon(top, Math.floor(nSlope * 0.5), T - 13, u => H * (0.15 + 0.03 * u), sw(0.035, 0.7), rgba('#8fe6f5', 0.5 * k));
+    ribbon(top, Math.floor(nSlope * 0.25), T - 18, u => H * (0.23 + 0.02 * u), sw(0.04, 0.7), rgba('#1c64b4', 0.45 * k));
     // the hollow's rim reads darker where the water curves away from the light
     ribbon(inner, 6, inner.length - 4, () => 0, sw(0.06, 0.6), rgba('#165a9e', 0.45 * k));
     c.restore();
