@@ -361,7 +361,7 @@ const Meta = (() => {
   function takeStreak() {
     const s = Save.data.streak, t = today();
     if (s.last === t) return null;
-    s.n = s.last === t - 1 ? (s.n % 7) + 1 : 1;
+    s.n = (s.n % 7) + 1;                // no penalty for a missed day: the next gift simply carries on
     s.last = t;
     const gems = STREAK_GEMS[s.n - 1];
     Save.data.essence += gems; Save.save();

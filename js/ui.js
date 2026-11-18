@@ -1305,7 +1305,7 @@ const UI = (() => {
     const g = Meta.takeStreak();
     if (!g) return false;
     const cells = g.table.map((n, i) => `<div class="stk ol${i + 1 < g.day ? ' got' : i + 1 === g.day ? ' now' : ''}"><small>DAY ${i + 1}</small>${ic('gem', 'gem')}<b>${n}</b></div>`).join('');
-    modal(`<h2>DAILY GIFT</h2><p class="sub">DAY ${g.day} IN A ROW · COME BACK TOMORROW FOR MORE</p>
+    modal(`<h2>DAILY GIFT</h2><p class="sub">DAY ${g.day} OF 7 · MISSING A DAY NEVER RESETS IT</p>
       <div class="stk-row">${cells}</div>
       <div class="actions"><button class="btn${Platform.rewardedAvailable ? '' : ' primary'}" id="stkOk"><b>COLLECT ${g.gems}</b></button>${Platform.rewardedAvailable ? adBtn('stkAd', `COLLECT ${g.gems * 2}`, ' primary') : ''}</div>`, sh => {
       Icons.hydrate(sh);
@@ -1437,7 +1437,7 @@ const UI = (() => {
     Icons.hydrate(s);
     m.classList.remove('hidden');
     if (keep) s.scrollTop = top;
-    else { s.scrollTop = 0; s.style.animation = 'none'; void s.offsetWidth; s.style.animation = ''; nudgeScroll(s, 'y'); }
+    else { s.scrollTop = 0; s.style.animation = 'none'; void s.offsetWidth; s.style.animation = ''; if (!/\b(streak)\b/.test(cls)) nudgeScroll(s, 'y'); }
     onOpen && onOpen(s);
   }
 
@@ -1465,6 +1465,7 @@ const UI = (() => {
         el.appendChild(h);
         setTimeout(() => el.addEventListener('scroll', () => h.classList.add('gone'), { once: true, passive: true }), 1100);
         setTimeout(() => h.classList.add('gone'), 5000);
+        new MutationObserver((_, ob) => { if (h.classList.contains('gone')) { ob.disconnect(); setTimeout(() => h.remove(), 380); } }).observe(h, { attributes: true, attributeFilter: ['class'] });
       }
     }, 2600));
   }
