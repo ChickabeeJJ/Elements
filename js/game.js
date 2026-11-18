@@ -4406,7 +4406,7 @@ const Game = (() => {
     c.fillStyle = 'rgba(30,110,130,0.18)'; path([[x + 2, T], [x + 11, T + h * 0.14], [x + 16, T + h * 0.36], [x + 15, B], [x + 6, B]]); c.fill();
     c.save(); path(main); c.clip();
     // facet edges inside the crystal: every line runs from a corner of the outline to a point on the central
-    // ridge, so the facets meet cleanly (a V at each level, like a cut gem), kept faint so they read as depth
+    // ridge, each at its own point (staggered, never sharing one), kept faint so they read as depth
     const ridge = f => [lerp(x + 2, x - 3, f), T + h * f];
     const leftAt = f => [lerp(x - 15, x - 17, (f - 0.3) / 0.7), T + h * f], rightAt = f => [lerp(x + 16, x + 15, (f - 0.36) / 0.64), T + h * f];
     const seg = (p0, p1) => { c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); };
@@ -4415,9 +4415,9 @@ const Game = (() => {
     c.beginPath(); seg([x + 2, T], [x - 3, B]); c.stroke();                        // the central ridge
     c.strokeStyle = 'rgba(240,255,253,0.2)'; c.lineWidth = 0.9;
     c.beginPath();
-    seg([x - 9, T + h * 0.1], ridge(0.26)); seg([x + 11, T + h * 0.14], ridge(0.26));
-    seg([x - 15, T + h * 0.3], ridge(0.52)); seg([x + 16, T + h * 0.36], ridge(0.52));
-    seg(leftAt(0.74), ridge(0.84)); seg(rightAt(0.7), ridge(0.84));
+    seg([x - 9, T + h * 0.1], ridge(0.22)); seg([x + 11, T + h * 0.14], ridge(0.33));
+    seg([x - 15, T + h * 0.3], ridge(0.47)); seg([x + 16, T + h * 0.36], ridge(0.6));
+    seg(leftAt(0.72), ridge(0.8)); seg(rightAt(0.68), ridge(0.9));
     c.stroke();
     // a sheen sweeping up through it, and a thin spectral sliver along the right edge (light split by the prism)
     c.globalCompositeOperation = 'lighter';
@@ -4906,100 +4906,104 @@ const Game = (() => {
     if (!w.cols || !w.lip) return;
     const d = w.dir, X = w.x, Y = w.y, C = w.cols, n = C.length, L = w.len;
     const px = i => X - d * L * (1 - i / (n - 1)) + d * 40;
-    const py = i => Y - Math.max(0, C[i].h);
     const cr = w.crest || 0, H = Math.max(1, C[cr].h);
-    const cX = px(cr), cY = py(cr);
-    if (H < 3) return;
-    // One continuous body of water: the simulated swell rises to the crest, and the crest carries straight on
-    // into the lip, which pitches forward, rolls over and thins to a point (the classic breaking-wave shape).
-    // Under the roll is the barrel: the same water, shaded darker, so nothing ever reads as a separate piece.
-    // The roll is a shrinking spiral. Its first point IS the crest and its first tangent follows the rising swell,
-    // so the swell and the lip are one smooth outline. (local coords: f = forward, mirrored by d)
-    const ph = clamp((w.lip.x / H - 0.22) / 0.26, 0, 1);                      // spring-driven: 0 rising .. 1 rolled
-    const R = H * (0.3 + 0.08 * ph);                                            // roll radius
-    const As = -Math.PI / 2 - 0.45;                                            // start a little behind the top
-    const oF = -Math.cos(As) * R, oU = -Math.sin(As) * R;                       // centre, relative to the crest
-    const A1 = -0.15 * Math.PI + ph * 0.75 * Math.PI;                           // how far the roll has wrapped
-    const t0 = R * 0.78;                                                        // lip thickness at its root
-    const P = (A, r) => [cX + d * (oF + Math.cos(A) * r), cY + oU + Math.sin(A) * r];
-    const N2 = 32, outer = [], innerE = [];
-    for (let i = 0; i <= N2; i++) {
-      const A = As + (A1 - As) * (i / N2), u = i / N2;
-      const ro = R * (1 - 0.42 * u * u);                                        // tightens as it wraps
-      outer.push(P(A, ro));
-      innerE.push(P(A, Math.max(0, ro - t0 * Math.pow(1 - u, 1.35))));          // tapers to a point at the tip
+    if (H < 4) return;
+    // The classic breaking wave: a long back slope climbs to the crest, the lip throws forward and curls down
+    // into a big open C, its point hooking back into the hollow; the trough water runs on out in front.
+    // The simulated columns set the height and position, the spring-driven lip sets how far it has curled.
+    const ph = clamp((w.lip.x / H - 0.22) / 0.26, 0, 1);
+    const rh = H * (0.13 + 0.19 * ph);                          // the hollow, opening as it curls
+    const Oy = Y - H * 0.1 - rh;                                // its floor stays at the trough
+    const ro = Oy - (Y - H);                                    // crest top sits at Y - H: the lip thins as it throws
+    const thick = ro - rh;
+    const Ox = px(cr);
+    const P = (A, r) => [Ox + d * Math.cos(A) * r, Oy + Math.sin(A) * r];
+    const As = -Math.PI / 2 - 0.75;                             // where the back slope meets the curl
+    const E = -0.7 + ph * 0.95;                                 // the lip's end angle (0 = straight ahead)
+    // the outline across the top: back slope (a smooth curve from the tail, tangent to the curl) + outer curl
+    const tail = [px(0), Y], s0 = P(As, ro);
+    const tg = [-d * Math.sin(As), Math.cos(As)];               // direction of travel along the curl at its start
+    const reach = Math.max(30, Math.abs(s0[0] - tail[0]));
+    const c1 = [tail[0] + d * reach * 0.45, Y - H * 0.04], c2 = [s0[0] - tg[0] * reach * 0.35, s0[1] - tg[1] * reach * 0.35];
+    const top = [];
+    for (let i = 0; i <= 24; i++) {
+      const t = i / 24, u = 1 - t;
+      top.push([u * u * u * tail[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * s0[0],
+                u * u * u * tail[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * s0[1]]);
     }
-    const tip = outer[N2];
-    // the face under the lip: from the lip's root, down and slightly forward to the trough (concave)
-    const root = innerE[0];
-    // concave face: drops nearly straight from under the lip, then sweeps forward into the trough, so the lip
-    // always overhangs it (air under a pitching lip, a shaded barrel once it has rolled over)
-    const foot = [cX + d * (oF + R * 0.2), Y];
-    const faceCtl = [cX + d * (oF - R * 0.3), Y - H * 0.05];
-    const grad = () => {
-      const g = c.createLinearGradient(0, cY - R * 0.4, 0, Y);
-      g.addColorStop(0, rgba('#6fcbef', 0.95 * k)); g.addColorStop(0.45, rgba('#2c88c9', 0.93 * k)); g.addColorStop(1, rgba('#0e3870', 0.95 * k));
-      return g;
+    const nSlope = top.length;
+    const NA = 34, inner = [];
+    for (let i = 1; i <= NA; i++) {
+      const u = i / NA, A = As + (E - As) * u;
+      const roA = ro - (ro - rh) * Math.pow(u, 2.2) * (A > -Math.PI / 2 ? 1 : 0.4);   // the lip thins toward its point
+      top.push(P(A, Math.max(rh * 0.9, roA)));
+    }
+    const tip = top[top.length - 1];
+    // the hollow's edge, from the tip back round the C to the trough (the point hooks slightly inward)
+    const Cend = Math.PI / 2 - 0.55;                            // where the C opens into the trough in front
+    for (let i = 0; i <= 40; i++) {
+      const u = i / 40, A = E + (Cend - Math.PI * 2 - E) * u;   // runs backwards (up, back, down, forward)
+      const r = rh * (u < 0.12 ? 0.82 + 1.5 * u : 1);
+      inner.push(P(A, r));
+    }
+    const lipOff = inner[inner.length - 1];
+    const front = [Ox + d * (rh * 1.6 + thick * 0.4), Y - H * 0.06], toe = [Ox + d * (rh * 2.6 + thick), Y];
+    const outline = () => {
+      c.beginPath(); c.moveTo(tail[0], tail[1]);
+      for (const q of top) c.lineTo(q[0], q[1]);
+      for (const q of inner) c.lineTo(q[0], q[1]);
+      c.quadraticCurveTo(lerp(lipOff[0], front[0], 0.6), lipOff[1] + (Y - lipOff[1]) * 0.15, front[0], front[1]);
+      c.quadraticCurveTo(lerp(front[0], toe[0], 0.5), front[1], toe[0], toe[1]);
+      c.closePath();
+    };
+    // a filled ribbon along a polyline, offset into the water by depth with a width per point
+    const normal = (pts, j) => {
+      const a0 = pts[Math.max(0, j - 1)], a1 = pts[Math.min(pts.length - 1, j + 1)];
+      const tx = a1[0] - a0[0], ty = a1[1] - a0[1], l = Math.hypot(tx, ty) || 1;
+      return [d * -ty / l, d * tx / l];                          // points into the water
+    };
+    const ribbon = (pts, i0, i1, depth, wf, fill) => {
+      const A = [], B = [];
+      for (let j = i0; j <= i1; j++) {
+        const nn = normal(pts, j), u = (j - i0) / Math.max(1, i1 - i0), wd = wf(u), dd = depth(u);
+        A.push([pts[j][0] + nn[0] * dd, pts[j][1] + nn[1] * dd]);
+        B.push([pts[j][0] + nn[0] * (dd + wd), pts[j][1] + nn[1] * (dd + wd)]);
+      }
+      c.fillStyle = fill; c.beginPath(); c.moveTo(A[0][0], A[0][1]);
+      for (const q of A) c.lineTo(q[0], q[1]);
+      for (let j = B.length - 1; j >= 0; j--) c.lineTo(B[j][0], B[j][1]);
+      c.closePath(); c.fill();
     };
     c.save();
-    // 1. the barrel: once the lip has rolled over, the pocket it encloses reads as deeper water
-    const barrelA = clamp((ph - 0.35) / 0.45, 0, 1);
-    if (barrelA > 0) {
-      // where the face is level with the tip (sample the face curve)
-      let fp = foot;
-      for (let j = 0; j <= 20; j++) {
-        const t = j / 20, q = (1 - t) * (1 - t), r2 = 2 * (1 - t) * t, s2 = t * t;
-        const fx = q * root[0] + r2 * faceCtl[0] + s2 * foot[0], fy = q * root[1] + r2 * faceCtl[1] + s2 * foot[1];
-        fp = [fx, fy]; if (fy >= tip[1]) break;
-      }
-      const bg = c.createRadialGradient(cX + d * oF, cY + oU, 0, cX + d * oF, cY + oU, R * 1.2);
-      bg.addColorStop(0, rgba('#082a55', 0.9 * k * barrelA)); bg.addColorStop(1, rgba('#14518f', 0.85 * k * barrelA));
-      c.fillStyle = bg;
-      c.beginPath(); c.moveTo(root[0], root[1]);
-      for (const q of innerE) c.lineTo(q[0], q[1]);
-      c.lineTo(fp[0], fp[1]);
-      c.quadraticCurveTo(lerp(root[0], faceCtl[0], 0.5), lerp(root[1], fp[1], 0.5), root[0], root[1]);
-      c.closePath(); c.fill();
-    }
-    // 2. the body: swell -> crest -> over the roll -> tip -> back along the lip's underside -> down the face
-    c.fillStyle = grad();
-    c.beginPath(); c.moveTo(px(0), Y); c.lineTo(px(0), py(0));
-    for (let i = 1; i <= cr; i++) { const mx = (px(i - 1) + px(i)) / 2, my = (py(i - 1) + py(i)) / 2; c.quadraticCurveTo(px(i - 1), py(i - 1), mx, my); }
-    c.lineTo(cX, cY);
-    for (const q of outer) c.lineTo(q[0], q[1]);
-    for (let i = N2; i >= 0; i--) c.lineTo(innerE[i][0], innerE[i][1]);
-    c.quadraticCurveTo(faceCtl[0], faceCtl[1], foot[0], foot[1]);
-    c.closePath(); c.fill();
-    // 3. light passing through the thin lip
+    // 1. the water body, one shape
+    const g = c.createLinearGradient(0, Y - H, 0, Y);
+    g.addColorStop(0, rgba('#5ed0e6', 0.95 * k)); g.addColorStop(0.55, rgba('#2f9fd0', 0.95 * k)); g.addColorStop(1, rgba('#1a6db0', 0.95 * k));
+    c.fillStyle = g; outline(); c.fill();
+    c.save(); outline(); c.clip();
+    // 2. streaks that follow the water's motion: up the back slope and round into the curl
+    const T = top.length - 1, sw = (m, p) => u => H * m * Math.pow(Math.sin(Math.PI * u), p);
+    ribbon(top, Math.floor(nSlope * 0.35), T - 6, u => H * (0.07 + 0.02 * u), sw(0.045, 0.7), rgba('#1c64b4', 0.55 * k));
+    ribbon(top, Math.floor(nSlope * 0.5), T - 10, u => H * (0.15 + 0.03 * u), sw(0.035, 0.7), rgba('#8fe6f5', 0.5 * k));
+    ribbon(top, Math.floor(nSlope * 0.25), T - 14, u => H * (0.23 + 0.02 * u), sw(0.04, 0.7), rgba('#1c64b4', 0.45 * k));
+    // the hollow's rim reads darker where the water curves away from the light
+    ribbon(inner, 6, inner.length - 4, () => 0, sw(0.06, 0.6), rgba('#165a9e', 0.45 * k));
+    c.restore();
+    // 3. light through the thin lip
     c.globalCompositeOperation = 'lighter';
-    const lx = cX + d * (oF + R * 0.55), ly = cY + oU - R * 0.35;
-    const lg = c.createRadialGradient(lx, ly, 1, lx, ly, R * 1.1);
-    lg.addColorStop(0, rgba('#a6ecff', 0.22 * k)); lg.addColorStop(1, rgba('#a6ecff', 0));
-    c.fillStyle = lg; c.fillRect(lx - R * 1.2, ly - R * 1.2, R * 2.4, R * 2.4);
+    const lp = P(-0.3, ro * 0.9), lg = c.createRadialGradient(lp[0], lp[1], 1, lp[0], lp[1], ro);
+    lg.addColorStop(0, rgba('#b4f2ff', 0.2 * k)); lg.addColorStop(1, rgba('#b4f2ff', 0));
+    c.fillStyle = lg; c.fillRect(lp[0] - ro, lp[1] - ro, ro * 2, ro * 2);
     c.globalCompositeOperation = 'source-over';
-    // 4. whitewater: one tapered foam cap that starts on the swell just behind the crest and follows the lip over
-    const back = [];
-    for (let i = Math.max(1, cr - 3); i <= cr; i++) back.push([px(i), py(i)]);
-    const cap = back.concat(outer.slice(1, Math.floor(N2 * 0.75)));
-    const m = cap.length;
-    if (m > 2) {
-      const fw = j => R * 0.17 * Math.pow(Math.sin(Math.PI * j / (m - 1)), 0.8);
-      c.fillStyle = rgba('#f2fbff', 0.9 * k);
-      c.beginPath(); c.moveTo(cap[0][0], cap[0][1]);
-      for (const q of cap) c.lineTo(q[0], q[1]);
-      for (let j = m - 1; j >= 0; j--) {
-        const a0 = cap[Math.max(0, j - 1)], a1 = cap[Math.min(m - 1, j + 1)];
-        let nx = -(a1[1] - a0[1]), ny = a1[0] - a0[0]; const ln = Math.hypot(nx, ny) || 1;
-        nx /= ln; ny /= ln; if (ny < 0) { nx = -nx; ny = -ny; }                 // normal pointing into the water
-        if (j >= back.length) { const A = As + (A1 - As) * ((j - back.length + 1) / N2); nx = -d * Math.cos(A); ny = -Math.sin(A); }
-        c.lineTo(cap[j][0] + nx * fw(j), cap[j][1] + ny * fw(j));
-      }
-      c.closePath(); c.fill();
-    }
+    // 4. the foam cap: piled on the crest and over the lip, with a soft billowing underside
+    const f0 = nSlope - 9, f1 = Math.min(T - 2, nSlope + Math.floor(NA * (0.55 + 0.35 * ph)));
+    const foamW = u => H * (0.13 + 0.09 * ph) * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.05)), 0.9) * (1 + 0.3 * Math.sin(u * 17 + time * 3) * Math.sin(Math.PI * u));
+    ribbon(top, f0, f1, () => -H * 0.012, u => foamW(u) * 1.08, rgba('#cdeefa', 0.95 * k));
+    ribbon(top, f0, f1, () => -H * 0.012, u => foamW(u) * 0.8, rgba('#ffffff', 0.95 * k));
     // 5. where the lip lands: a soft mist, only once it has plunged
-    if (ph > 0.75) { c.globalAlpha = (ph - 0.75) * 4 * k * 0.3; Glow.draw(c, '#eaf8ff', foot[0] + d * R * 0.4, Y - 6, R * 1.2, 1); }
+    if (ph > 0.75) { c.globalAlpha = (ph - 0.75) * 4 * k * 0.3; Glow.draw(c, '#eaf8ff', tip[0], Y - 6, H * 0.4, 1); }
     c.restore();
   }
+
 
 
   function drawWave(c, w) {
