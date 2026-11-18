@@ -4405,16 +4405,20 @@ const Game = (() => {
     c.fillStyle = 'rgba(235,255,252,0.22)'; path([[x - 17, B], [x - 15, T + h * 0.3], [x - 9, T + h * 0.1], [x + 2, T], [x - 3, B]]); c.fill();
     c.fillStyle = 'rgba(30,110,130,0.18)'; path([[x + 2, T], [x + 11, T + h * 0.14], [x + 16, T + h * 0.36], [x + 15, B], [x + 6, B]]); c.fill();
     c.save(); path(main); c.clip();
-    // internal fractures, the clearest sign of crystal
-    c.lineCap = 'round'; c.strokeStyle = 'rgba(240,255,253,0.55)'; c.lineWidth = 1.1;
+    // facet edges inside the crystal: every line runs from a corner of the outline to a point on the central
+    // ridge, so the facets meet cleanly (a V at each level, like a cut gem), kept faint so they read as depth
+    const ridge = f => [lerp(x + 2, x - 3, f), T + h * f];
+    const leftAt = f => [lerp(x - 15, x - 17, (f - 0.3) / 0.7), T + h * f], rightAt = f => [lerp(x + 16, x + 15, (f - 0.36) / 0.64), T + h * f];
+    const seg = (p0, p1) => { c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); };
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.strokeStyle = 'rgba(240,255,253,0.32)'; c.lineWidth = 1;
+    c.beginPath(); seg([x + 2, T], [x - 3, B]); c.stroke();                        // the central ridge
+    c.strokeStyle = 'rgba(240,255,253,0.2)'; c.lineWidth = 0.9;
     c.beginPath();
-    c.moveTo(x + 2, T); c.lineTo(x - 3, B);                                       // the main ridge
-    c.moveTo(x - 9, T + h * 0.1); c.lineTo(x - 1, T + h * 0.42);
-    c.moveTo(x + 11, T + h * 0.14); c.lineTo(x + 1, T + h * 0.3);
-    c.moveTo(x - 15, T + h * 0.55); c.lineTo(x - 2, T + h * 0.68); c.lineTo(x + 9, T + h * 0.6);
+    seg([x - 9, T + h * 0.1], ridge(0.26)); seg([x + 11, T + h * 0.14], ridge(0.26));
+    seg([x - 15, T + h * 0.3], ridge(0.52)); seg([x + 16, T + h * 0.36], ridge(0.52));
+    seg(leftAt(0.74), ridge(0.84)); seg(rightAt(0.7), ridge(0.84));
     c.stroke();
-    c.strokeStyle = 'rgba(240,255,253,0.28)'; c.lineWidth = 0.8;
-    c.beginPath(); c.moveTo(x + 16, T + h * 0.36); c.lineTo(x + 4, T + h * 0.5); c.moveTo(x - 12, T + h * 0.8); c.lineTo(x + 6, T + h * 0.86); c.stroke();
     // a sheen sweeping up through it, and a thin spectral sliver along the right edge (light split by the prism)
     c.globalCompositeOperation = 'lighter';
     const sy = B - ((time * 0.55 + w.x * 0.001) % 1.4) * (h + 80);
@@ -4901,81 +4905,102 @@ const Game = (() => {
   function drawWaterWave(c, w, h, k) {
     if (!w.cols || !w.lip) return;
     const d = w.dir, X = w.x, Y = w.y, C = w.cols, n = C.length, L = w.len;
-    const phase = 1 - w.life / w.max;
     const px = i => X - d * L * (1 - i / (n - 1)) + d * 40;
     const py = i => Y - Math.max(0, C[i].h);
     const cr = w.crest || 0, H = Math.max(1, C[cr].h);
     const cX = px(cr), cY = py(cr);
-    const tipX = cX + d * w.lip.x, tipY = cY + w.lip.y;
-    const thick = Math.max(6, H * 0.22);   // the lip's thickness at its root
-    const body = () => {
-      const g = c.createLinearGradient(0, Y - H, 0, Y);
-      g.addColorStop(0, rgba('#5cbbe6', 0.92 * k)); g.addColorStop(0.5, rgba('#2a84c6', 0.9 * k)); g.addColorStop(1, rgba('#0e3870', 0.95 * k));
+    if (H < 3) return;
+    // One continuous body of water: the simulated swell rises to the crest, and the crest carries straight on
+    // into the lip, which pitches forward, rolls over and thins to a point (the classic breaking-wave shape).
+    // Under the roll is the barrel: the same water, shaded darker, so nothing ever reads as a separate piece.
+    // The roll is a shrinking spiral. Its first point IS the crest and its first tangent follows the rising swell,
+    // so the swell and the lip are one smooth outline. (local coords: f = forward, mirrored by d)
+    const ph = clamp((w.lip.x / H - 0.22) / 0.26, 0, 1);                      // spring-driven: 0 rising .. 1 rolled
+    const R = H * (0.3 + 0.08 * ph);                                            // roll radius
+    const As = -Math.PI / 2 - 0.45;                                            // start a little behind the top
+    const oF = -Math.cos(As) * R, oU = -Math.sin(As) * R;                       // centre, relative to the crest
+    const A1 = -0.15 * Math.PI + ph * 0.75 * Math.PI;                           // how far the roll has wrapped
+    const t0 = R * 0.78;                                                        // lip thickness at its root
+    const P = (A, r) => [cX + d * (oF + Math.cos(A) * r), cY + oU + Math.sin(A) * r];
+    const N2 = 32, outer = [], innerE = [];
+    for (let i = 0; i <= N2; i++) {
+      const A = As + (A1 - As) * (i / N2), u = i / N2;
+      const ro = R * (1 - 0.42 * u * u);                                        // tightens as it wraps
+      outer.push(P(A, ro));
+      innerE.push(P(A, Math.max(0, ro - t0 * Math.pow(1 - u, 1.35))));          // tapers to a point at the tip
+    }
+    const tip = outer[N2];
+    // the face under the lip: from the lip's root, down and slightly forward to the trough (concave)
+    const root = innerE[0];
+    // concave face: drops nearly straight from under the lip, then sweeps forward into the trough, so the lip
+    // always overhangs it (air under a pitching lip, a shaded barrel once it has rolled over)
+    const foot = [cX + d * (oF + R * 0.2), Y];
+    const faceCtl = [cX + d * (oF - R * 0.3), Y - H * 0.05];
+    const grad = () => {
+      const g = c.createLinearGradient(0, cY - R * 0.4, 0, Y);
+      g.addColorStop(0, rgba('#6fcbef', 0.95 * k)); g.addColorStop(0.45, rgba('#2c88c9', 0.93 * k)); g.addColorStop(1, rgba('#0e3870', 0.95 * k));
       return g;
     };
     c.save();
-    // 1. the swell behind the crest and the face below it (drawn from the simulated columns)
-    c.fillStyle = body();
+    // 1. the barrel: once the lip has rolled over, the pocket it encloses reads as deeper water
+    const barrelA = clamp((ph - 0.35) / 0.45, 0, 1);
+    if (barrelA > 0) {
+      // where the face is level with the tip (sample the face curve)
+      let fp = foot;
+      for (let j = 0; j <= 20; j++) {
+        const t = j / 20, q = (1 - t) * (1 - t), r2 = 2 * (1 - t) * t, s2 = t * t;
+        const fx = q * root[0] + r2 * faceCtl[0] + s2 * foot[0], fy = q * root[1] + r2 * faceCtl[1] + s2 * foot[1];
+        fp = [fx, fy]; if (fy >= tip[1]) break;
+      }
+      const bg = c.createRadialGradient(cX + d * oF, cY + oU, 0, cX + d * oF, cY + oU, R * 1.2);
+      bg.addColorStop(0, rgba('#082a55', 0.9 * k * barrelA)); bg.addColorStop(1, rgba('#14518f', 0.85 * k * barrelA));
+      c.fillStyle = bg;
+      c.beginPath(); c.moveTo(root[0], root[1]);
+      for (const q of innerE) c.lineTo(q[0], q[1]);
+      c.lineTo(fp[0], fp[1]);
+      c.quadraticCurveTo(lerp(root[0], faceCtl[0], 0.5), lerp(root[1], fp[1], 0.5), root[0], root[1]);
+      c.closePath(); c.fill();
+    }
+    // 2. the body: swell -> crest -> over the roll -> tip -> back along the lip's underside -> down the face
+    c.fillStyle = grad();
     c.beginPath(); c.moveTo(px(0), Y); c.lineTo(px(0), py(0));
     for (let i = 1; i <= cr; i++) { const mx = (px(i - 1) + px(i)) / 2, my = (py(i - 1) + py(i)) / 2; c.quadraticCurveTo(px(i - 1), py(i - 1), mx, my); }
     c.lineTo(cX, cY);
-    // the face drops steeply from under the lip to the ground, slightly concave (the barrel's back wall)
-    c.quadraticCurveTo(cX + d * H * 0.05, cY + H * 0.55, cX + d * H * 0.32, Y);
+    for (const q of outer) c.lineTo(q[0], q[1]);
+    for (let i = N2; i >= 0; i--) c.lineTo(innerE[i][0], innerE[i][1]);
+    c.quadraticCurveTo(faceCtl[0], faceCtl[1], foot[0], foot[1]);
     c.closePath(); c.fill();
-    // 2-4. the curl (shaped like the classic breaking-wave glyph): the crest pitches forward, rolls over and
-    //    spirals back toward the face, a thick band thinning to a point. Inside the roll is the shaded barrel.
-    //    Built in local coords (f = forward) and mirrored by d.
-    const ph = clamp((w.lip.x / Math.max(1, H) - 0.22) / 0.26, 0, 1);       // 0 rising .. 1 fully rolled
-    const R = Math.max(7, H * (0.3 + ph * 0.1));
-    const oX = cX + d * R * 0.3, oY = cY + R;
-    const A0 = -Math.PI * 1.1, FULL = Math.PI * 1.85;
-    const A1 = -Math.PI * 0.35 + ph * Math.PI * 0.85;                          // how far the roll has wrapped
-    const N2 = 30, outer = [], innerE = [];
-    for (let i = 0; i <= N2; i++) {
-      const A = A0 + (A1 - A0) * (i / N2), sN = (A - A0) / FULL;            // sN: 0..1 along the full roll
-      const ro = R * (1 - 0.5 * sN), t = R * 0.62 * Math.pow(1 - sN, 1.25) * (0.35 + 0.65 * Math.min(1, (A1 - A) / 0.9 + 0.15));
-      const ri = Math.max(0, ro - t);
-      outer.push([oX + d * Math.cos(A) * ro, oY + Math.sin(A) * ro]);
-      innerE.push([oX + d * Math.cos(A) * ri, oY + Math.sin(A) * ri]);
-    }
-    // the shaded barrel inside the roll
-    if (ph > 0.05) {
-      const hg = c.createRadialGradient(oX, oY + R * 0.1, 0, oX, oY, R);
-      hg.addColorStop(0, rgba('#06203f', 0.75 * k * ph)); hg.addColorStop(1, rgba('#123f76', 0.5 * k * ph));
-      c.fillStyle = hg; c.beginPath();
-      c.moveTo(innerE[0][0], innerE[0][1]);
-      for (const [x, y] of innerE) c.lineTo(x, y);
-      c.lineTo(cX + d * H * 0.12, Y - H * 0.25); c.closePath(); c.fill();
-    }
-    // the rolling band
-    const bg = c.createLinearGradient(0, cY, 0, oY + R);
-    bg.addColorStop(0, rgba('#6cc8ee', 0.95 * k)); bg.addColorStop(1, rgba('#1f6fb2', 0.95 * k));
-    c.fillStyle = bg;
-    c.beginPath(); c.moveTo(outer[0][0], outer[0][1]);
-    for (const [x, y] of outer) c.lineTo(x, y);
-    for (let i = innerE.length - 1; i >= 0; i--) c.lineTo(innerE[i][0], innerE[i][1]);
-    c.closePath(); c.fill();
-    // light through the thin, rolling water
+    // 3. light passing through the thin lip
     c.globalCompositeOperation = 'lighter';
-    const lg = c.createRadialGradient(oX + d * R * 0.6, oY - R * 0.4, 1, oX + d * R * 0.6, oY - R * 0.4, R * 1.2);
-    lg.addColorStop(0, rgba('#9fe8ff', 0.2 * k)); lg.addColorStop(1, rgba('#9fe8ff', 0));
-    c.fillStyle = lg; c.fillRect(oX - R * 2, oY - R * 2, R * 4, R * 3.5);
+    const lx = cX + d * (oF + R * 0.55), ly = cY + oU - R * 0.35;
+    const lg = c.createRadialGradient(lx, ly, 1, lx, ly, R * 1.1);
+    lg.addColorStop(0, rgba('#a6ecff', 0.22 * k)); lg.addColorStop(1, rgba('#a6ecff', 0));
+    c.fillStyle = lg; c.fillRect(lx - R * 1.2, ly - R * 1.2, R * 2.4, R * 2.4);
     c.globalCompositeOperation = 'source-over';
-    // one foam cap riding the top of the roll, thinning to nothing at both ends (a filled crescent, no seams)
-    const fEnd = Math.floor(outer.length * 0.72), fw = u => R * 0.15 * Math.sin(Math.PI * u);
-    c.fillStyle = rgba('#f4fbff', 0.88 * k); c.beginPath();
-    for (let i = 0; i <= fEnd; i++) c.lineTo(outer[i][0], outer[i][1]);
-    for (let i = fEnd; i >= 0; i--) {
-      const A = A0 + (A1 - A0) * (i / N2), q = fw(i / fEnd);
-      c.lineTo(outer[i][0] - d * Math.cos(A) * q, outer[i][1] - Math.sin(A) * q);
+    // 4. whitewater: one tapered foam cap that starts on the swell just behind the crest and follows the lip over
+    const back = [];
+    for (let i = Math.max(1, cr - 3); i <= cr; i++) back.push([px(i), py(i)]);
+    const cap = back.concat(outer.slice(1, Math.floor(N2 * 0.75)));
+    const m = cap.length;
+    if (m > 2) {
+      const fw = j => R * 0.17 * Math.pow(Math.sin(Math.PI * j / (m - 1)), 0.8);
+      c.fillStyle = rgba('#f2fbff', 0.9 * k);
+      c.beginPath(); c.moveTo(cap[0][0], cap[0][1]);
+      for (const q of cap) c.lineTo(q[0], q[1]);
+      for (let j = m - 1; j >= 0; j--) {
+        const a0 = cap[Math.max(0, j - 1)], a1 = cap[Math.min(m - 1, j + 1)];
+        let nx = -(a1[1] - a0[1]), ny = a1[0] - a0[0]; const ln = Math.hypot(nx, ny) || 1;
+        nx /= ln; ny /= ln; if (ny < 0) { nx = -nx; ny = -ny; }                 // normal pointing into the water
+        if (j >= back.length) { const A = As + (A1 - As) * ((j - back.length + 1) / N2); nx = -d * Math.cos(A); ny = -Math.sin(A); }
+        c.lineTo(cap[j][0] + nx * fw(j), cap[j][1] + ny * fw(j));
+      }
+      c.closePath(); c.fill();
     }
-    c.closePath(); c.fill();
-    const rC = R;
     // 5. where the lip lands: a soft mist, only once it has plunged
-    const land = clamp((w.lip.y / H - 0.55) * 3, 0, 1);
-    if (land > 0) { c.globalAlpha = land * k * 0.3; Glow.draw(c, '#eaf8ff', cX + d * rC * 2, Y - 6, H * 0.4, 1); }
+    if (ph > 0.75) { c.globalAlpha = (ph - 0.75) * 4 * k * 0.3; Glow.draw(c, '#eaf8ff', foot[0] + d * R * 0.4, Y - 6, R * 1.2, 1); }
     c.restore();
   }
+
 
   function drawWave(c, w) {
     const k = clamp(w.life / w.max * 1.6, 0, 1);
