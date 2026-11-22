@@ -2055,7 +2055,8 @@ const UI = (() => {
     });
     $('btnPause').addEventListener('pointerdown', e => { e.stopPropagation(); Sfx.click(); openPause(); });
     $('modal').addEventListener('pointerdown', e => e.stopPropagation());
-    $('btnRotateOk').onclick = () => { $('rotate').classList.add('hidden'); rotateDismissed = true; };
+    $('btnRotateOk').onclick = () => { Sfx.click(); $('rotate').classList.add('hidden'); rotateDismissed = true; };
+    $('rotate').onclick = e => { if (e.target === $('rotate')) $('btnRotateOk').click(); };
     bindTouch();
 
     Game.hooks.onEnd = res => showResult(res);
@@ -2108,7 +2109,7 @@ const UI = (() => {
   // the home menu is a column on the left, so frame the arena in the space to its right
   function homeShift() {
     const panel = document.querySelector('.home-panel');
-    const w = current === 'home' && innerWidth > 600 ? panel.getBoundingClientRect().width : 0;
+    const w = current === 'home' && innerWidth > 600 && !document.body.classList.contains('portrait') ? panel.getBoundingClientRect().width : 0;
     Game.setShift(w * 0.5);
   }
 
@@ -2170,9 +2171,23 @@ const UI = (() => {
     }
   }
 
+  // Portrait phones get their own layout (body.portrait). Landscape still gives the widest view of the
+  // arena, so the first time a session is in portrait a small card suggests turning sideways. It never
+  // blocks play, and it appears at most once per session.
   function checkRotate() {
     const portrait = window.innerHeight > window.innerWidth * 1.1 && document.body.classList.contains('touch');
-    $('rotate').classList.toggle('hidden', !portrait || rotateDismissed);
+    const was = document.body.classList.contains('portrait');
+    document.body.classList.toggle('portrait', portrait);
+    if (was !== portrait) { Game.resize(); homeShift(); }
+    let seen = rotateDismissed;
+    try { seen = seen || sessionStorage.getItem('er_rotate_hint') === '1'; } catch (e) {}
+    const show = portrait && !seen;
+    if (show && $('rotate').classList.contains('hidden')) {
+      rotateDismissed = true;
+      try { sessionStorage.setItem('er_rotate_hint', '1'); } catch (e) {}
+    }
+    if (!portrait) $('rotate').classList.add('hidden');
+    else if (show) $('rotate').classList.remove('hidden');
   }
 
   return {

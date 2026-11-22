@@ -517,6 +517,8 @@ body:not(.touch) .sheet .result-actions.has-offers { display: grid; grid-templat
 body:not(.touch) .sheet .result-actions.has-offers .act-row { display: contents; }
 body:not(.touch) .sheet .result-actions.has-offers .btn { width: 100%; max-width: none; min-width: 0; }
 body:not(.touch) .sheet .result-actions.has-offers .act-row > .btn:only-child { grid-column: 1 / -1; }
+/* desktop: three rows. The ad offer and the main action each run the full width, then Menu | Retry */
+body:not(.touch) .sheet .result-actions.has-offers .act-main > .btn { grid-column: 1 / -1; }
 .result-actions .act-row { display: flex; gap: 8px; justify-content: center; width: 100%; }
 .sheet .result-actions .act-row .btn { flex: 1 1 0; min-width: 0; }
 .btn.rw-offer { flex-direction: row; gap: 8px; padding-left: 14px; padding-right: 14px; background: #2c2a4a; white-space: nowrap; }
@@ -566,10 +568,18 @@ body:not(.touch) .sheet .result-actions.has-offers .act-row > .btn:only-child { 
 .toast { padding: 8px 18px; clip-path: var(--cut-s); background: rgba(18, 22, 32, 0.96); box-shadow: inset 3px 0 0 var(--acc); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-align: center; animation: fade 0.2s ease, toastOut 0.4s ease 2.2s forwards; }
 @keyframes toastOut { to { opacity: 0; transform: translateY(-6px); } }
 
-#rotate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--ink); text-align: center; padding: 24px; }
-#rotate > div { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-#rotate .ic { width: 60px; height: 60px; color: var(--acc); animation: tilt 2.2s ease-in-out infinite; }
-#rotate p { font-weight: 900; font-size: 16px; letter-spacing: 0.04em; }
+#rotate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px calc(18px + var(--safe-r)) calc(24px + var(--safe-b)) calc(18px + var(--safe-l)); background: rgba(6, 8, 12, 0.72); backdrop-filter: blur(3px); animation: fade 0.2s ease; }
+#rotate .rot-card { width: min(340px, 100%); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 26px 22px 20px; text-align: center; clip-path: var(--cut-l); background: #121620; box-shadow: inset 0 3px 0 var(--acc); animation: pop 0.25s ease; }
+#rotate h3 { margin: 4px 0 0; font-weight: 900; font-size: 20px; letter-spacing: 0.03em; }
+#rotate p { margin: 0; font-weight: 600; font-size: 14px; line-height: 1.4; color: var(--muted); }
+#rotate .btn { width: 100%; margin-top: 6px; }
+/* a phone that turns sideways and back, its screen showing a tiny arena */
+#rotate .rot-phone { width: 92px; height: 92px; display: grid; place-items: center; }
+#rotate .rot-screen { position: relative; display: block; width: 40px; height: 70px; border-radius: 9px; border: 3px solid var(--acc); background: rgba(255, 255, 255, 0.04); animation: rotTurn 2.6s cubic-bezier(.6, 0, .3, 1) infinite; }
+#rotate .rot-screen b { position: absolute; left: 50%; bottom: 26%; width: 4px; height: 12px; margin-left: -9px; border-radius: 2px; background: #fff; }
+#rotate .rot-screen b + b { margin-left: 5px; background: #ff5a6a; }
+#rotate .rot-screen span { position: absolute; left: 18%; right: 18%; bottom: 20%; height: 4px; border-radius: 2px; background: #8fd46b; }
+@keyframes rotTurn { 0%, 18% { transform: rotate(0); } 42%, 72% { transform: rotate(-90deg); } 96%, 100% { transform: rotate(0); } }
 @keyframes tilt { 50% { transform: rotate(-90deg); } }
 .cg-banner { position: absolute; right: calc(16px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); width: 300px; height: 250px; display: none; }
 
@@ -2531,3 +2541,60 @@ body.touch .codex .el-grid .et b { font-size: 10px; }
 #cine .ttl h1 { margin: 0; font-weight: 900; font-size: clamp(42px, 8vw, 104px); letter-spacing: 0.12em; color: #ffffff; text-shadow: 0 0 28px color-mix(in srgb, var(--cc) 70%, transparent), 0 4px 24px rgba(0, 0, 0, 0.5); }
 #cine .ttl p { margin: 10px 0 0; font-weight: 800; font-size: clamp(10px, 1.3vw, 14px); letter-spacing: 0.3em; color: var(--cc); }
 #cine .cine-skip { position: absolute; right: calc(16px + var(--safe-r, 0px)); bottom: calc(11vh + 12px); opacity: 0.75; }
+
+/* =====================================================================
+   PORTRAIT PHONES (body.portrait: a touch device held upright)
+   Its own layout, not a squeezed landscape one: a top status bar, the title, the live arena scene in the
+   middle of the home screen, and every action stacked in thumb reach at the bottom. Screens get a
+   two-row header (title row, then a full-width tab strip), and the fight camera sits high so the
+   joystick and attack buttons have the bottom of the screen to themselves.
+   ===================================================================== */
+body.portrait #home { padding: 0; overflow: hidden; }
+body.portrait .home-panel {
+  position: absolute; inset: 0; width: auto; gap: 10px; justify-content: flex-start;
+  padding: calc(62px + var(--safe-t)) calc(18px + var(--safe-r)) calc(84px + var(--safe-b)) calc(18px + var(--safe-l));
+  background: linear-gradient(180deg, rgba(9, 11, 17, 0.92) 0%, rgba(9, 11, 17, 0.55) 17%, rgba(9, 11, 17, 0) 27%, rgba(9, 11, 17, 0) 46%, rgba(9, 11, 17, 0.86) 56%, rgba(9, 11, 17, 0.97) 66%);
+}
+body.portrait .home-panel::after { display: none; }
+body.portrait .home-panel .title { align-items: center; align-self: center; }
+body.portrait .home-panel .title .t1 { font-size: 46px; }
+body.portrait .home-panel .title .t2 { font-size: 40px; transform-origin: center bottom; }
+body.portrait .home-menu { margin-top: auto; gap: 8px; }
+body.portrait .home-menu > .btn.big { min-height: 66px; }
+body.portrait .home-menu .btn-row { gap: 8px; }
+body.portrait .home-menu .btn.tile { min-height: 64px; }
+body.portrait .loadout-card { gap: 6px; }
+body.portrait .loadout-card .lbl { text-align: left; }
+/* top status bar: name and currencies across the full width */
+body.portrait #home .corner.tr { left: calc(14px + var(--safe-l)); right: calc(14px + var(--safe-r)); top: calc(12px + var(--safe-t)); justify-content: flex-end; z-index: 3; }
+body.portrait #home .corner.tr .pill.user { margin-right: auto; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; }
+/* live rail: three labelled cards in a row at the very bottom */
+body.portrait .live-rail { top: auto; bottom: calc(14px + var(--safe-b)); left: calc(18px + var(--safe-l)); right: calc(18px + var(--safe-r)); gap: 6px; z-index: 2; justify-content: stretch; }
+body.portrait .rail-card { flex: 1 1 0; min-width: 0; height: 52px; padding: 0 8px; gap: 7px; justify-content: center; }
+body.portrait .rail-card .rc-t { display: flex !important; min-width: 0; }
+body.portrait .rail-card .rc-t > b { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.portrait .rail-card .rc-t small { display: none; }
+
+/* screens: a title row, then the tabs as a full-width strip beneath */
+body.portrait .screen:not(#home) { padding: calc(10px + var(--safe-t)) calc(12px + var(--safe-r)) calc(14px + var(--safe-b)) calc(12px + var(--safe-l)); }
+body.portrait .screen > .bar, body.portrait #codex .bar, body.portrait #hub .bar { display: flex; flex-wrap: wrap; row-gap: 8px; column-gap: 8px; margin-bottom: 10px; }
+body.portrait #codex .bar > h2 { margin-right: auto; }
+body.portrait #hub .bar > .pill { margin-left: auto; }
+body.portrait #hub .bar .hub-tabs { margin: 0; justify-content: center; }
+body.portrait .screen > .bar > .seg { order: 10; flex: 1 0 100%; }
+body.portrait .screen > .bar h2 { font-size: 22px; }
+body.portrait #map .bar > .seg button { padding: 8px 12px; }
+body.portrait #codex .shop-tabs button { flex: 1 0 auto; }
+body.portrait #codex .shop-tabs button b { display: inline !important; }
+body.portrait .codex, body.portrait .shop { grid-template-columns: minmax(0, 1fr) !important; }
+
+/* results: the same three rows as desktop. Ad offer, then the main action, then Menu | Retry */
+body.portrait .sheet.result > .result-actions.has-offers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+body.portrait .sheet.result > .result-actions.has-offers .act-row { display: contents; }
+body.portrait .sheet.result > .result-actions.has-offers .act-main > .btn { grid-column: 1 / -1; width: 100%; }
+body.portrait .sheet.result > .result-actions.has-offers .act-row > .btn:only-child { grid-column: 1 / -1; }
+
+/* the fight: a soft shade under the thumb zone so the buttons read against any backdrop */
+body.portrait #hud::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 34%; pointer-events: none; background: linear-gradient(180deg, rgba(8, 10, 16, 0) 0%, rgba(8, 10, 16, 0.45) 45%, rgba(8, 10, 16, 0.7) 100%); }
+body.portrait .stage-chip { max-width: calc(100% - 90px); }
+body.portrait .bossbar { left: 12px; right: 12px; width: auto; top: calc(70px + var(--safe-t)); transform: none; }

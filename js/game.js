@@ -61,10 +61,14 @@ const Game = (() => {
   let shiftX = 0;   // screen-space offset for the menu scene (home menu column)
   function setShift(px) { shiftX = px; }
 
+  // portrait phones: the arena is framed for width, so the camera zooms in further and sits higher,
+  // leaving the lower part of the screen for the thumbs (joystick and attack buttons)
+  const portraitView = () => view.ch > view.cw * 1.1;
   function wantZoom() {
     if (dev.camOverride) return dev.camOverride.z;
-    if (state === 'idle' || dev.cinematic) return 1;
-    return clamp(0.64 / view.scale, 1, 1.42);
+    if (dev.cinematic) return 1;
+    if (state === 'idle') return portraitView() ? 1.35 : 1;
+    return clamp(0.64 / view.scale, 1, portraitView() ? 2.05 : 1.42);
   }
   function updateCam(dt, snap) {
     const z = wantZoom();
@@ -86,7 +90,7 @@ const Game = (() => {
     const sx = state === 'idle' ? shiftX : 0;
     cam.sx = snap ? sx : lerp(cam.sx || 0, sx, Math.min(1, dt * 6));
     cam.ox = view.cw / 2 - cam.x * cam.k + cam.sx;
-    cam.oy = view.ch / 2 - cam.y * cam.k;
+    cam.oy = view.ch * (portraitView() ? (state === 'idle' ? 0.31 : 0.42) : 0.5) - cam.y * cam.k;
   }
 
   function setRealm(i) {
