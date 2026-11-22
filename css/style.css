@@ -513,12 +513,21 @@ body.touch .combo span { font-size: 11px; }
 /* rewarded-ad offers: the same button as any other choice, with a small AD tag.
    On result screens they share the top row with the main action; menu buttons go below. */
 /* PC: one 2-column grid so both rows line up exactly on every edge */
-body:not(.touch) .sheet .result-actions.has-offers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
-body:not(.touch) .sheet .result-actions.has-offers .act-row { display: contents; }
-body:not(.touch) .sheet .result-actions.has-offers .btn { width: 100%; max-width: none; min-width: 0; }
-body:not(.touch) .sheet .result-actions.has-offers .act-row > .btn:only-child { grid-column: 1 / -1; }
-/* desktop: three rows. The ad offer and the main action each run the full width, then Menu | Retry */
-body:not(.touch) .sheet .result-actions.has-offers .act-main > .btn { grid-column: 1 / -1; }
+/* desktop end-of-run actions, in order of importance with even 10px gaps:
+   1. the main action (NEXT / RETRY / AGAIN): full width and the biggest, so carrying on is one obvious click
+   2. the optional ad offer (DOUBLE GEMS / REVIVE / KEEP TROPHIES): full width, medium
+   3. the way out (MENU | RETRY or UPGRADES): a quieter pair */
+body:not(.touch) .sheet .result-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+body:not(.touch) .sheet .result-actions .act-row { display: contents; }
+body:not(.touch) .sheet .result-actions .btn { width: 100%; max-width: none; min-width: 0; flex: none; margin: 0; }
+body:not(.touch) .sheet .result-actions .btn.primary { grid-column: 1 / -1; order: -2; min-height: 60px; }
+body:not(.touch) .sheet .result-actions .btn.primary b { font-size: 20px; letter-spacing: 0.06em; }
+body:not(.touch) .sheet .result-actions .rw-offer { grid-column: 1 / -1; order: -1; min-height: 48px; }
+body:not(.touch) .sheet .result-actions .btn:not(.primary):not(.rw-offer) { order: 0; min-height: 42px; }
+body:not(.touch) .sheet .result-actions .btn:not(.primary):not(.rw-offer) b { font-size: 14px; }
+/* a lone secondary (MENU when there is no next stage) runs the full width */
+body:not(.touch) .sheet .result-actions .act-row:not(.act-main) > .btn:only-child,
+body:not(.touch) .sheet .result-actions:not(.has-offers) > .btn:not(.primary):first-child:nth-last-child(2) { grid-column: 1 / -1; }
 .result-actions .act-row { display: flex; gap: 8px; justify-content: center; width: 100%; }
 .sheet .result-actions .act-row .btn { flex: 1 1 0; min-width: 0; }
 .btn.rw-offer { flex-direction: row; gap: 8px; padding-left: 14px; padding-right: 14px; background: #2c2a4a; white-space: nowrap; }

@@ -197,20 +197,22 @@ const Platform = (() => {
   const MIDGAME_GRACE = 90000, loadedAt = Date.now();
   const ENTRY_CHANCE = 0.35, RETRY_START = 0.05, RETRY_STEP = 0.18;
   let retryChance = RETRY_START, retrySkip = false;
-  function wantsMidgame(kind) {
-    if (kind === 'boss') return true;
+  // f < 1 thins the odds (chapter 1: new players get fewer interruptions while they learn the game)
+  const CHAPTER1_FACTOR = 0.6;   // chapter 1: entry 35% -> 21%, retry odds and ramp x0.6, boss 75%
+  function wantsMidgame(kind, f = 1) {
+    if (kind === 'boss') return f >= 1 || Math.random() < 0.75;
     if (kind === 'retry') {
       if (retrySkip) { retrySkip = false; retryChance = RETRY_START; return false; }
-      if (Math.random() < retryChance) { retrySkip = true; retryChance = RETRY_START; return true; }
-      retryChance = Math.min(1, retryChance + RETRY_STEP);
+      if (Math.random() < retryChance * f) { retrySkip = true; retryChance = RETRY_START; return true; }
+      retryChance = Math.min(1, retryChance + RETRY_STEP * f);
       return false;
     }
-    return Math.random() < ENTRY_CHANCE;
+    return Math.random() < ENTRY_CHANCE * f;
   }
   function maybeMidgame(cb, opts) {
     const o = opts || {};
     const grace = !!o.grace && Date.now() - loadedAt < MIDGAME_GRACE;
-    if (!ADS_ENABLED || !sdk || grace || !wantsMidgame(o.kind)) { cb && cb(); return; }
+    if (!ADS_ENABLED || !sdk || grace || !wantsMidgame(o.kind, o.light ? CHAPTER1_FACTOR : 1)) { cb && cb(); return; }
     requestAd('midgame', () => cb && cb());
   }
   function rewarded(cb) { requestAd('rewarded', cb); }
