@@ -94,6 +94,12 @@ const Sfx = (() => {
     if (el === 'water') tone(rand(400, 600), 0.12, 'sine', 0.1, 0.5);
   }
   function dash(el) { if (!ensure()) return; noise(0.3, 0.3, 1500, 'bandpass', 1, 0, 0.3); voice(el); }
+  // arena countdown: a deep drum tick per number, then a bright hit on FIGHT
+  function count(n) {
+    if (!ensure()) return;
+    if (n > 0) { tone(110 + (3 - n) * 30, 0.35, 'sine', 0.42, 0.55); noise(0.16, 0.3, 420, 'lowpass', 1.4); tone(440 + (3 - n) * 110, 0.12, 'triangle', 0.1, 1); }
+    else { noise(0.6, 0.45, 900, 'lowpass', 0.9, 0, 0.35); tone(62, 0.7, 'sine', 0.5, 0.5); for (const [f, d] of [[523, 0], [659, 0.02], [784, 0.04]]) tone(f, 0.5, 'sawtooth', 0.07, 1.02, d); }
+  }
   function whoosh() { if (!ensure()) return; noise(0.4, 0.3, 700, 'bandpass', 0.8, 0, 4); }
   function splash() { if (!ensure()) return; noise(0.5, 0.3, 1400, 'lowpass', 0.8, 0, 0.3); for (let i = 0; i < 4; i++) tone(rand(500, 900), 0.1, 'sine', 0.06, 0.5, i * 0.05); }
   function rumble() { if (!ensure()) return; noise(0.8, 0.5, 260, 'lowpass', 1, 0, 0.4); tone(48, 0.6, 'sine', 0.4, 0.6); }
@@ -246,7 +252,7 @@ const Sfx = (() => {
   function chord(big = 1) { if (!ensure()) return; for (const [i, f] of [261.63, 329.63, 392, 523.25].entries()) tone(f, 0.9 * big, 'triangle', 0.1, 1.0, i * 0.03); noise(0.4, 0.12 * big, 300, 'lowpass', 1); }
   function beat(accent) { if (!ensure()) return; tone(accent ? 120 : 95, 0.14, 'sine', accent ? 0.2 : 0.12, 0.45); noise(0.04, accent ? 0.05 : 0.03, 7000, 'highpass', 1); }
   return {
-    beat, note, chord, ensure, swing, cast, impact, dash, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
+    beat, note, chord, ensure, swing, cast, impact, dash, count, whoosh, splash, rumble, shield, heal, blink, charge, rift, thorns, freeze,
     telegraph, portal, ringout, swap, thud, zap, boom, hurt, kill, jump, pickup, beam, thunder, click,
     win, lose, unlock, denied, setRealm, setSfx, setMusic, setMusicPaused, setAdMuted, setPlatformMute, suspend,
     get state() { return { ctx: ac ? ac.state : 'none', music: !!(soundtrack && !soundtrack.paused), failed: soundtrackFailed, musicOn, sfxOn, musicPaused, adMuted, platMuted }; },

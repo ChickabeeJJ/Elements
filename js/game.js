@@ -18,6 +18,7 @@ const Game = (() => {
   const amb = new Ambience();
   let realmIdx = 0, realm = REALMS[0], arena = ARENAS[0];
   let state = 'idle';
+  let readyT = 0, readyN = -1;   // arena countdown: nobody can act until FIGHT
   let paused = false;
   let mode = null, stageDef = null, waveIdx = -1, waveTimer = 0, endlessWaveNo = 0;
   let islands = [], player = null, enemies = [];
@@ -227,6 +228,8 @@ const Game = (() => {
     waveTimer = 1.0;
     pickupTimer = rand(9, 13);
     state = 'play';
+    readyT = 0; readyN = -1;
+    if (mode === 'duel') startCount(1.6);   // after the bars lift
     Platform.gameplayStart();
     hooks.onStart && hooks.onStart();
   }
@@ -285,8 +288,31 @@ const Game = (() => {
     player = makePlayer(); player.invuln = 1;
     spawnRival(run.rival);
     state = 'play';
+    startCount(1.1);   // after the round banner
     hooks.onRound && hooks.onRound({ n: R.n, me: R.me, them: R.them, over: false });
   }
+  // lead seconds of the round banner, then 3 · 2 · 1 at COUNT_STEP each, then FIGHT
+  const COUNT_STEP = 0.75;
+  function startCount(lead) {
+    readyT = lead + COUNT_STEP * 3; readyN = 4;
+    input.queued = {}; input.attack = false;
+  }
+  function countTick(dt) {
+    readyT = Math.max(0, readyT - dt);
+    const n = readyT <= 0 ? 0 : Math.ceil(readyT / COUNT_STEP);
+    if (n < readyN && n <= 3) {
+      readyN = n;
+      hooks.onCount && hooks.onCount(n);
+      Sfx.count(n);
+      if (n === 0) {
+        shake = Math.max(shake, 10);
+        input.queued = {}; input.attack = false;   // nothing pressed early fires at the bell
+        for (const e of enemies) if (e.ai && e.ai.rival) e.ai.thinkT = 0.35;
+        if (player) player.invuln = Math.max(player.invuln, 0.5);
+      }
+    }
+  }
+  const counting = () => readyT > 0;
 
   /* Testing ground: a passive dummy that can be killed and comes back */
   function spawnTestDummy() {
@@ -3273,6 +3299,7 @@ const Game = (() => {
     if (e.mode !== 'active') { e.input.x = 0; return; }
     if (e.engulf || e.stopT > 0) { e.input.x = 0; return; }
     if (e.puppet) { puppetAI(e, dt); return; }
+    if (counting()) { e.input.x = 0; return; }
     if (ai.net) { e.input.x = e.netInput || 0; return; }
     if (player && player.vanish > 0 && me.grounded) {
       // New Moon: the hero is gone; mill about where they were last seen
@@ -3897,7 +3924,7 @@ const Game = (() => {
     if (!f) return;
     f.swapT = Math.max(0, f.swapT - dt);
     f.comboT = Math.max(0, f.comboT - dt);
-    if (state !== 'play') { f.input.x = 0; return; }
+    if (state !== 'play' || counting()) { f.input.x = 0; return; }
     const mx = input.joyX || (input.right ? 1 : 0) - (input.left ? 1 : 0);
     f.input.x = mx;
     const q = input.queued;
@@ -3935,7 +3962,7 @@ const Game = (() => {
   }
 
   function press(action) {
-    if (state !== 'play' || paused || !player) return;
+    if (state !== 'play' || paused || !player || counting()) return;
     if (action === 'attack') input.attack = true;
     input.queued[action] = true;
   }
@@ -3947,7 +3974,7 @@ const Game = (() => {
 
   function selectSlot(i) {
     const f = player;
-    if (!f || state !== 'play' || i >= f.loadout.length || f.elIdx === i || f.swapT > 0) return false;
+    if (!f || state !== 'play' || counting() || i >= f.loadout.length || f.elIdx === i || f.swapT > 0) return false;
     f.elIdx = i; f.swapT = SWAP_CD;
     setPlayerElement(f, f.loadout[i]);
     return true;
@@ -3958,6 +3985,7 @@ const Game = (() => {
   function update(realDt) {
     time += realDt;
     if (paused || rhythmFreeze) return;
+    if (readyT > 0 && state === 'play') countTick(realDt);
     if (hitstop > 0) { hitstop -= realDt; return; }
     if (slowmo > 0) { slowmo -= realDt; timeScale = lerp(timeScale, 0.3, 0.2); } else timeScale = lerp(timeScale, 1, 0.1);
     shake = Math.max(0, shake - realDt * 40);

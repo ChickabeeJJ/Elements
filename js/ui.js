@@ -2060,6 +2060,17 @@ const UI = (() => {
     bindTouch();
 
     Game.hooks.onEnd = res => showResult(res);
+    // arena countdown: 3 · 2 · 1 · FIGHT, each slammed in over the frozen arena
+    let countTimer = 0;
+    Game.hooks.onCount = n => {
+      const c = $('count'), t = $('countText');
+      if (n === 3) { $('banner').classList.add('hidden'); clearTimeout(bannerTimer); }
+      t.textContent = n > 0 ? n : 'FIGHT!';
+      c.className = 'count' + (n > 0 ? '' : ' go');
+      t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+      clearTimeout(countTimer);
+      countTimer = setTimeout(() => c.classList.add('hidden'), n > 0 ? 760 : 950);
+    };
     Game.hooks.onRound = r => {
       $('chipSub').textContent = roundText(r);
       if (r.over) banner(r.won ? 'ROUND WON' : 'ROUND LOST', r.won ? '' : 'boss');
