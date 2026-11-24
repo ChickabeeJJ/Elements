@@ -2068,9 +2068,26 @@ const UI = (() => {
       t.textContent = n > 0 ? n : 'FIGHT!';
       c.className = 'count' + (n > 0 ? '' : ' go');
       t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+      centreRing(t);
       clearTimeout(countTimer);
       countTimer = setTimeout(() => c.classList.add('hidden'), n > 0 ? 760 : 950);
     };
+    // the ring sits on the glyphs' ink, not the text box (side bearings and line metrics shift it)
+    const ringCtx = document.createElement('canvas').getContext('2d');
+    function centreRing(t) {
+      const cs = getComputedStyle(t), fs = parseFloat(cs.fontSize), ls = parseFloat(cs.letterSpacing) || 0;
+      ringCtx.font = `${cs.fontWeight} ${fs}px ${cs.fontFamily}`;
+      const m = ringCtx.measureText(t.textContent);
+      const boxW = t.offsetWidth, boxH = t.offsetHeight;
+      const textW = m.width + ls * t.textContent.length;
+      const startX = (boxW - textW) / 2;
+      const inkCx = startX + (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
+      const fa = m.fontBoundingBoxAscent || fs * 0.935, fd = m.fontBoundingBoxDescent || fs * 0.25;
+      const base = (boxH - (fa + fd)) / 2 + fa;
+      const inkCy = base - (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+      t.style.setProperty('--rx', (inkCx - boxW / 2).toFixed(1) + 'px');
+      t.style.setProperty('--ry', (inkCy - boxH / 2).toFixed(1) + 'px');
+    }
     Game.hooks.onRound = r => {
       $('chipSub').textContent = roundText(r);
       if (r.over) banner(r.won ? 'ROUND WON' : 'ROUND LOST', r.won ? '' : 'boss');
